@@ -19,22 +19,15 @@ async function getShopifyToken() {
 }
 
 export default async function handler(req, res) {
-  // Security Handshake
   const authHeader = req.headers['x-loam-secret'];
-  if (authHeader !== process.env.CRON_SECRET) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
+  if (authHeader !== process.env.CRON_SECRET) return res.status(401).json({ error: 'Unauthorized' });
 
   try {
     const { data: rules, error } = await supabase.from('watcher_rules').select('*');
     if (error) throw error;
 
     const adminToken = await getShopifyToken();
-    
-    // Categorized Groups for the Email
-    let updated = [];
-    let attention = [];
-    let inSync = [];
+    let updated = [], attention = [], inSync = [];
 
     for (const rule of rules) {
       const vResponse = await fetch(`${rule.vendor_url}.js`);
@@ -50,68 +43,96 @@ export default async function handler(req, res) {
       });
 
       if (candidates.length > 0) {
+        // 1. VENDOR DATA
         const highestPriceVariant = candidates.reduce((prev, current) => (prev.price > current.price) ? prev : current);
         const vendorPrice = highestPriceVariant.price / 100;
+        const vendorAvailable = highestPriceVariant.available;
         const goalPrice = (vendorPrice * (rule.price_adjustment_factor || 1.0)).toFixed(2);
 
-        const sResponse = await fetch(`https://${process.env.SHOPIFY_SHOP_NAME}.myshopify.com/admin/api/2024-04/variants/${rule.shopify_variant_id}.json`, {
-          headers: { 'X-Shopify-Access-Token': adminToken }
+        // 2. SHOPIFY DATA (GraphQL used to get Product-level Metafields)
+        const sResponse = await fetch(`https://${process.env.SHOPIFY_SHOP_NAME}.myshopify.com/admin/api/2024-04/graphql.json`, {
+          method: 'POST',
+          headers: { 'X-Shopify-Access-Token': adminToken, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            query: `query($id: ID!) { 
+              productVariant(id: $id) { 
+                price 
+                inventoryPolicy 
+                inventoryQuantity 
+                product { 
+                  outOfStockAction: metafield(namespace: "custom", key: "out_of_stock_action") { value } 
+                } 
+              } 
+            }`,
+            variables: { id: `gid://shopify/ProductVariant/${rule.shopify_variant_id}` }
+          })
         });
         const sData = await sResponse.json();
-        const myCurrentPrice = parseFloat(sData.variant.price).toFixed(2);
+        const variant = sData.data.productVariant;
+        const myPrice = parseFloat(variant.price).toFixed(2);
+        const myPolicy = variant.inventoryPolicy; // 'CONTINUE' or 'DENY'
+        const myQty = variant.inventoryQuantity;
+        const outOfStockAction = variant.product.outOfStockAction?.value || 'Make Unavailable (Track Inventory)';
 
-        const itemResult = { 
-          title: rule.title, 
-          vendor: vendorPrice, 
-          mine: myCurrentPrice, 
-          goal: goalPrice,
-          matched_on: highestPriceVariant.public_title 
-        };
+        // 3. LOGIC DETERMINATION
+        let needsUpdate = false;
+        let updatePayload = { id: rule.shopify_variant_id };
 
-        if (goalPrice !== myCurrentPrice) {
-          if (rule.auto_update === true) {
-            // EXECUTE UPDATE
-            await fetch(`https://${process.env.SHOPIFY_SHOP_NAME}.myshopify.com/admin/api/2024-04/variants/${rule.shopify_variant_id}.json`, {
-              method: 'PUT',
-              headers: { 'X-Shopify-Access-Token': adminToken, 'Content-Type': 'application/json' },
-              body: JSON.stringify({ variant: { id: rule.shopify_variant_id, price: goalPrice } })
-            });
-            updated.push(itemResult);
-          } else {
-            attention.push(itemResult);
-          }
-        } else {
-          inSync.push(itemResult);
+        // Price Logic
+        if (goalPrice !== myPrice) {
+          updatePayload.price = goalPrice;
+          needsUpdate = true;
         }
 
-        // Update Supabase memory
-        await supabase.from('watcher_rules').update({ 
-          last_price: Math.round(vendorPrice * 100), 
-          last_run_at: new Date() 
-        }).eq('id', rule.id);
+        // Availability Logic (BTI ALIGNED)
+        if (!vendorAvailable) {
+           if (outOfStockAction === 'Make Unavailable (Track Inventory)') {
+              if (myPolicy !== 'DENY' || myQty > 0) {
+                updatePayload.inventory_policy = 'deny';
+                updatePayload.inventory_quantity = 0;
+                needsUpdate = true;
+              }
+           } else {
+              // Switch to Special Order -> Policy must be CONTINUE
+              if (myPolicy !== 'CONTINUE') {
+                updatePayload.inventory_policy = 'continue';
+                needsUpdate = true;
+              }
+           }
+        } else {
+          // Vendor is In Stock -> Ensure we can sell it
+          if (myPolicy !== 'CONTINUE') {
+            updatePayload.inventory_policy = 'continue';
+            needsUpdate = true;
+          }
+        }
+
+        // 4. EXECUTION
+        if (needsUpdate && rule.auto_update === true) {
+          await fetch(`https://${process.env.SHOPIFY_SHOP_NAME}.myshopify.com/admin/api/2024-04/variants/${rule.shopify_variant_id}.json`, {
+            method: 'PUT',
+            headers: { 'X-Shopify-Access-Token': adminToken, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ variant: updatePayload })
+          });
+          updated.push({ title: rule.title, reason: needsUpdate ? "Price/Stock Sync" : "" });
+        } else if (needsUpdate) {
+          attention.push({ title: rule.title });
+        } else {
+          inSync.push({ title: rule.title });
+        }
+
+        await supabase.from('watcher_rules').update({ last_price: Math.round(vendorPrice * 100), last_run_at: new Date() }).eq('id', rule.id);
       }
     }
 
-    // ONLY SEND EMAIL IF THERE ARE UPDATES OR MISMATCHES
     if (updated.length > 0 || attention.length > 0) {
-      const updatedHtml = updated.map(i => `<li style="color:green;">✅ <b>UPDATED:</b> ${i.title} - Now $${i.goal}</li>`).join('');
-      const attentionHtml = attention.map(i => `<li style="color:red;">⚠️ <b>MISMATCH:</b> ${i.title} - Vendor: $${i.vendor} | Mine: $${i.mine}</li>`).join('');
-      const syncHtml = inSync.map(i => `<li style="color:gray;">Verified: ${i.title} ($${i.mine})</li>`).join('');
-
+      const updatedHtml = updated.map(i => `<li>✅ <b>UPDATED:</b> ${i.title}</li>`).join('');
+      const attentionHtml = attention.map(i => `<li>⚠️ <b>MISMATCH:</b> ${i.title}</li>`).join('');
       await resend.emails.send({
         from: 'Watcher <system@loamlabsusa.com>',
         to: process.env.REPORT_EMAIL,
-        subject: `Vendor Price Report: ${updated.length} Update(s), ${attention.length} Mismatch(es)`,
-        html: `
-          <div style="font-family:sans-serif;">
-            <h2>LoamLabs Vendor Watcher Report</h2>
-            ${updated.length > 0 ? `<h3>🚀 Automated Updates</h3><ul>${updatedHtml}</ul>` : ''}
-            ${attention.length > 0 ? `<h3>⚠️ Manual Attention Required</h3><ul>${attentionHtml}</ul>` : ''}
-            <hr>
-            <h3>✅ Items In Sync</h3>
-            <ul>${syncHtml}</ul>
-          </div>
-        `
+        subject: `Vendor Watcher Report: ${updated.length} Syncs`,
+        html: `<div style="font-family:sans-serif;"><h2>Report</h2><ul>${updatedHtml}${attentionHtml}</ul></div>`
       });
     }
 
