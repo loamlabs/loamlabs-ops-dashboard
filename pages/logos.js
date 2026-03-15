@@ -5,7 +5,7 @@ export default function BrandingCenter() {
   const [vendors, setVendors] = useState([]);
   const [savedLogos, setSavedLogos] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(null); // Tracks which vendor is saving
+  const [saving, setSaving] = useState(null); 
 
   useEffect(() => {
     const auth = localStorage.getItem('loam_ops_auth');
@@ -15,13 +15,11 @@ export default function BrandingCenter() {
 
   const fetchData = async (auth) => {
     try {
-      // 1. Get all vendors currently in Shopify
       const vRes = await fetch('/api/search-products?query='); 
       const vData = await vRes.json();
       const uniqueVendors = [...new Set(vData.map(p => p.node.vendor))].sort();
       setVendors(uniqueVendors);
 
-      // 2. Get saved logos from Supabase
       const lRes = await fetch('/api/get-logos', { headers: { 'x-dashboard-auth': auth } });
       const lData = await lRes.json();
       setSavedLogos(lData.savedLogos || []);
@@ -40,7 +38,6 @@ export default function BrandingCenter() {
         body: JSON.stringify({ name: vendorName, logo_url: url })
       });
       if (res.ok) {
-        // Update local state to show the change immediately
         setSavedLogos(prev => {
           const existing = prev.find(l => l.name === vendorName);
           if (existing) return prev.map(l => l.name === vendorName ? { ...l, logo_url: url } : l);
@@ -70,7 +67,7 @@ export default function BrandingCenter() {
             return (
               <div key={vendor} className="bg-white p-6 rounded-[2rem] border border-zinc-200 flex items-center gap-8 group hover:shadow-xl transition-all">
                 <div className="w-20 h-20 bg-zinc-50 rounded-[1.5rem] flex items-center justify-center overflow-hidden border border-zinc-100">
-                  {logo?.logo_url ? <img src={logo.logo_url} className="w-full h-full object-contain p-2" /> : <ImageIcon className="text-zinc-200" />}
+                  {logo?.logo_url ? <img src={logo.logo_url} className="w-full h-full object-contain p-2" alt="" /> : <ImageIcon className="text-zinc-200" />}
                 </div>
                 
                 <div className="flex-grow">
