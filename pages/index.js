@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldAlert, CheckCircle, AlertTriangle, RefreshCcw, Power, Search, Package, ShieldCheck, UserCheck, Plus, X, Info, Image as ImageIcon, Loader2, LogOut, ChevronUp, Trash2 } from 'lucide-react';
+import { RefreshCcw, Search, Package, ShieldCheck, Plus, X, Info, Image as ImageIcon, Loader2, LogOut, ChevronUp, Trash2 } from 'lucide-react';
 
 export default function OpsDashboard() {
   const [editingRule, setEditingRule] = useState(null);
@@ -32,7 +32,8 @@ export default function OpsDashboard() {
     try {
       const res = await fetch('/api/get-rules', { headers: { 'x-dashboard-auth': auth } });
       if (res.ok) { 
-        setRules(await res.json());
+        const data = await res.json();
+        setRules(data);
         localStorage.setItem('loam_ops_auth', auth);
         const logoRes = await fetch('/api/get-logos', { headers: { 'x-dashboard-auth': auth } });
         const logoData = await logoRes.json();
@@ -103,7 +104,6 @@ export default function OpsDashboard() {
     fetchRules();
   };
 
-  // VENDOR LOGIC: Gets unique vendors from the registry and checks for hidden status
   const visibleVendorNames = ['All', ...new Set(rules.map(r => r.vendor_name).filter(Boolean))];
 
   const filteredRules = filterVendor === 'All' ? rules : rules.filter(r => r.vendor_name === filterVendor);
@@ -188,7 +188,7 @@ export default function OpsDashboard() {
                         <div className="group relative">
                           <Info size={14} className="text-zinc-300 hover:text-black transition-colors cursor-help" />
                           <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block w-64 bg-black text-white text-[10px] p-3 rounded-xl z-50 shadow-2xl font-mono leading-relaxed border border-zinc-800">
-                            <div className="text-zinc-500 mb-1 uppercase font-black">Last System Log:</div>
+                            <div className="text-zinc-500 mb-1 uppercase font-black font-sans tracking-widest">System Log:</div>
                             {rule.last_log}
                           </div>
                         </div>
@@ -201,27 +201,10 @@ export default function OpsDashboard() {
                   </td>
                   <td className="p-6 font-mono font-bold text-lg text-zinc-700">${(rule.last_price / 100).toFixed(2)}</td>
                   <td className="p-6 flex justify-end items-center gap-4">
-  <button 
-    onClick={() => toggleAutoSync(rule.id, rule.auto_update)} 
-    className={`w-12 h-6 rounded-full p-1 flex items-center transition-all ${rule.auto_update ? 'bg-black justify-end shadow-inner' : 'bg-zinc-300 justify-start'}`}
-  >
-    <div className="w-4 h-4 bg-white rounded-full shadow-md"></div>
-  </button>
-  
-  <button 
-  onClick={() => setEditingRule(rule)} 
-  className="bg-zinc-100 hover:bg-black hover:text-white text-zinc-600 px-3 py-1 rounded-lg text-[10px] font-black uppercase transition-all"
->
-  Edit
-</button>
-  
-  <button 
-    onClick={() => deleteRule(rule.id)} 
-    className="text-zinc-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
-  >
-    <Trash2 size={18} />
-  </button>
-</td>
+                    <button onClick={() => toggleAutoSync(rule.id, rule.auto_update)} className={`w-12 h-6 rounded-full p-1 flex items-center transition-all ${rule.auto_update ? 'bg-black justify-end shadow-inner' : 'bg-zinc-300 justify-start'}`}><div className="w-4 h-4 bg-white rounded-full shadow-md"></div></button>
+                    <button onClick={() => setEditingRule(rule)} className="bg-zinc-100 hover:bg-black hover:text-white text-zinc-600 px-3 py-1 rounded-lg text-[10px] font-black uppercase transition-all">Edit</button>
+                    <button onClick={() => deleteRule(rule.id)} className="text-zinc-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"><Trash2 size={18} /></button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -245,10 +228,10 @@ export default function OpsDashboard() {
 
         {editingRule && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden text-sm">
+            <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden text-sm border border-zinc-800 shadow-2xl animate-in fade-in zoom-in-95">
               <div className="p-6 border-b flex justify-between items-center bg-zinc-50">
                 <h3 className="text-xl font-black uppercase italic tracking-tighter">Edit Configuration</h3>
-                <button onClick={() => setEditingRule(null)}><X size={20}/></button>
+                <button onClick={() => setEditingRule(null)} className="hover:rotate-90 transition-all"><X size={20}/></button>
               </div>
               <div className="p-8 space-y-6">
                 <div>
