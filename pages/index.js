@@ -105,7 +105,6 @@ export default function OpsDashboard() {
   };
 
   const visibleVendorNames = ['All', ...new Set(rules.map(r => r.vendor_name).filter(Boolean))];
-
   const filteredRules = filterVendor === 'All' ? rules : rules.filter(r => r.vendor_name === filterVendor);
 
   if (!isAuthorized) {
@@ -228,20 +227,36 @@ export default function OpsDashboard() {
 
         {editingRule && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden text-sm border border-zinc-800 shadow-2xl animate-in fade-in zoom-in-95">
+            <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden text-sm border border-zinc-800 shadow-2xl animate-in fade-in zoom-in-95">
               <div className="p-6 border-b flex justify-between items-center bg-zinc-50">
-                <h3 className="text-xl font-black uppercase italic tracking-tighter">Edit Configuration</h3>
+                <h3 className="text-xl font-black uppercase italic tracking-tighter">Edit Rule: {editingRule.title}</h3>
                 <button onClick={() => setEditingRule(null)} className="hover:rotate-90 transition-all"><X size={20}/></button>
               </div>
-              <div className="p-8 space-y-6">
+              <div className="p-8 space-y-6 max-h-[70vh] overflow-y-auto">
+                <div>
+                  <label className="text-[10px] font-black uppercase text-zinc-400 mb-2 block tracking-widest italic">Internal Title</label>
+                  <input type="text" className="w-full p-4 bg-zinc-100 rounded-xl font-bold outline-none border-2 border-transparent focus:border-black transition-all" value={editingRule.title} onChange={(e) => setEditingRule({...editingRule, title: e.target.value})} />
+                </div>
                 <div>
                   <label className="text-[10px] font-black uppercase text-zinc-400 mb-2 block tracking-widest italic">Vendor Product URL</label>
                   <input type="text" className="w-full p-4 bg-zinc-100 rounded-xl font-mono text-xs outline-none border-2 border-transparent focus:border-black transition-all" value={editingRule.vendor_url} onChange={(e) => setEditingRule({...editingRule, vendor_url: e.target.value})} />
                 </div>
-                <div>
-                  <label className="text-[10px] font-black uppercase text-zinc-400 mb-2 block tracking-widest italic">Price Adjustment (Builder Buffer)</label>
-                  <input type="number" step="0.0001" className="w-full p-4 bg-zinc-100 rounded-xl font-bold outline-none border-2 border-transparent focus:border-black transition-all" value={editingRule.price_adjustment_factor || 1.1111} onChange={(e) => setEditingRule({...editingRule, price_adjustment_factor: e.target.value})} />
-                  <p className="text-[9px] text-zinc-400 mt-2 font-medium">Standard is 1.1111 (Offsets the 10% builder discount).</p>
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="text-[10px] font-black uppercase text-zinc-400 mb-2 block tracking-widest italic">Price Adjustment</label>
+                        <input type="number" step="0.0001" className="w-full p-4 bg-zinc-100 rounded-xl font-bold outline-none border-2 border-transparent focus:border-black transition-all" value={editingRule.price_adjustment_factor || 1.1111} onChange={(e) => setEditingRule({...editingRule, price_adjustment_factor: e.target.value})} />
+                    </div>
+                    <div>
+                        <label className="text-[10px] font-black uppercase text-zinc-400 mb-2 block tracking-widest italic">Safety Threshold</label>
+                        <input type="number" step="0.01" className="w-full p-4 bg-zinc-100 rounded-xl font-bold outline-none border-2 border-transparent focus:border-black transition-all" value={editingRule.price_drop_threshold || 0.20} onChange={(e) => setEditingRule({...editingRule, price_drop_threshold: e.target.value})} />
+                    </div>
+                </div>
+                <div className="flex items-center justify-between p-4 bg-zinc-50 rounded-xl border-2 border-zinc-100">
+                    <div>
+                        <div className="font-bold uppercase text-xs">Needs Manual Review</div>
+                        <div className="text-[10px] text-zinc-400">Force "Review Required" status</div>
+                    </div>
+                    <button onClick={() => setEditingRule({...editingRule, needs_review: !editingRule.needs_review})} className={`w-12 h-6 rounded-full p-1 flex items-center transition-all ${editingRule.needs_review ? 'bg-red-500 justify-end' : 'bg-zinc-300 justify-start'}`}><div className="w-4 h-4 bg-white rounded-full shadow-md"></div></button>
                 </div>
                 <button onClick={() => updateRule(editingRule.id, editingRule)} className="w-full bg-black text-white font-black p-5 rounded-2xl uppercase tracking-widest hover:bg-zinc-800 transition-all shadow-xl italic">Save Changes</button>
               </div>
