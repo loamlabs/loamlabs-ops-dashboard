@@ -2,9 +2,6 @@ import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
-// Helper to strip "h", "hole", etc. and just get the number (28h -> 28)
-const clean = (str) => str.toString().replace(/\D/g, '');
-
 async function getShopifyToken() {
   const response = await fetch(`https://${process.env.SHOPIFY_SHOP_NAME}.myshopify.com/admin/oauth/access_token`, {
     method: 'POST',
@@ -31,15 +28,29 @@ export default async function handler(req, res) {
       const vResponse = await fetch(`${rule.vendor_url}.js`);
       const vData = await vResponse.json();
 
-      // SMARTER MATCHING:
+      // 1. Get the Spoke Number (e.g., "28")
+      const spokeNum = rule.option_values["Spoke Count"].replace(/\D/g, ''); 
+      const colorGoal = rule.option_values.Color.toLowerCase();
+
+      // 2. SMARTER KEYWORD MATCHING
       const variant = vData.variants.find(v => {
-        const colorMatch = v.public_title.toLowerCase().includes(rule.option_values.Color.toLowerCase());
-        const spokeMatch = clean(v.public_title) === clean(rule.option_values["Spoke Count"]);
-        return colorMatch && spokeMatch;
+        const title = v.public_title.toLowerCase();
+        
+        // It must contain the Color
+        const hasColor = title.includes(colorGoal);
+        
+        // It must contain the Spoke Number, but NOT as part of the axle (110)
+        // We look for "28" as a standalone word or segment
+        const hasSpoke = title.split('/').some(segment => segment.trim().startsWith(spokeNum));
+
+        // It should match the Position from your title (Front vs Rear)
+        const isFront = rule.title.toLowerCase().includes('front') && title.includes('front');
+        const isRear = rule.title.toLowerCase().includes('rear') && title.includes('rear');
+
+        return hasColor && hasSpoke && (isFront || isRear);
       });
 
       if (variant) {
-        // Fetch YOUR current price from Shopify
         const sResponse = await fetch(`https://${process.env.SHOPIFY_SHOP_NAME}.myshopify.com/admin/api/2024-04/variants/${rule.shopify_variant_id}.json`, {
           headers: { 'X-Shopify-Access-Token': adminToken }
         });
@@ -49,8 +60,8 @@ export default async function handler(req, res) {
           item: rule.title,
           vendor_price: variant.price / 100,
           loamlabs_price: parseFloat(sData.variant.price),
-          status: (variant.price / 100 == sData.variant.price) ? "PRICES MATCH" : "!!! PRICE MISMATCH !!!",
-          vendor_variant_name: variant.public_title
+          status: (variant.price / 100 == sData.variant.price) ? "MATCHED" : "PRICE MISMATCH",
+          details: `Found: ${variant.public_title}`
         });
 
         await supabase.from('watcher_rules').update({ 
@@ -59,9 +70,13 @@ export default async function handler(req, res) {
         }).eq('id', rule.id);
 
       } else {
+        // DIAGNOSTIC: If we fail, show the first 5 names Berd actually uses
+        const exampleNames = vData.variants.slice(0, 5).map(v => v.public_title);
         reports.push({ 
           item: rule.title, 
-          status: "FAILED: Could not find variant matching " + rule.option_values.Color + " and " + rule.option_values["Spoke Count"] 
+          status: "FAILED TO MATCH",
+          search_was_for: `Color: ${colorGoal}, Spoke: ${spokeNum}`,
+          berd_examples: exampleNames 
         });
       }
     }
