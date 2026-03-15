@@ -1,8 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { Resend } from 'resend';
-
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-const resend = new Resend(process.env.RESEND_API_KEY);
 
 const cleanNum = (str) => str ? str.toString().replace(/\D/g, '') : '';
 
@@ -29,11 +26,13 @@ export default async function handler(req, res) {
     if (error) throw error;
 
     const adminToken = await getShopifyToken();
-    let updated = [], attention = [], inSync = [];
+    let updatedCount = 0;
+    let attentionCount = 0;
 
     for (const rule of rules) {
       try {
         const vResponse = await fetch(`${rule.vendor_url}.js`);
+        if (!vResponse.ok) throw new Error("Vendor URL unreachable");
         const vData = await vResponse.json();
         const spokeGoal = cleanNum(rule.option_values["Spoke Count"]);
         const isFrontRule = rule.title.toLowerCase().includes('front');
@@ -50,7 +49,6 @@ export default async function handler(req, res) {
           const vendorPrice = highestPriceVariant.price / 100;
           const vendorAvailable = highestPriceVariant.available;
           
-          // Apply Adjustment Factor (Default 1.1111)
           const factor = rule.price_adjustment_factor || 1.1111;
           const goalPrice = parseFloat(vendorPrice * factor).toFixed(2);
 
@@ -58,12 +56,13 @@ export default async function handler(req, res) {
             method: 'POST',
             headers: { 'X-Shopify-Access-Token': adminToken, 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              query: `query($id: ID!) { productVariant(id: $id) { price compareAtPrice inventoryPolicy inventoryQuantity } }`,
+              query: `query($id: ID!) { productVariant(id: $id) { price compareAtPrice inventoryQuantity } }`,
               variables: { id: `gid://shopify/ProductVariant/${rule.shopify_variant_id}` }
             })
           });
           const sData = await sResponse.json();
           const variant = sData.data.productVariant;
+          if (!variant) throw new Error("Shopify variant not found");
           
           const myPrice = parseFloat(variant.price).toFixed(2);
           const myComparePrice = variant.compareAtPrice ? parseFloat(variant.compareAtPrice).toFixed(2) : null;
@@ -73,11 +72,10 @@ export default async function handler(req, res) {
           let reasons = [];
           let marginAlert = false;
 
-          // Margin Check
           const priceDropPercent = (myPrice - goalPrice) / myPrice;
           if (priceDropPercent > (rule.price_drop_threshold || 0.20)) {
              marginAlert = true;
-             reasons.push(`MARGIN ALERT: ${Math.round(priceDropPercent * 100)}% drop.`);
+             reasons.push(`MARGIN ALERT: ${Math.round(priceDropPercent * 100)}% drop detected.`);
           }
 
           if (goalPrice !== myPrice && !marginAlert) {
@@ -86,39 +84,33 @@ export default async function handler(req, res) {
               const gap = parseFloat(myComparePrice) - parseFloat(myPrice);
               updatePayload.compare_at_price = (parseFloat(goalPrice) + gap).toFixed(2);
             }
-            reasons.push(`Price Sync: $${myPrice} → $${goalPrice}`);
+            reasons.push(`Sync $${myPrice} to $${goalPrice}`);
             needsUpdate = true;
           }
 
-          // Execute Update
           if (needsUpdate && rule.auto_update === true && !marginAlert) {
             await fetch(`https://${process.env.SHOPIFY_SHOP_NAME}.myshopify.com/admin/api/2024-04/variants/${rule.shopify_variant_id}.json`, {
               method: 'PUT',
               headers: { 'X-Shopify-Access-Token': adminToken, 'Content-Type': 'application/json' },
               body: JSON.stringify({ variant: updatePayload })
             });
-            updated.push({ title: rule.title, reasons: reasons.join(', ') });
+            updatedCount++;
           } else if (needsUpdate || marginAlert) {
-            attention.push({ title: rule.title, reasons: reasons.join(', ') });
+            attentionCount++;
             if (marginAlert) await supabase.from('watcher_rules').update({ needs_review: true, review_reason: reasons[0] }).eq('id', rule.id);
-          } else {
-            inSync.push({ title: rule.title, myPrice });
           }
 
-          // Update Rule Record and Log
           await supabase.from('watcher_rules').update({ 
             last_price: Math.round(vendorPrice * 100), 
             last_availability: vendorAvailable,
             last_run_at: new Date().toISOString(),
-            last_log: marginAlert ? reasons[0] : `Vendor $${vendorPrice} matched. Loam Price: $${goalPrice}. Status: ${needsUpdate ? 'Updated Shopify' : 'In Sync'}`
+            last_log: marginAlert ? reasons[0] : `Matched $${vendorPrice}. Goal $${goalPrice}. ${needsUpdate ? 'Shopify updated.' : 'In sync.'}`
           }).eq('id', rule.id);
         }
       } catch (innerErr) {
-        console.error(`Error on rule ${rule.title}:`, innerErr);
         await supabase.from('watcher_rules').update({ last_log: `Error: ${innerErr.message}` }).eq('id', rule.id);
       }
     }
-
-    res.status(200).json({ updated: updated.length, attention: attention.length });
+    res.status(200).json({ updatedCount, attentionCount });
   } catch (err) { res.status(500).json({ error: err.message }); }
 }
