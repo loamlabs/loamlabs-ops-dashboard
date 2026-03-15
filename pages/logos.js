@@ -18,27 +18,23 @@ export default function BrandingCenter() {
     setLoading(true);
     setError(null);
     try {
-      // 1. Fetch Vendors from Shopify
       const vRes = await fetch('/api/search-products?query='); 
       const vData = await vRes.json();
       
       if (vData.error) throw new Error(vData.error);
       
-      // Shopify discovery: Handle various possible array formats
-      const rawNodes = Array.isArray(vData) ? vData : vData.edges ? vData.edges : [];
-      
-      if (rawNodes.length === 0) {
-          throw new Error("Shopify returned 0 products. Check your private app credentials.");
+      // Safety: vData is expected to be an array of { node: { vendor: '...' } }
+      if (!Array.isArray(vData) || vData.length === 0) {
+          throw new Error("No products found in Shopify. Verify API Permissions.");
       }
 
-      const uniqueVendors = [...new Set(rawNodes.map(p => {
-          const item = p.node || p;
-          return item.vendor;
+      const uniqueVendors = [...new Set(vData.map(item => {
+          const vendorName = item.node?.vendor || item.vendor;
+          return vendorName;
       }))].filter(Boolean).sort();
       
       setVendors(uniqueVendors);
 
-      // 2. Fetch Logos from Supabase
       const lRes = await fetch('/api/get-logos', { headers: { 'x-dashboard-auth': auth } });
       const lData = await lRes.json();
       setSavedLogos(lData.savedLogos || []);
@@ -73,7 +69,7 @@ export default function BrandingCenter() {
   if (loading) return (
     <div className="min-h-screen bg-white flex items-center justify-center flex-col gap-4">
         <Loader2 className="animate-spin text-zinc-900" size={40} />
-        <span className="font-black uppercase italic text-[10px] tracking-widest animate-pulse">Syncing Shopify Catalog...</span>
+        <span className="font-black uppercase italic text-[10px] tracking-widest animate-pulse">Scanning Shopify Catalog...</span>
     </div>
   );
 
@@ -81,7 +77,7 @@ export default function BrandingCenter() {
     <div className="min-h-screen bg-zinc-50 flex items-center justify-center p-12 font-sans">
         <div className="bg-white p-12 rounded-[3rem] shadow-2xl border border-red-100 text-center max-w-md">
             <AlertTriangle className="mx-auto text-red-500 mb-6" size={60} />
-            <h2 className="text-2xl font-black uppercase italic mb-4 tracking-tighter">Discovery Offline</h2>
+            <h2 className="text-2xl font-black uppercase italic mb-4 tracking-tighter">Discovery Issue</h2>
             <div className="bg-red-50 p-4 rounded-2xl mb-8 border border-red-100">
                 <p className="text-red-800 text-[10px] font-mono leading-relaxed">{error}</p>
             </div>
