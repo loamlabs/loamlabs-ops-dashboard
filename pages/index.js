@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ShieldAlert, CheckCircle, AlertTriangle, RefreshCcw, Power, Search, Package, ShieldCheck, UserCheck, Plus, X, Info, Image as ImageIcon, Loader2, LogOut, ChevronUp, Trash2 } from 'lucide-react';
 
 export default function OpsDashboard() {
+  const [editingRule, setEditingRule] = useState(null);
   const [activeTab, setActiveTab] = useState('vendors');
   const [rules, setRules] = useState([]);
   const [vendorLogos, setVendorLogos] = useState([]);
@@ -86,7 +87,7 @@ export default function OpsDashboard() {
     fetchRules();
   };
 
-  const visibleVendorNames = ['All', ...new Set(rules.map(r => r.vendor_name).filter(name => {
+  const visibleVendorNames = ['All', ...new Set(rules.map(r => r.vendor_name).filter(Boolean))];
     if (!name) return false;
     const logo = vendorLogos.find(l => l.name === name);
     return logo ? !logo.is_hidden : true;
