@@ -69,15 +69,21 @@ export default async function handler(req, res) {
       }
     }
 
-    // SEND EMAIL REPORT
-    const emailHtml = reports.map(r => `<li><b>${r.item}</b>: Vendor: $${r.vendor} | Mine: $${r.mine} | <b>${r.action}</b></li>`).join('');
-    await resend.emails.send({
-      from: 'Watcher <system@loamlabsusa.com>',
-      to: process.env.REPORT_EMAIL,
-      subject: `Daily Vendor Price Report - ${new Date().toLocaleDateString()}`,
-      html: `<h3>LoamLabs Vendor Watcher Report</h3><ul>${emailHtml}</ul>`
-    });
+    // DIAGNOSTIC EMAIL SEND
+    let emailStatus = "Not Sent";
+    try {
+      const emailHtml = reports.map(r => `<li><b>${r.item}</b>: Vendor: $${r.vendor} | Mine: $${r.mine} | <b>${r.action}</b></li>`).join('');
+      const emailResponse = await resend.emails.send({
+        from: 'onboarding@resend.dev', // Using the Resend test address to bypass domain blocks
+        to: process.env.REPORT_EMAIL,
+        subject: `TEST: Vendor Price Report - ${new Date().toLocaleDateString()}`,
+        html: `<h3>LoamLabs Vendor Watcher Report</h3><ul>${emailHtml}</ul>`
+      });
+      emailStatus = emailResponse.error ? `Error: ${emailResponse.error.message}` : "Sent Successfully";
+    } catch (emailErr) {
+      emailStatus = `Crash: ${emailErr.message}`;
+    }
 
-    res.status(200).json(reports);
+    res.status(200).json({ reports, email_status: emailStatus });
   } catch (err) { res.status(500).json({ error: err.message }); }
 }
