@@ -28,26 +28,25 @@ export default async function handler(req, res) {
       const vResponse = await fetch(`${rule.vendor_url}.js`);
       const vData = await vResponse.json();
 
-      // 1. Get the Spoke Number (e.g., "28")
-      const spokeNum = rule.option_values["Spoke Count"].replace(/\D/g, ''); 
-      const colorGoal = rule.option_values.Color.toLowerCase();
-
-      // 2. SMARTER KEYWORD MATCHING
       const variant = vData.variants.find(v => {
         const title = v.public_title.toLowerCase();
         
-        // It must contain the Color
-        const hasColor = title.includes(colorGoal);
-        
-        // It must contain the Spoke Number, but NOT as part of the axle (110)
-        // We look for "28" as a standalone word or segment
-        const hasSpoke = title.split('/').some(segment => segment.trim().startsWith(spokeNum));
+        // 1. Spoke Check (Finds "28" regardless of "h", "Hole", or "Spoke")
+        const spokeNum = rule.option_values["Spoke Count"] ? rule.option_values["Spoke Count"].replace(/\D/g, '') : null;
+        const spokeMatch = spokeNum ? title.includes(spokeNum) : true;
 
-        // It should match the Position from your title (Front vs Rear)
+        // 2. Color Check (Only checks if color is present in vendor title)
+        const colorMatch = rule.option_values.Color ? title.includes(rule.option_values.Color.toLowerCase()) : true;
+
+        // 3. Freehub Check (Critical for Rear Hubs)
+        const freehubGoal = rule.option_values.Freehub ? rule.option_values.Freehub.toLowerCase() : null;
+        const freehubMatch = freehubGoal ? title.includes(freehubGoal) : true;
+
+        // 4. Position Check
         const isFront = rule.title.toLowerCase().includes('front') && title.includes('front');
-        const isRear = rule.title.toLowerCase().includes('rear') && title.includes('rear');
+        const isRear = rule.title.toLowerCase().includes('rear') && (title.includes('rear') || title.includes('hg') || title.includes('xd') || title.includes('ms'));
 
-        return hasColor && hasSpoke && (isFront || isRear);
+        return spokeMatch && colorMatch && freehubMatch && (isFront || isRear);
       });
 
       if (variant) {
@@ -61,22 +60,18 @@ export default async function handler(req, res) {
           vendor_price: variant.price / 100,
           loamlabs_price: parseFloat(sData.variant.price),
           status: (variant.price / 100 == sData.variant.price) ? "MATCHED" : "PRICE MISMATCH",
-          details: `Found: ${variant.public_title}`
+          matched_on: variant.public_title
         });
 
         await supabase.from('watcher_rules').update({ 
           last_price: variant.price, 
           last_run_at: new Date().toISOString() 
         }).eq('id', rule.id);
-
       } else {
-        // DIAGNOSTIC: If we fail, show the first 5 names Berd actually uses
-        const exampleNames = vData.variants.slice(0, 5).map(v => v.public_title);
         reports.push({ 
           item: rule.title, 
-          status: "FAILED TO MATCH",
-          search_was_for: `Color: ${colorGoal}, Spoke: ${spokeNum}`,
-          berd_examples: exampleNames 
+          status: "NOT FOUND", 
+          debug: `Searched for Spoke: ${rule.option_values["Spoke Count"]}, Freehub: ${rule.option_values.Freehub || 'N/A'}`
         });
       }
     }
