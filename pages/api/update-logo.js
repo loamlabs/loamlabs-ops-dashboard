@@ -3,23 +3,29 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SER
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-  if (req.headers['x-dashboard-auth'] !== process.env.DASHBOARD_PASSWORD) return res.status(401).json({ error: 'Unauthorized' });
+  
+  // LOGGING: Check if auth matches
+  if (req.headers['x-dashboard-auth'] !== process.env.DASHBOARD_PASSWORD) {
+      console.error("Logo Update: Unauthorized attempt");
+      return res.status(401).json({ error: 'Unauthorized' });
+  }
 
   const { name, logo_url } = req.body;
-  if (!name) return res.status(400).json({ error: 'Vendor name is required' });
+  if (!name) return res.status(400).json({ error: 'Name is required' });
 
   try {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('vendor_logos')
-      .upsert(
-        { name, logo_url, updated_at: new Date() }, 
-        { onConflict: 'name' }
-      );
-      
-    if (error) throw error;
-    res.status(200).json({ success: true });
+      .upsert({ name, logo_url, updated_at: new Date() }, { onConflict: 'name' })
+      .select();
+
+    if (error) {
+        console.error("Supabase Error during Logo Update:", error);
+        throw error;
+    }
+    
+    res.status(200).json({ success: true, data });
   } catch (err) {
-    console.error("Supabase Error:", err.message);
     res.status(500).json({ error: err.message });
   }
 }
