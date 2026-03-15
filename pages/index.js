@@ -171,12 +171,14 @@ export default function OpsDashboard() {
 
         <div className="bg-white rounded-[2rem] shadow-sm border border-zinc-200 overflow-hidden text-sm">
           <table className="w-full text-left">
-            <thead className="bg-zinc-100 border-b text-[10px] uppercase font-black text-zinc-500 tracking-widest font-mono"><tr className="p-6">
-              <th className="p-6 italic tracking-tighter">Registry Item</th>
-              <th className="p-6 text-center">Status</th>
-              <th className="p-6">Memory</th>
-              <th className="p-6 text-right">Auto-Sync / Actions</th>
-            </tr></thead>
+            <thead className="bg-zinc-100 border-b text-[10px] uppercase font-black text-zinc-500 tracking-widest font-mono">
+              <tr>
+                <th className="p-6 italic tracking-tighter">Registry Item</th>
+                <th className="p-6 text-center">Status</th>
+                <th className="p-6">Memory</th>
+                <th className="p-6 text-right">Auto-Sync / Actions</th>
+              </tr>
+            </thead>
             <tbody className="divide-y divide-zinc-100">
               {filteredRules.map((rule) => (
                 <tr key={rule.id} className={`${rule.needs_review ? 'bg-red-50' : 'hover:bg-zinc-50'} transition-colors group`}>
@@ -269,5 +271,9 @@ export default function OpsDashboard() {
 }
 
 function SidebarLink({ icon, label, active, onClick }) {
-  return (<button onClick={onClick} className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-black text-xs uppercase tracking-tight ${active ? 'bg-white text-black shadow-xl scale-[1.03]' : 'hover:bg-zinc-900 text-zinc-600'}`}>{icon} {label}</button>);
+  return (
+    <button onClick={onClick} className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-black text-xs uppercase tracking-tight ${active ? 'bg-white text-black shadow-xl scale-[1.03]' : 'hover:bg-zinc-900 text-zinc-600'}`}>
+      {icon} {label}
+    </button>
+  );
 }
