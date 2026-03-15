@@ -62,7 +62,7 @@ export default function OpsDashboard() {
     fetchRules();
   };
 
-const updateRule = async (id, updates) => {
+  const updateRule = async (id, updates) => {
     setLoading(true);
     try {
       const res = await fetch('/api/update-rule', {
@@ -103,7 +103,8 @@ const updateRule = async (id, updates) => {
     fetchRules();
   };
 
-  const visibleVendorNames = ['All', ...new Set(rules.map(r => r.vendor_name).filter(Boolean))];
+  // FIXED VENDOR LOGIC: Gets unique vendors from the registry and checks for hidden status
+  const visibleVendorNames = ['All', ...new Set(rules.map(r => r.vendor_name).filter(name => {
     if (!name) return false;
     const logo = vendorLogos.find(l => l.name === name);
     return logo ? !logo.is_hidden : true;
@@ -129,7 +130,6 @@ const updateRule = async (id, updates) => {
     <div className="flex min-h-screen bg-zinc-50 font-sans text-zinc-900">
       <aside className="w-64 bg-black text-zinc-400 p-6 hidden md:flex flex-col border-r border-zinc-800 fixed h-full z-20">
         <div className="mb-12">
-          {/* LOGO FIX: Removed invert since your logo is already white */}
           <img src="/logo.png" alt="LoamLabs" className="h-10 mb-4 object-contain opacity-100" />
           <div className="font-black italic text-xl text-white tracking-tighter uppercase">Ops Dashboard</div>
         </div>
@@ -167,7 +167,7 @@ const updateRule = async (id, updates) => {
             const logo = vendorLogos.find(l => l.name === v);
             return (
               <button key={v} onClick={() => setFilterVendor(v)} className={`flex items-center gap-3 px-5 py-2 rounded-full border-2 transition-all whitespace-nowrap ${filterVendor === v ? 'bg-black text-white border-black shadow-lg scale-105 font-black' : 'bg-white text-zinc-500 border-zinc-100 hover:border-zinc-300 font-bold'}`}>
-                {logo?.logo_url && <img src={logo.logo_url} className="h-4 w-auto object-contain" />}
+                {logo?.logo_url && <img src={logo.logo_url} className="h-4 w-auto object-contain" alt="" />}
                 <span className="text-[10px] uppercase tracking-widest">{v}</span>
               </button>
             );
@@ -180,7 +180,7 @@ const updateRule = async (id, updates) => {
               <th className="p-6 italic tracking-tighter">Registry Item</th>
               <th className="p-6 text-center">Status</th>
               <th className="p-6">Memory</th>
-              <th className="p-6 text-right">Auto-Sync / Delete</th>
+              <th className="p-6 text-right">Auto-Sync / Actions</th>
             </tr></thead>
             <tbody className="divide-y divide-zinc-100">
               {filteredRules.map((rule) => (
@@ -229,7 +229,8 @@ const updateRule = async (id, updates) => {
             </div>
           </div>
         )}
-          {editingRule && (
+
+        {editingRule && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden text-sm">
               <div className="p-6 border-b flex justify-between items-center bg-zinc-50">
