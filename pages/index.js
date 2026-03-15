@@ -103,12 +103,8 @@ export default function OpsDashboard() {
     fetchRules();
   };
 
-  // FIXED VENDOR LOGIC: Gets unique vendors from the registry and checks for hidden status
-  const visibleVendorNames = ['All', ...new Set(rules.map(r => r.vendor_name).filter(name => {
-    if (!name) return false;
-    const logo = vendorLogos.find(l => l.name === name);
-    return logo ? !logo.is_hidden : true;
-  }))];
+  // VENDOR LOGIC: Gets unique vendors from the registry and checks for hidden status
+  const visibleVendorNames = ['All', ...new Set(rules.map(r => r.vendor_name).filter(Boolean))];
 
   const filteredRules = filterVendor === 'All' ? rules : rules.filter(r => r.vendor_name === filterVendor);
 
@@ -204,11 +200,28 @@ export default function OpsDashboard() {
                     {rule.needs_review ? <span className="bg-red-600 text-white text-[9px] font-black px-3 py-1 rounded-full animate-pulse uppercase tracking-tighter">Review Required</span> : rule.last_availability ? <span className="bg-green-100 text-green-700 text-[9px] font-black px-3 py-1 rounded-full uppercase italic font-black">Active</span> : <span className="bg-zinc-200 text-zinc-600 text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-tighter">Out of Stock</span>}
                   </td>
                   <td className="p-6 font-mono font-bold text-lg text-zinc-700">${(rule.last_price / 100).toFixed(2)}</td>
-                  <td className="p-6 flex justify-end items-center gap-6">
-                    <button onClick={() => toggleAutoSync(rule.id, rule.auto_update)} className={`w-12 h-6 rounded-full p-1 flex items-center transition-all ${rule.auto_update ? 'bg-black justify-end shadow-inner' : 'bg-zinc-300 justify-start'}`}><div className="w-4 h-4 bg-white rounded-full shadow-md"></div></button>
-                    <button onClick={() => setEditingRule(rule)} className="text-zinc-300 hover:text-black transition-colors"><Plus size={18} className="rotate-45" /></button>
-                    <button onClick={() => deleteRule(rule.id)} className="text-zinc-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"><Trash2 size={18} /></button>
-                  </td>
+                  <td className="p-6 flex justify-end items-center gap-4">
+  <button 
+    onClick={() => toggleAutoSync(rule.id, rule.auto_update)} 
+    className={`w-12 h-6 rounded-full p-1 flex items-center transition-all ${rule.auto_update ? 'bg-black justify-end shadow-inner' : 'bg-zinc-300 justify-start'}`}
+  >
+    <div className="w-4 h-4 bg-white rounded-full shadow-md"></div>
+  </button>
+  
+  <button 
+  onClick={() => setEditingRule(rule)} 
+  className="bg-zinc-100 hover:bg-black hover:text-white text-zinc-600 px-3 py-1 rounded-lg text-[10px] font-black uppercase transition-all"
+>
+  Edit
+</button>
+  
+  <button 
+    onClick={() => deleteRule(rule.id)} 
+    className="text-zinc-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+  >
+    <Trash2 size={18} />
+  </button>
+</td>
                 </tr>
               ))}
             </tbody>
