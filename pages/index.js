@@ -62,6 +62,22 @@ export default function OpsDashboard() {
     fetchRules();
   };
 
+const updateRule = async (id, updates) => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/update-rule', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-dashboard-auth': password },
+        body: JSON.stringify({ id, updates })
+      });
+      if (res.ok) {
+        setEditingRule(null);
+        fetchRules();
+      }
+    } catch (e) { console.error(e); }
+    setLoading(false);
+  };
+  
   const searchShopify = async () => {
     const res = await fetch(`/api/search-products?query=${searchQuery}`);
     setSearchResults(await res.json());
@@ -169,13 +185,28 @@ export default function OpsDashboard() {
             <tbody className="divide-y divide-zinc-100">
               {filteredRules.map((rule) => (
                 <tr key={rule.id} className={`${rule.needs_review ? 'bg-red-50' : 'hover:bg-zinc-50'} transition-colors group`}>
-                  <td className="p-6"><div className="font-bold text-zinc-900 text-base">{rule.title}</div><div className="text-[10px] text-zinc-400 font-mono mt-1 truncate max-w-sm">{rule.vendor_url}</div></td>
+                  <td className="p-6">
+                    <div className="flex items-center gap-2">
+                      <div className="font-bold text-zinc-900 text-base">{rule.title}</div>
+                      {rule.last_log && (
+                        <div className="group relative">
+                          <Info size={14} className="text-zinc-300 hover:text-black transition-colors cursor-help" />
+                          <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block w-64 bg-black text-white text-[10px] p-3 rounded-xl z-50 shadow-2xl font-mono leading-relaxed border border-zinc-800">
+                            <div className="text-zinc-500 mb-1 uppercase font-black">Last System Log:</div>
+                            {rule.last_log}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <div className="text-[10px] text-zinc-400 font-mono mt-1 truncate max-w-sm">{rule.vendor_url}</div>
+                  </td>
                   <td className="p-6 text-center">
                     {rule.needs_review ? <span className="bg-red-600 text-white text-[9px] font-black px-3 py-1 rounded-full animate-pulse uppercase tracking-tighter">Review Required</span> : rule.last_availability ? <span className="bg-green-100 text-green-700 text-[9px] font-black px-3 py-1 rounded-full uppercase italic font-black">Active</span> : <span className="bg-zinc-200 text-zinc-600 text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-tighter">Out of Stock</span>}
                   </td>
                   <td className="p-6 font-mono font-bold text-lg text-zinc-700">${(rule.last_price / 100).toFixed(2)}</td>
                   <td className="p-6 flex justify-end items-center gap-6">
                     <button onClick={() => toggleAutoSync(rule.id, rule.auto_update)} className={`w-12 h-6 rounded-full p-1 flex items-center transition-all ${rule.auto_update ? 'bg-black justify-end shadow-inner' : 'bg-zinc-300 justify-start'}`}><div className="w-4 h-4 bg-white rounded-full shadow-md"></div></button>
+                    <button onClick={() => setEditingRule(rule)} className="text-zinc-300 hover:text-black transition-colors"><Plus size={18} className="rotate-45" /></button>
                     <button onClick={() => deleteRule(rule.id)} className="text-zinc-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"><Trash2 size={18} /></button>
                   </td>
                 </tr>
@@ -195,6 +226,28 @@ export default function OpsDashboard() {
                   <div><label className="text-[10px] font-black uppercase text-zinc-400 mb-3 block tracking-widest italic text-center font-black">3. Meta</label><input type="text" placeholder="Vendor Product URL" className="w-full p-5 bg-zinc-100 rounded-2xl mb-3 outline-none focus:ring-2 focus:ring-black font-mono text-xs shadow-inner" value={vendorUrl} onChange={(e) => setVendorUrl(e.target.value)} /><input type="text" placeholder="Freehub Keyword (Optional)" className="w-full p-5 bg-zinc-100 rounded-2xl outline-none focus:ring-2 focus:ring-black font-bold shadow-inner" value={freehubKeyword} onChange={(e) => setFreehubKeyword(e.target.value)} /></div>
                   <button onClick={handleSave} disabled={!selectedVariants.length || !vendorUrl} className="w-full bg-black text-white font-black p-6 rounded-[1.5rem] hover:bg-zinc-800 disabled:opacity-10 transition-all uppercase tracking-widest shadow-2xl text-lg italic tracking-widest">Create rules</button>
                </div>
+            </div>
+          </div>
+        )}
+          {editingRule && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden text-sm">
+              <div className="p-6 border-b flex justify-between items-center bg-zinc-50">
+                <h3 className="text-xl font-black uppercase italic tracking-tighter">Edit Configuration</h3>
+                <button onClick={() => setEditingRule(null)}><X size={20}/></button>
+              </div>
+              <div className="p-8 space-y-6">
+                <div>
+                  <label className="text-[10px] font-black uppercase text-zinc-400 mb-2 block tracking-widest italic">Vendor Product URL</label>
+                  <input type="text" className="w-full p-4 bg-zinc-100 rounded-xl font-mono text-xs outline-none border-2 border-transparent focus:border-black transition-all" value={editingRule.vendor_url} onChange={(e) => setEditingRule({...editingRule, vendor_url: e.target.value})} />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black uppercase text-zinc-400 mb-2 block tracking-widest italic">Price Adjustment (Builder Buffer)</label>
+                  <input type="number" step="0.0001" className="w-full p-4 bg-zinc-100 rounded-xl font-bold outline-none border-2 border-transparent focus:border-black transition-all" value={editingRule.price_adjustment_factor || 1.1111} onChange={(e) => setEditingRule({...editingRule, price_adjustment_factor: e.target.value})} />
+                  <p className="text-[9px] text-zinc-400 mt-2 font-medium">Standard is 1.1111 (Offsets the 10% builder discount).</p>
+                </div>
+                <button onClick={() => updateRule(editingRule.id, editingRule)} className="w-full bg-black text-white font-black p-5 rounded-2xl uppercase tracking-widest hover:bg-zinc-800 transition-all shadow-xl italic">Save Changes</button>
+              </div>
             </div>
           </div>
         )}
