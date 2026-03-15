@@ -51,7 +51,8 @@ export default async function handler(req, res) {
         const vendorAvailable = highestPriceVariant.available;
         
         // APPLY ADJUSTMENT (e.g. 1.11 to offset 10% discount)
-        const goalPrice = parseFloat(vendorPrice * (rule.price_adjustment_factor || 1.0)).toFixed(2);
+        const goalPrice = parseFloat(vendorPrice * (rule.price_adjustment_factor || 1.1111)).toFixed(2);
+
 
         const sResponse = await fetch(`https://${process.env.SHOPIFY_SHOP_NAME}.myshopify.com/admin/api/2024-04/graphql.json`, {
           method: 'POST',
