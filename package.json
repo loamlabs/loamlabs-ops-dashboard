@@ -1,5 +1,5 @@
 {
-  "name": "loamlabs-vendor-watcher",
+  "name": "loamlabs-ops-dashboard",
   "version": "1.0.0",
   "main": "api/sync.js",
   "dependencies": {
