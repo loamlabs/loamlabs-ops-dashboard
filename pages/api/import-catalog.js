@@ -1,6 +1,13 @@
 import { createClient } from '@supabase/supabase-js';
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
+const EXCLUDED_TAGS = [
+  'addon', 'component:freehub', 'component:spoke', 'component:valvestem', 
+  'component:nipple', 'tires', 'rotor', 'tubeless-tape', 'forgebond', 
+  'coloring-kit', 'wheelbuildingtools', 'fillmore-capkit', 'apparel', 
+  'loamlabs10', 'assembly-service'
+];
+
 async function getShopifyToken() {
   const response = await fetch(`https://${process.env.SHOPIFY_SHOP_NAME}.myshopify.com/admin/oauth/access_token`, {
     method: 'POST',
@@ -22,7 +29,7 @@ export default async function handler(req, res) {
     const adminToken = await getShopifyToken();
     let hasNextPage = true;
     let cursor = null;
-    let importedCount = 0;
+    let importedTotal = 0;
 
     while (hasNextPage) {
       const shopifyRes = await fetch(`https://${process.env.SHOPIFY_SHOP_NAME}.myshopify.com/admin/api/2024-04/graphql.json`, {
@@ -35,7 +42,7 @@ export default async function handler(req, res) {
               edges { 
                 cursor 
                 node { 
-                  id title vendor 
+                  id title vendor tags
                   variants(first: 1) { edges { node { id } } } 
                 } 
               } 
@@ -48,28 +55,35 @@ export default async function handler(req, res) {
       const data = await shopifyRes.json();
       const products = data.data.products.edges;
 
-      const rulesToUpsert = products.map(p => ({
-        shopify_product_id: p.node.id.split('/').pop(),
-        shopify_variant_id: p.node.variants.edges[0]?.node.id.split('/').pop(),
-        title: p.node.title,
-        vendor_name: p.node.vendor,
-        auto_update: false, // Default to OFF
-        site_type: 'SHOPIFY'
-      }));
+      // Filter out products that have any of the forbidden tags
+      const filteredProducts = products.filter(edge => {
+        const productTags = edge.node.tags.map(t => t.toLowerCase());
+        return !productTags.some(tag => EXCLUDED_TAGS.includes(tag));
+      });
 
-      // Bulk Upsert to Supabase (ignores existing Product IDs)
-      const { error } = await supabase
-        .from('watcher_rules')
-        .upsert(rulesToUpsert, { onConflict: 'shopify_product_id' });
+      if (filteredProducts.length > 0) {
+        const rulesToUpsert = filteredProducts.map(p => ({
+          shopify_product_id: p.node.id.split('/').pop(),
+          shopify_variant_id: p.node.variants.edges[0]?.node.id.split('/').pop(),
+          title: p.node.title,
+          vendor_name: p.node.vendor,
+          auto_update: false,
+          site_type: 'SHOPIFY'
+        }));
 
-      if (error) throw error;
+        const { error } = await supabase
+          .from('watcher_rules')
+          .upsert(rulesToUpsert, { onConflict: 'shopify_product_id' });
+
+        if (error) throw error;
+        importedTotal += filteredProducts.length;
+      }
       
-      importedCount += products.length;
       hasNextPage = data.data.products.pageInfo.hasNextPage;
       if (hasNextPage) cursor = products[products.length - 1].cursor;
     }
 
-    res.status(200).json({ success: true, count: importedCount });
+    res.status(200).json({ success: true, count: importedTotal });
 
   } catch (err) {
     res.status(500).json({ error: err.message });
