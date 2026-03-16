@@ -157,49 +157,62 @@ export default function OpsDashboard() {
           <h1 className="text-4xl font-black tracking-tight text-zinc-900 uppercase italic">Registry</h1>
           <div className="flex gap-2">
             <button 
-              onClick={async () => {
-                if(!confirm("Import shop catalog? (Duplicates and excluded tags will be skipped)")) return;
-                setLoading(true);
-                await fetch('/api/import-catalog', { headers: { 'x-dashboard-auth': password }});
-                fetchRules();
-                setLoading(false);
-              }} 
-              className="bg-zinc-100 text-zinc-900 p-3 px-6 rounded-xl font-bold flex items-center gap-2 hover:bg-zinc-200 transition-all shadow-sm"
-            >
-              <RefreshCcw size={18} className={loading ? "animate-spin" : ""} /> Import Shop
-            </button>
+  onClick={async () => {
+    if(!confirm("Import shop catalog? (Duplicates and excluded tags will be skipped)")) return;
+    setLoading(true);
+    try {
+      const res = await fetch('/api/import-catalog', { 
+        method: 'POST', // Forces bypass of cache
+        headers: { 'x-dashboard-auth': password }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert(`Successfully synced ${data.count} items into the Registry!`);
+        fetchRules();
+      } else {
+        alert(`Error: ${data.error}`);
+      }
+    } catch (e) {
+      alert("Import failed. Check Vercel logs.");
+    }
+    setLoading(false);
+  }} 
+  className="bg-zinc-100 text-zinc-900 p-3 px-6 rounded-xl font-bold flex items-center gap-2 hover:bg-zinc-200 transition-all shadow-sm"
+>
+  <RefreshCcw size={18} className={loading ? "animate-spin" : ""} /> Import Shop
+</button>
             <button onClick={() => setShowAddModal(true)} className="bg-black text-white p-3 px-6 rounded-xl font-bold flex items-center gap-2 shadow-xl hover:bg-zinc-800 transition-all"><Plus size={18} /> Add Component</button>
             <button onClick={() => fetchRules()} className="bg-white border-2 border-zinc-200 p-3 px-4 rounded-xl hover:border-black transition-all shadow-sm"><RefreshCcw size={18} className={loading ? "animate-spin" : ""} /></button>
           </div>
         </div>
 
         <div className="flex gap-3 mb-12 overflow-x-auto pb-6 no-scrollbar min-h-[70px] items-center">
-          {visibleVendorNames.map(v => {
-            const logo = vendorLogos.find(l => l.name.toLowerCase() === v.toLowerCase());
-            const isSelected = filterVendor === v;
-            
-            return (
-              <button 
-                key={v} 
-                onClick={() => setFilterVendor(v)} 
-                className={`flex items-center gap-3 px-6 py-3 rounded-2xl border-2 transition-all whitespace-nowrap h-12 ${
-                  isSelected 
-                    ? 'border-green-500 shadow-lg scale-105 bg-white' 
-                    : 'bg-white text-zinc-400 border-zinc-100 hover:border-zinc-300'
-                }`}
-              >
-                {logo?.logo_url ? (
-                  <img src={logo.logo_url} className="h-5 w-auto object-contain" alt="" />
-                ) : (
-                  <span className={`text-[10px] uppercase tracking-widest font-black ${isSelected ? 'text-black' : 'text-zinc-400'}`}>
-                    {v}
-                  </span>
-                )}
-                {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>}
-              </button>
-            );
-          })}
-        </div>
+  {visibleVendorNames.map(v => {
+    const logo = vendorLogos.find(l => l.name.toLowerCase() === v.toLowerCase());
+    const isSelected = filterVendor === v;
+    
+    return (
+      <button 
+        key={v} 
+        onClick={() => setFilterVendor(v)} 
+        className={`flex items-center gap-3 px-6 py-3 rounded-2xl border-2 transition-all whitespace-nowrap h-12 ${
+          isSelected 
+            ? 'border-green-500 shadow-lg scale-105 bg-white' 
+            : 'bg-white text-zinc-400 border-zinc-100 hover:border-zinc-300'
+        }`}
+      >
+        {logo?.logo_url ? (
+          <img src={logo.logo_url} className="h-5 w-auto object-contain" alt="" />
+        ) : (
+          <span className={`text-[10px] uppercase tracking-widest font-black ${isSelected ? 'text-black' : 'text-zinc-400'}`}>
+            {v}
+          </span>
+        )}
+        {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>}
+      </button>
+    );
+  })}
+</div>
 
         <div className="bg-white rounded-[2rem] shadow-sm border border-zinc-200 overflow-hidden text-sm">
           <table className="w-full text-left">
