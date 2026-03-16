@@ -1,25 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCcw, Search, Package, ShieldCheck, Plus, X, Info, Image as ImageIcon, Loader2, LogOut, ChevronUp, Trash2 } from 'lucide-react';
+import { RefreshCcw, Search, Package, ShieldCheck, Plus, X, Info, Image as ImageIcon, Loader2, LogOut, ChevronUp, Trash2, AlertCircle } from 'lucide-react';
 
 export default function OpsDashboard() {
   const [editingRule, setEditingRule] = useState(null);
-  const [activeTab, setActiveTab] = useState('vendors');
+  const [activeTab, setActiveTab] = useState('vendors'); // 'vendors' or 'audit'
   const [rules, setRules] = useState([]);
   const [vendorLogos, setVendorLogos] = useState([]);
   const [password, setPassword] = useState('');
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [selectedVendors, setSelectedVendors] = useState([]); // NEW: Multi-select array
+  const [selectedVendors, setSelectedVendors] = useState([]);
   const [registrySearch, setRegistrySearch] = useState(''); 
   const [showUserMenu, setShowUserMenu] = useState(false);
-
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState([]);
-  const [selectedProduct, setSelectedProduct] = useState(null);
-  const [selectedVariants, setSelectedVariants] = useState([]);
-  const [vendorUrl, setVendorUrl] = useState('');
-  const [freehubKeyword, setFreehubKeyword] = useState('');
+  const [visibleCount, setVisibleCount] = useState(50); // For Pagination
 
   useEffect(() => {
     const savedPass = localStorage.getItem('loam_ops_auth');
@@ -45,6 +38,22 @@ export default function OpsDashboard() {
     setLoading(false);
   };
 
+  const updateRule = async (id, updates) => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/update-rule', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-dashboard-auth': password },
+        body: JSON.stringify({ id, updates: { ...updates, price_adjustment_factor: parseFloat(updates.price_adjustment_factor) } })
+      });
+      if (res.ok) {
+        setEditingRule(null);
+        fetchRules();
+      }
+    } catch (e) { console.error(e); }
+    setLoading(false);
+  };
+
   const deleteRule = async (id) => {
     if (!confirm("⚠️ PERMANENT ACTION: Remove this item from the Registry?")) return;
     await fetch('/api/delete-rule', {
@@ -63,49 +72,7 @@ export default function OpsDashboard() {
     });
     fetchRules();
   };
-
-  const updateRule = async (id, updates) => {
-    setLoading(true);
-    try {
-      const res = await fetch('/api/update-rule', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-dashboard-auth': password },
-        body: JSON.stringify({ id, updates: { ...updates, price_adjustment_factor: parseFloat(updates.price_adjustment_factor) } })
-      });
-      if (res.ok) {
-        setEditingRule(null);
-        fetchRules();
-      }
-    } catch (e) { console.error(e); }
-    setLoading(false);
-  };
   
-  const searchShopify = async () => {
-    const res = await fetch(`/api/search-products?query=${searchQuery}`);
-    setSearchResults(await res.json());
-  };
-
-  const handleSave = async () => {
-    const newRules = selectedVariants.map(variant => ({
-      shopify_product_id: selectedProduct.id.split('/').pop(),
-      shopify_variant_id: variant.id.split('/').pop(),
-      title: `${selectedProduct.title} - ${variant.title}`,
-      vendor_name: selectedProduct.vendor,
-      vendor_url: vendorUrl,
-      site_type: 'SHOPIFY',
-      option_values: { "Spoke Count": variant.title, ...(freehubKeyword && { "Freehub": freehubKeyword }) },
-      auto_update: false
-    }));
-    await fetch('/api/create-rule', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-dashboard-auth': password },
-      body: JSON.stringify({ rules: newRules })
-    });
-    setShowAddModal(false);
-    fetchRules();
-  };
-
-  // --- LOGIC: VENDORS & FILTERING ---
   const toggleVendor = (name) => {
     setSelectedVendors(prev => 
       prev.includes(name) ? prev.filter(v => v !== name) : [...prev, name]
@@ -119,6 +86,8 @@ export default function OpsDashboard() {
     const matchesSearch = r.title.toLowerCase().includes(registrySearch.toLowerCase());
     return matchesVendor && matchesSearch;
   });
+
+  const paginatedRules = filteredRules.slice(0, visibleCount);
 
   if (!isAuthorized) {
     return (
@@ -160,139 +129,104 @@ export default function OpsDashboard() {
       </aside>
 
       <main className="flex-grow ml-64 p-6 md:p-12 overflow-auto min-h-screen">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-4xl font-black tracking-tight text-zinc-900 uppercase italic">Registry</h1>
-            <div className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mt-1">Found {filteredRules.length} items</div>
-          </div>
-          <div className="flex gap-2">
-            <div className="relative">
-                <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" />
-                <input 
-                  type="text" 
-                  placeholder="Quick search..." 
-                  className="bg-zinc-100 p-3 pl-12 rounded-xl outline-none focus:ring-2 focus:ring-black border-2 border-transparent transition-all font-bold text-xs w-64"
-                  value={registrySearch}
-                  onChange={(e) => setRegistrySearch(e.target.value)}
-                />
+        
+        {activeTab === 'vendors' ? (
+          <>
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h1 className="text-4xl font-black tracking-tight text-zinc-900 uppercase italic">Registry</h1>
+                <div className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mt-1">Found {filteredRules.length} items</div>
+              </div>
+              <div className="flex gap-2">
+                <div className="relative">
+                    <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" />
+                    <input type="text" placeholder="Quick search..." className="bg-zinc-100 p-3 pl-12 rounded-xl outline-none focus:ring-2 focus:ring-black border-2 border-transparent transition-all font-bold text-xs w-64" value={registrySearch} onChange={(e) => { setRegistrySearch(e.target.value); setVisibleCount(50); }} />
+                </div>
+                <button onClick={async () => { if(!confirm("Scan Shopify for new items?")) return; setLoading(true); await fetch('/api/import-catalog', { method: 'POST', headers: { 'x-dashboard-auth': password }}); fetchRules(); setLoading(false); }} className="bg-zinc-100 text-zinc-900 p-3 px-6 rounded-xl font-bold flex items-center gap-2 hover:bg-zinc-200 transition-all shadow-sm text-xs"><RefreshCcw size={14} className={loading ? "animate-spin" : ""} /> Import Shop</button>
+                <button onClick={() => fetchRules()} className="bg-white border-2 border-zinc-200 p-3 px-4 rounded-xl hover:border-black transition-all shadow-sm"><RefreshCcw size={14} className={loading ? "animate-spin" : ""} /></button>
+              </div>
             </div>
-            <button 
-              onClick={async () => {
-                if(!confirm("Scan Shopify for new products? (Skips duplicates)")) return;
-                setLoading(true);
-                await fetch('/api/import-catalog', { method: 'POST', headers: { 'x-dashboard-auth': password }});
-                fetchRules();
-                setLoading(false);
-              }} 
-              className="bg-zinc-100 text-zinc-900 p-3 px-6 rounded-xl font-bold flex items-center gap-2 hover:bg-zinc-200 transition-all shadow-sm text-xs"
-            >
-              <RefreshCcw size={14} className={loading ? "animate-spin" : ""} /> Import Shop
-            </button>
-            <button onClick={() => setShowAddModal(true)} className="bg-black text-white p-3 px-6 rounded-xl font-bold flex items-center gap-2 shadow-xl hover:bg-zinc-800 transition-all text-xs"><Plus size={14} /> Add Component</button>
-            <button onClick={() => fetchRules()} className="bg-white border-2 border-zinc-200 p-3 px-4 rounded-xl hover:border-black transition-all shadow-sm"><RefreshCcw size={14} className={loading ? "animate-spin" : ""} /></button>
-          </div>
-        </div>
 
-        {/* --- MULTI-SELECT VENDOR CLOUD --- */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <label className="text-[10px] font-black uppercase text-zinc-400 tracking-[0.2em] italic">Filter by Vendor (Multi-select)</label>
-            {selectedVendors.length > 0 && (
-              <button onClick={() => setSelectedVendors([])} className="text-[10px] font-black uppercase text-red-500 hover:text-red-700 transition-all underline underline-offset-4">Clear Filters</button>
-            )}
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {visibleVendorNames.map(v => {
-              const logo = vendorLogos.find(l => l.name.toLowerCase() === v.toLowerCase());
-              const isActive = selectedVendors.includes(v);
-              
-              return (
-                <button 
-                  key={v} 
-                  onClick={() => toggleVendor(v)} 
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border-2 transition-all ${
-                    isActive 
-                      ? 'border-green-500 bg-green-50 text-green-900 shadow-sm scale-[1.02]' 
-                      : 'bg-white text-zinc-500 border-zinc-100 hover:border-zinc-300'
-                  }`}
-                >
-                  {logo?.logo_url ? (
-                    <img src={logo.logo_url} className="h-3 w-auto object-contain grayscale-[0.5]" alt="" />
-                  ) : null}
-                  <span className="text-[10px] font-bold uppercase tracking-tight">
-                    {v}
-                  </span>
-                  <div className={`w-2 h-2 rounded-full border ${isActive ? 'bg-green-500 border-green-600' : 'bg-zinc-100 border-zinc-200'}`}></div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="bg-white rounded-[2rem] shadow-sm border border-zinc-200 overflow-hidden text-sm">
-          <table className="w-full text-left">
-            <thead className="bg-zinc-100 border-b text-[10px] uppercase font-black text-zinc-500 tracking-widest font-mono">
-              <tr>
-                <th className="p-6 italic tracking-tighter">Registry Item</th>
-                <th className="p-6 text-center">Status</th>
-                <th className="p-6">Memory</th>
-                <th className="p-6 text-right">Auto-Sync / Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-100">
-              {filteredRules.map((rule) => (
-                <tr key={rule.id} className={`${rule.needs_review ? 'bg-red-50' : 'hover:bg-zinc-50'} transition-colors group`}>
-                  <td className="p-6">
-                    <div className="flex items-center gap-2">
-                      <div className="font-bold text-zinc-900 text-base">{rule.title}</div>
-                      {rule.last_log && (
-                        <div className="group relative">
-                          <Info size={14} className="text-zinc-300 hover:text-black transition-colors cursor-help" />
-                          <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block w-64 bg-black text-white text-[10px] p-3 rounded-xl z-50 shadow-2xl font-mono leading-relaxed border border-zinc-800">
-                            <div className="text-zinc-500 mb-1 uppercase font-black font-sans tracking-widest">System Log:</div>
-                            {rule.last_log}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    <div className="text-[10px] text-zinc-400 font-mono mt-1 truncate max-w-sm">{rule.vendor_url}</div>
-                  </td>
-                  <td className="p-6 text-center">
-                    {rule.needs_review ? <span className="bg-red-600 text-white text-[9px] font-black px-3 py-1 rounded-full animate-pulse uppercase tracking-tighter">Review Required</span> : rule.last_availability ? <span className="bg-green-100 text-green-700 text-[9px] font-black px-3 py-1 rounded-full uppercase italic font-black">Active</span> : <span className="bg-zinc-200 text-zinc-600 text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-tighter">Out of Stock</span>}
-                  </td>
-                  <td className="p-6 font-mono font-bold text-lg text-zinc-700">${(rule.last_price / 100).toFixed(2)}</td>
-                  <td className="p-6 flex justify-end items-center gap-4">
-                    <button onClick={() => toggleAutoSync(rule.id, rule.auto_update)} className={`w-12 h-6 rounded-full p-1 flex items-center transition-all ${rule.auto_update ? 'bg-black justify-end shadow-inner' : 'bg-zinc-300 justify-start'}`}><div className="w-4 h-4 bg-white rounded-full shadow-md"></div></button>
-                    <button onClick={() => setEditingRule(rule)} className="bg-zinc-100 hover:bg-black hover:text-white text-zinc-600 px-3 py-1 rounded-lg text-[10px] font-black uppercase transition-all">Edit</button>
-                    <button onClick={() => deleteRule(rule.id)} className="text-zinc-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"><Trash2 size={18} /></button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {showAddModal && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl overflow-hidden text-sm">
-               <div className="p-8 border-b flex justify-between items-center bg-zinc-50"><h3 className="text-2xl font-black tracking-tighter italic uppercase">Registry Enrollment</h3><button onClick={() => setShowAddModal(false)}><X size={24}/></button></div>
-               <div className="p-10 space-y-8 max-h-[80vh] overflow-y-auto no-scrollbar">
-                  <div><label className="text-[10px] font-black uppercase text-zinc-400 mb-3 block tracking-widest font-black italic">1. Search Catalog</label><div className="flex gap-3"><input type="text" placeholder="Product Name..." className="flex-grow p-5 bg-zinc-100 rounded-2xl outline-none font-bold shadow-inner" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && searchShopify()} /><button onClick={searchShopify} className="bg-zinc-950 text-white p-5 rounded-2xl hover:bg-black"><Search size={24}/></button></div></div>
-                  {searchResults.length > 0 && <div className="max-h-48 overflow-auto border-2 border-zinc-100 rounded-2xl divide-y shadow-sm">{searchResults.map(({ node: p }) => (<button key={p.id} onClick={() => { setSelectedProduct(p); setSelectedVariants([]); }} className={`w-full text-left p-4 hover:bg-zinc-50 flex justify-between items-center ${selectedProduct?.id === p.id ? 'bg-zinc-100 font-bold' : ''}`}><span>{p.title}</span><span className="text-[10px] font-black bg-zinc-200 px-2 py-1 rounded text-zinc-500 uppercase">{p.vendor}</span></button>))}</div>}
-                  {selectedProduct && <div className="bg-zinc-50 p-8 rounded-[1.5rem] border-2 border-zinc-100"><label className="text-[10px] font-black uppercase text-zinc-400 mb-4 block tracking-widest text-center italic">Pick Variants</label><div className="grid grid-cols-2 gap-2">{selectedProduct.variants.edges.map(({ node: v }) => (<button key={v.id} onClick={() => { const exists = selectedVariants.find(sv => sv.id === v.id); if (exists) setSelectedVariants(selectedVariants.filter(sv => sv.id !== v.id)); else setSelectedVariants([...selectedVariants, v]); }} className={`p-3 rounded-xl border-2 text-xs font-black transition-all ${selectedVariants.find(sv => sv.id === v.id) ? 'bg-black text-white border-black shadow-lg scale-105' : 'bg-white text-zinc-400 border-zinc-200 hover:border-zinc-400'}`}>{v.title}</button>))}</div></div>}
-                  <div><label className="text-[10px] font-black uppercase text-zinc-400 mb-3 block tracking-widest italic text-center font-black">3. Meta</label><input type="text" placeholder="Vendor Product URL" className="w-full p-5 bg-zinc-100 rounded-2xl mb-3 outline-none focus:ring-2 focus:ring-black font-mono text-xs shadow-inner" value={vendorUrl} onChange={(e) => setVendorUrl(e.target.value)} /><input type="text" placeholder="Freehub Keyword (Optional)" className="w-full p-5 bg-zinc-100 rounded-2xl outline-none focus:ring-2 focus:ring-black font-bold shadow-inner" value={freehubKeyword} onChange={(e) => setFreehubKeyword(e.target.value)} /></div>
-                  <button onClick={handleSave} disabled={!selectedVariants.length || !vendorUrl} className="w-full bg-black text-white font-black p-6 rounded-[1.5rem] hover:bg-zinc-800 disabled:opacity-10 transition-all uppercase tracking-widest shadow-2xl text-lg italic tracking-widest">Create rules</button>
-               </div>
+            <div className="mb-8">
+              <div className="flex items-center justify-between mb-4">
+                <label className="text-[10px] font-black uppercase text-zinc-400 tracking-[0.2em] italic">Filter by Vendor (Multi-select)</label>
+                {selectedVendors.length > 0 && <button onClick={() => setSelectedVendors([])} className="text-[10px] font-black uppercase text-red-500 hover:text-red-700 transition-all underline underline-offset-4">Clear Filters</button>}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {visibleVendorNames.map(v => {
+                  const logo = vendorLogos.find(l => l.name.toLowerCase() === v.toLowerCase());
+                  const isActive = selectedVendors.includes(v);
+                  return (
+                    <button key={v} onClick={() => { toggleVendor(v); setVisibleCount(50); }} className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border-2 transition-all ${isActive ? 'border-green-500 bg-green-50 text-green-900 shadow-sm scale-[1.02]' : 'bg-white text-zinc-500 border-zinc-100 hover:border-zinc-300'}`}>
+                      {logo?.logo_url && <img src={logo.logo_url} className="h-3 w-auto object-contain grayscale-[0.5]" alt="" />}
+                      <span className="text-[10px] font-bold uppercase tracking-tight">{v}</span>
+                      <div className={`w-2 h-2 rounded-full border ${isActive ? 'bg-green-500 border-green-600' : 'bg-zinc-100 border-zinc-200'}`}></div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
+
+            <div className="bg-white rounded-[2rem] shadow-sm border border-zinc-200 overflow-hidden text-sm">
+              <table className="w-full text-left">
+                <thead className="bg-zinc-100 border-b text-[10px] uppercase font-black text-zinc-500 tracking-widest font-mono">
+                  <tr><th className="p-6 italic tracking-tighter">Registry Item</th><th className="p-6 text-center">Status</th><th className="p-6">Memory</th><th className="p-6 text-right">Auto-Sync / Actions</th></tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-100">
+                  {paginatedRules.map((rule) => (
+                    <tr key={rule.id} className={`${rule.needs_review ? 'bg-red-50' : 'hover:bg-zinc-50'} transition-colors group`}>
+                      <td className="p-6">
+                        <div className="flex items-center gap-2"><div className="font-bold text-zinc-900 text-base">{rule.title}</div>
+                        {rule.last_log && <div className="group relative"><Info size={14} className="text-zinc-300 hover:text-black transition-colors cursor-help" /><div className="absolute left-0 bottom-full mb-2 hidden group-hover:block w-64 bg-black text-white text-[10px] p-3 rounded-xl z-50 shadow-2xl font-mono leading-relaxed border border-zinc-800"><div className="text-zinc-500 mb-1 uppercase font-black font-sans tracking-widest">System Log:</div>{rule.last_log}</div></div>}</div>
+                        <div className="text-[10px] text-zinc-400 font-mono mt-1 truncate max-w-sm">{rule.vendor_url || 'No URL mapped'}</div>
+                      </td>
+                      <td className="p-6 text-center">
+                        {rule.needs_review ? <span className="bg-red-600 text-white text-[9px] font-black px-3 py-1 rounded-full animate-pulse uppercase tracking-tighter">Review Required</span> : rule.last_availability ? <span className="bg-green-100 text-green-700 text-[9px] font-black px-3 py-1 rounded-full uppercase italic font-black">Active</span> : <span className="bg-zinc-200 text-zinc-600 text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-tighter">Out of Stock</span>}
+                      </td>
+                      <td className="p-6 font-mono font-bold text-lg text-zinc-700">${(rule.last_price / 100).toFixed(2)}</td>
+                      <td className="p-6 flex justify-end items-center gap-4">
+                        <button onClick={() => toggleAutoSync(rule.id, rule.auto_update)} className={`w-12 h-6 rounded-full p-1 flex items-center transition-all ${rule.auto_update ? 'bg-black justify-end shadow-inner' : 'bg-zinc-300 justify-start'}`}><div className="w-4 h-4 bg-white rounded-full shadow-md"></div></button>
+                        <button onClick={() => setEditingRule(rule)} className="bg-zinc-100 hover:bg-black hover:text-white text-zinc-600 px-3 py-1 rounded-lg text-[10px] font-black uppercase transition-all">Edit</button>
+                        <button onClick={() => deleteRule(rule.id)} className="text-zinc-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"><Trash2 size={18} /></button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {filteredRules.length > visibleCount && (
+                <div className="p-12 text-center bg-zinc-50 border-t border-zinc-100">
+                    <button onClick={() => setVisibleCount(visibleCount + 100)} className="bg-white border-2 border-zinc-200 px-8 py-4 rounded-2xl font-black uppercase italic text-xs hover:border-black transition-all shadow-sm">Load More ({filteredRules.length - visibleCount} remaining)</button>
+                </div>
+              )}
+            </div>
+          </>
+        ) : (
+          /* --- SHOP HEALTH VIEW --- */
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+             <h1 className="text-4xl font-black tracking-tight text-zinc-900 uppercase italic mb-2">Shop Health</h1>
+             <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest mb-12">Automated Data Audit & Integrity Engine</p>
+             
+             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+                <HealthCard title="Negative Inventory" count="--" subtitle="Oversold items requiring correction" icon={<AlertCircle className="text-red-500"/>}/>
+                <HealthCard title="Missing Metafields" count="--" subtitle="Items lacking engineering data" icon={<Info className="text-blue-500"/>}/>
+                <HealthCard title="Sync Conflicts" count={rules.filter(r => r.needs_review).length} subtitle="Items exceeding margin safety thresholds" icon={<RefreshCcw className="text-orange-500"/>}/>
+             </div>
+
+             <div className="bg-white p-20 rounded-[3rem] border-2 border-dashed border-zinc-200 text-center">
+                <ShieldCheck size={60} className="mx-auto text-zinc-200 mb-6"/>
+                <h3 className="text-xl font-black uppercase italic">Data Audit in Progress</h3>
+                <p className="text-zinc-400 text-sm max-w-xs mx-auto mt-2">Integrating logic from Section 4.11 of the Master Notes. Detailed reporting coming soon.</p>
+             </div>
           </div>
         )}
 
+        {/* --- EDIT MODAL (God Mode) --- */}
         {editingRule && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden text-sm border border-zinc-800 animate-in fade-in zoom-in-95">
               <div className="p-6 border-b flex justify-between items-center bg-zinc-50">
-                <h3 className="text-xl font-black uppercase italic tracking-tighter">Edit Rule: {editingRule.title}</h3>
-                <button onClick={() => setEditingRule(null)} className="hover:rotate-90 transition-all"><X size={20}/></button>
+                <h3 className="text-xl font-black uppercase italic tracking-tighter">Edit Rule</h3>
+                <button onClick={() => setEditingRule(null)}><X size={20}/></button>
               </div>
               <div className="p-8 space-y-6 max-h-[70vh] overflow-y-auto">
                 <div>
@@ -301,7 +235,7 @@ export default function OpsDashboard() {
                 </div>
                 <div>
                   <label className="text-[10px] font-black uppercase text-zinc-400 mb-2 block tracking-widest italic">Vendor Product URL</label>
-                  <input type="text" className="w-full p-4 bg-zinc-100 rounded-xl font-mono text-xs outline-none border-2 border-transparent focus:border-black transition-all" value={editingRule.vendor_url} onChange={(e) => setEditingRule({...editingRule, vendor_url: e.target.value})} />
+                  <input type="text" className="w-full p-4 bg-zinc-100 rounded-xl font-mono text-xs outline-none border-2 border-transparent focus:border-black transition-all" value={editingRule.vendor_url || ''} onChange={(e) => setEditingRule({...editingRule, vendor_url: e.target.value})} />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -313,13 +247,6 @@ export default function OpsDashboard() {
                         <input type="number" step="0.01" className="w-full p-4 bg-zinc-100 rounded-xl font-bold outline-none border-2 border-transparent focus:border-black transition-all" value={editingRule.price_drop_threshold || 0.20} onChange={(e) => setEditingRule({...editingRule, price_drop_threshold: e.target.value})} />
                     </div>
                 </div>
-                <div className="flex items-center justify-between p-4 bg-zinc-50 rounded-xl border-2 border-zinc-100">
-                    <div>
-                        <div className="font-bold uppercase text-xs">Needs Manual Review</div>
-                        <div className="text-[10px] text-zinc-400">Force "Review Required" status</div>
-                    </div>
-                    <button onClick={() => setEditingRule({...editingRule, needs_review: !editingRule.needs_review})} className={`w-12 h-6 rounded-full p-1 flex items-center transition-all ${editingRule.needs_review ? 'bg-red-500 justify-end' : 'bg-zinc-300 justify-start'}`}><div className="w-4 h-4 bg-white rounded-full shadow-md"></div></button>
-                </div>
                 <button onClick={() => updateRule(editingRule.id, editingRule)} className="w-full bg-black text-white font-black p-5 rounded-2xl uppercase tracking-widest hover:bg-zinc-800 transition-all shadow-xl italic">Save Changes</button>
               </div>
             </div>
@@ -328,6 +255,19 @@ export default function OpsDashboard() {
       </main>
     </div>
   );
+}
+
+function HealthCard({ title, count, subtitle, icon }) {
+    return (
+        <div className="bg-white p-8 rounded-[2rem] border border-zinc-200 shadow-sm">
+            <div className="flex justify-between items-start mb-4">
+                <div className="p-3 bg-zinc-50 rounded-2xl border border-zinc-100">{icon}</div>
+                <div className="text-3xl font-black italic">{count}</div>
+            </div>
+            <div className="font-black uppercase text-xs mb-1">{title}</div>
+            <div className="text-[10px] text-zinc-400 font-bold uppercase tracking-tighter">{subtitle}</div>
+        </div>
+    );
 }
 
 function SidebarLink({ icon, label, active, onClick }) {
