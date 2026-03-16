@@ -81,28 +81,35 @@ export default async function handler(req, res) {
         let reasons = [];
         let marginAlert = false;
 
-        const priceDropPercent = (myPrice - goalPrice) / myPrice;
+        // 1. Check for Margin Drop
+        const priceDropPercent = (parseFloat(myPrice) - parseFloat(goalPrice)) / parseFloat(myPrice);
         if (priceDropPercent > (rule.price_drop_threshold || 0.20)) {
            marginAlert = true;
-           reasons.push(`MARGIN ALERT: ${Math.round(priceDropPercent * 100)}% drop detected.`);
+           reasons.push(`MARGIN ALERT: ${Math.round(priceDropPercent * 100)}% drop.`);
         }
 
-        if (goalPrice !== myPrice && !marginAlert) {
+        // 2. Compare Prices (Using numeric conversion to avoid string errors)
+        const isDifferent = Number(goalPrice) !== Number(myPrice);
+
+        if (isDifferent && !marginAlert) {
           updatePayload.price = goalPrice;
-          if (myComparePrice && parseFloat(myComparePrice) > parseFloat(myPrice)) {
-            const gap = parseFloat(myComparePrice) - parseFloat(myPrice);
-            updatePayload.compare_at_price = (parseFloat(goalPrice) + gap).toFixed(2);
+          if (myComparePrice && Number(myComparePrice) > Number(myPrice)) {
+            const gap = Number(myComparePrice) - Number(myPrice);
+            updatePayload.compare_at_price = (Number(goalPrice) + gap).toFixed(2);
           }
-          reasons.push(`Sync $${myPrice} to $${goalPrice}`);
+          reasons.push(`Sync: $${myPrice} -> $${goalPrice}`);
           needsUpdate = true;
         }
 
-        if (needsUpdate && rule.auto_update === true && !marginAlert) {
-          await fetch(`https://${process.env.SHOPIFY_SHOP_NAME}.myshopify.com/admin/api/2024-04/variants/${rule.shopify_variant_id}.json`, {
+        console.log(`[${rule.title}] Vendor: $${vendorPrice} | Shopify: $${myPrice} | Match: ${!isDifferent} | Auto-Sync: ${rule.auto_update}`);
+
+        if (needsUpdate && rule.auto_update === true) {
+          const shopifyRes = await fetch(`https://${process.env.SHOPIFY_SHOP_NAME}.myshopify.com/admin/api/2024-04/variants/${rule.shopify_variant_id}.json`, {
             method: 'PUT',
             headers: { 'X-Shopify-Access-Token': adminToken, 'Content-Type': 'application/json' },
             body: JSON.stringify({ variant: updatePayload })
           });
+          if (!shopifyRes.ok) throw new Error(`Shopify API Error: ${shopifyRes.statusText}`);
           updatedCount++;
         } else if (needsUpdate || marginAlert) {
           attentionCount++;
