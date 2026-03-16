@@ -1,12 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
-const EXCLUDED_TAGS = [
-  'addon', 'component:freehub', 'component:spoke', 'component:valvestem', 
-  'component:nipple', 'tires', 'rotor', 'tubeless-tape', 'forgebond', 
-  'coloring-kit', 'wheelbuildingtools', 'fillmore-capkit', 'apparel', 
-  'loamlabs10', 'assembly-service'
-];
+const EXCLUDED_TAGS = ['addon', 'component:freehub', 'component:spoke', 'component:valvestem', 'component:nipple', 'tires', 'rotor', 'tubeless-tape', 'forgebond', 'coloring-kit', 'wheelbuildingtools', 'fillmore-capkit', 'apparel', 'loamlabs10', 'assembly-service'];
 
 async function getShopifyToken() {
   const response = await fetch(`https://${process.env.SHOPIFY_SHOP_NAME}.myshopify.com/admin/oauth/access_token`, {
@@ -32,7 +27,7 @@ export default async function handler(req, res) {
     let importedTotal = 0;
 
     while (hasNextPage) {
-      const shopifyRes = await fetch(`https://${process.env.SHOPIFY_SHOP_NAME}.myshopify.com/admin/api/2024-04/graphql.json`, {
+      const response = await fetch(`https://${process.env.SHOPIFY_SHOP_NAME}.myshopify.com/admin/api/2024-04/graphql.json`, {
         method: 'POST',
         headers: { 'X-Shopify-Access-Token': adminToken, 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -41,10 +36,7 @@ export default async function handler(req, res) {
               pageInfo { hasNextPage } 
               edges { 
                 cursor 
-                node { 
-                  id title vendor tags
-                  variants(first: 1) { edges { node { id } } } 
-                } 
+                node { id title vendor tags variants(first: 1) { edges { node { id } } } } 
               } 
             } 
           }`,
@@ -52,17 +44,16 @@ export default async function handler(req, res) {
         })
       });
 
-      const data = await shopifyRes.json();
+      const data = await response.json();
       const products = data.data.products.edges;
 
-      // Filter out products that have any of the forbidden tags
-      const filteredProducts = products.filter(edge => {
-        const productTags = edge.node.tags.map(t => t.toLowerCase());
-        return !productTags.some(tag => EXCLUDED_TAGS.includes(tag));
+      const filtered = products.filter(edge => {
+        const tags = edge.node.tags.map(t => t.toLowerCase());
+        return !tags.some(tag => EXCLUDED_TAGS.includes(tag));
       });
 
-      if (filteredProducts.length > 0) {
-        const rulesToUpsert = filteredProducts.map(p => ({
+      if (filtered.length > 0) {
+        const batch = filtered.map(p => ({
           shopify_product_id: p.node.id.split('/').pop(),
           shopify_variant_id: p.node.variants.edges[0]?.node.id.split('/').pop(),
           title: p.node.title,
@@ -71,20 +62,16 @@ export default async function handler(req, res) {
           site_type: 'SHOPIFY'
         }));
 
-        const { error } = await supabase
-          .from('watcher_rules')
-          .upsert(rulesToUpsert, { onConflict: 'shopify_product_id' });
-
-        if (error) throw error;
-        importedTotal += filteredProducts.length;
+        await supabase.from('watcher_rules').upsert(batch, { onConflict: 'shopify_product_id' });
+        importedTotal += batch.length;
       }
       
       hasNextPage = data.data.products.pageInfo.hasNextPage;
       if (hasNextPage) cursor = products[products.length - 1].cursor;
+      else break;
     }
 
     res.status(200).json({ success: true, count: importedTotal });
-
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
