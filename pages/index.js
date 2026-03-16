@@ -173,13 +173,29 @@ export default function OpsDashboard() {
           </div>
         </div>
 
-        <div className="flex gap-3 mb-8 overflow-x-auto pb-4 no-scrollbar min-h-[50px]">
+        <div className="flex gap-3 mb-12 overflow-x-auto pb-6 no-scrollbar min-h-[70px] items-center">
           {visibleVendorNames.map(v => {
             const logo = vendorLogos.find(l => l.name.toLowerCase() === v.toLowerCase());
+            const isSelected = filterVendor === v;
+            
             return (
-              <button key={v} onClick={() => setFilterVendor(v)} className={`flex items-center gap-3 px-5 py-2 rounded-full border-2 transition-all whitespace-nowrap ${filterVendor === v ? 'bg-black text-white border-black shadow-lg scale-105 font-black' : 'bg-white text-zinc-500 border-zinc-100 hover:border-zinc-300 font-bold'}`}>
-                {logo?.logo_url && <img src={logo.logo_url} className="h-4 w-auto object-contain" alt="" />}
-                <span className="text-[10px] uppercase tracking-widest">{v}</span>
+              <button 
+                key={v} 
+                onClick={() => setFilterVendor(v)} 
+                className={`flex items-center gap-3 px-6 py-3 rounded-2xl border-2 transition-all whitespace-nowrap h-12 ${
+                  isSelected 
+                    ? 'border-green-500 shadow-lg scale-105 bg-white' 
+                    : 'bg-white text-zinc-400 border-zinc-100 hover:border-zinc-300'
+                }`}
+              >
+                {logo?.logo_url ? (
+                  <img src={logo.logo_url} className="h-5 w-auto object-contain" alt="" />
+                ) : (
+                  <span className={`text-[10px] uppercase tracking-widest font-black ${isSelected ? 'text-black' : 'text-zinc-400'}`}>
+                    {v}
+                  </span>
+                )}
+                {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>}
               </button>
             );
           })}
