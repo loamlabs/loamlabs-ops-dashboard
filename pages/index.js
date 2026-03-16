@@ -9,9 +9,9 @@ export default function OpsDashboard() {
   const [password, setPassword] = useState('');
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [filterVendor, setFilterVendor] = useState('All');
+  const [selectedVendors, setSelectedVendors] = useState([]);
   const [registrySearch, setRegistrySearch] = useState(''); 
-  const [syncFilter, setSyncFilter] = useState('all'); 
+  const [syncFilter, setSyncFilter] = useState('all'); // 'all', 'on', 'off'
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [visibleCount, setVisibleCount] = useState(50);
 
@@ -28,7 +28,7 @@ export default function OpsDashboard() {
       const res = await fetch('/api/get-rules', { headers: { 'x-dashboard-auth': auth } });
       if (res.ok) { 
         const data = await res.json();
-        setRules(data || []);
+        setRules(data);
         localStorage.setItem('loam_ops_auth', auth);
         const logoRes = await fetch('/api/get-logos', { headers: { 'x-dashboard-auth': auth } });
         const logoData = await logoRes.json();
@@ -45,7 +45,7 @@ export default function OpsDashboard() {
       const res = await fetch('/api/update-rule', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-dashboard-auth': password },
-        body: JSON.stringify({ id, updates })
+        body: JSON.stringify({ id, updates: { ...updates, price_adjustment_factor: parseFloat(updates.price_adjustment_factor) } })
       });
       if (res.ok) {
         setEditingRule(null);
@@ -74,10 +74,16 @@ export default function OpsDashboard() {
     fetchRules();
   };
   
-  const visibleVendorNames = ['All', ...new Set(rules.map(r => r.vendor_name).filter(Boolean))].sort();
+  const toggleVendor = (name) => {
+    setSelectedVendors(prev => 
+      prev.includes(name) ? prev.filter(v => v !== name) : [...prev, name]
+    );
+  };
+
+  const visibleVendorNames = [...new Set(rules.map(r => r.vendor_name).filter(Boolean))].sort();
 
   const filteredRules = rules.filter(r => {
-    const matchesVendor = filterVendor === 'All' || r.vendor_name === filterVendor;
+    const matchesVendor = selectedVendors.length === 0 || selectedVendors.includes(r.vendor_name);
     const matchesSearch = r.title.toLowerCase().includes(registrySearch.toLowerCase());
     const matchesSync = syncFilter === 'all' ? true : syncFilter === 'on' ? r.auto_update : !r.auto_update;
     return matchesVendor && matchesSearch && matchesSync;
@@ -92,7 +98,7 @@ export default function OpsDashboard() {
           <div className="h-20 mb-12 flex justify-center"><img src="/logo.png" alt="LoamLabs" className="h-full object-contain" /></div>
           <div className="bg-zinc-900 p-8 rounded-[2.5rem] border border-zinc-800 shadow-2xl">
             <input type="password" placeholder={loading ? "VERIFYING..." : "ACCESS KEY"} className="w-full bg-zinc-950 border border-zinc-700 p-5 rounded-2xl mb-4 text-center text-xl tracking-widest outline-none font-mono" onKeyDown={(e) => e.key === 'Enter' && fetchRules()} onChange={(e) => setPassword(e.target.value)} />
-            <button onClick={() => fetchRules()} className="w-full bg-white text-black font-black p-5 rounded-2xl uppercase hover:scale-[1.02] transition-all flex items-center justify-center gap-2">{loading && <Loader2 className="animate-spin" size={20} />} Start Session</button>
+            <button onClick={() => fetchRules()} className="w-full bg-white text-black font-black p-5 rounded-2xl uppercase tracking-tighter hover:scale-[1.02] transition-all flex items-center justify-center gap-2">{loading && <Loader2 className="animate-spin" size={20} />} Start Session</button>
           </div>
         </div>
       </div>
@@ -134,30 +140,40 @@ export default function OpsDashboard() {
                 <div className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mt-1">Found {filteredRules.length} items</div>
               </div>
               <div className="flex items-center gap-3">
+                {/* --- SYNC TOGGLE GROUP --- */}
                 <div className="bg-zinc-100 p-1 rounded-xl flex items-center">
                     <button onClick={() => setSyncFilter('all')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase transition-all ${syncFilter === 'all' ? 'bg-white text-black shadow-sm' : 'text-zinc-400 hover:text-zinc-600'}`}>All</button>
                     <button onClick={() => setSyncFilter('on')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase flex items-center gap-2 transition-all ${syncFilter === 'on' ? 'bg-black text-white shadow-sm' : 'text-zinc-400 hover:text-zinc-600'}`}><Zap size={10}/> On</button>
                     <button onClick={() => setSyncFilter('off')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase flex items-center gap-2 transition-all ${syncFilter === 'off' ? 'bg-zinc-300 text-zinc-700 shadow-sm' : 'text-zinc-400 hover:text-zinc-600'}`}><ZapOff size={10}/> Off</button>
                 </div>
+
                 <div className="relative">
                     <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" />
                     <input type="text" placeholder="Quick search..." className="bg-zinc-100 p-3 pl-12 rounded-xl outline-none focus:ring-2 focus:ring-black border-2 border-transparent transition-all font-bold text-xs w-64" value={registrySearch} onChange={(e) => { setRegistrySearch(e.target.value); setVisibleCount(50); }} />
                 </div>
+                <button onClick={async () => { if(!confirm("Scan Shopify for new items?")) return; setLoading(true); await fetch('/api/import-catalog', { method: 'POST', headers: { 'x-dashboard-auth': password }}); fetchRules(); setLoading(false); }} className="bg-zinc-100 text-zinc-900 p-3 px-6 rounded-xl font-bold flex items-center gap-2 hover:bg-zinc-200 transition-all shadow-sm text-xs"><RefreshCcw size={14} className={loading ? "animate-spin" : ""} /> Import</button>
                 <button onClick={() => fetchRules()} className="bg-white border-2 border-zinc-200 p-3 px-4 rounded-xl hover:border-black transition-all shadow-sm"><RefreshCcw size={14} className={loading ? "animate-spin" : ""} /></button>
               </div>
             </div>
 
-            <div className="flex gap-3 mb-12 overflow-x-auto pb-6 no-scrollbar min-h-[70px] items-center">
-              {visibleVendorNames.map(v => {
-                const logo = vendorLogos.find(l => l.name.toLowerCase() === v.toLowerCase());
-                const isSelected = filterVendor === v;
-                return (
-                  <button key={v} onClick={() => { setFilterVendor(v); setVisibleCount(50); }} className={`flex items-center gap-3 px-6 py-3 rounded-2xl border-2 transition-all whitespace-nowrap h-12 ${isSelected ? 'border-green-500 shadow-lg scale-105 bg-white' : 'bg-white text-zinc-400 border-zinc-100 hover:border-zinc-300'}`}>
-                    {logo?.logo_url ? <img src={logo.logo_url} className="h-5 w-auto object-contain" alt="" /> : <span className={`text-[10px] uppercase tracking-widest font-black ${isSelected ? 'text-black' : 'text-zinc-400'}`}>{v}</span>}
-                    {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>}
-                  </button>
-                );
-              })}
+            <div className="mb-8">
+              <div className="flex items-center justify-between mb-4">
+                <label className="text-[10px] font-black uppercase text-zinc-400 tracking-[0.2em] italic">Filter by Vendor (Multi-select)</label>
+                {selectedVendors.length > 0 && <button onClick={() => setSelectedVendors([])} className="text-[10px] font-black uppercase text-red-500 hover:text-red-700 transition-all underline underline-offset-4">Clear Filters</button>}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {visibleVendorNames.map(v => {
+                  const logo = vendorLogos.find(l => l.name.toLowerCase() === v.toLowerCase());
+                  const isActive = selectedVendors.includes(v);
+                  return (
+                    <button key={v} onClick={() => { toggleVendor(v); setVisibleCount(50); }} className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border-2 transition-all ${isActive ? 'border-green-500 bg-green-50 text-green-900 shadow-sm scale-[1.02]' : 'bg-white text-zinc-500 border-zinc-100 hover:border-zinc-300'}`}>
+                      {logo?.logo_url && <img src={logo.logo_url} className="h-3 w-auto object-contain grayscale-[0.5]" alt="" />}
+                      <span className="text-[10px] font-bold uppercase tracking-tight">{v}</span>
+                      <div className={`w-2 h-2 rounded-full border ${isActive ? 'bg-green-500 border-green-600' : 'bg-zinc-100 border-zinc-200'}`}></div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             <div className="bg-white rounded-[2rem] shadow-sm border border-zinc-200 overflow-hidden text-sm">
@@ -200,22 +216,26 @@ export default function OpsDashboard() {
             </div>
           </>
         ) : (
+          /* --- SHOP HEALTH VIEW --- */
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
              <h1 className="text-4xl font-black tracking-tight text-zinc-900 uppercase italic mb-2">Shop Health</h1>
              <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest mb-12">Automated Data Audit & Integrity Engine</p>
+             
              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
                 <HealthCard title="Missing URLs" count={rules.filter(r => !r.vendor_url).length} subtitle="Items requiring configuration" icon={<AlertCircle className="text-red-500"/>}/>
                 <HealthCard title="Missing Metafields" count="--" subtitle="Items lacking engineering data" icon={<Info className="text-blue-500"/>}/>
                 <HealthCard title="Sync Conflicts" count={rules.filter(r => r.needs_review).length} subtitle="Margin safety violations" icon={<RefreshCcw className="text-orange-500"/>}/>
              </div>
+
              <div className="bg-white p-20 rounded-[3rem] border-2 border-dashed border-zinc-200 text-center">
                 <ShieldCheck size={60} className="mx-auto text-zinc-200 mb-6"/>
                 <h3 className="text-xl font-black uppercase italic">Data Audit in Progress</h3>
-                <p className="text-zinc-400 text-sm max-w-xs mx-auto mt-2">Integrating Section 4.11 from Master Notes. Reporting on Negative Inventory coming next.</p>
+                <p className="text-zinc-400 text-sm max-w-xs mx-auto mt-2">Integrating Section 4.11 from Master Notes. Reporting on Negative Inventory and missing specs coming next.</p>
              </div>
           </div>
         )}
 
+        {/* --- EDIT MODAL --- */}
         {editingRule && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden text-sm border border-zinc-800 animate-in fade-in zoom-in-95">
