@@ -38,34 +38,31 @@ export default async function handler(req, res) {
         const vResponse = await fetch(`${rule.vendor_url}.js`);
         const vData = await vResponse.json();
         
-        const spokeGoal = cleanNum(rule.option_values["Spoke Count"]);
-        const isFrontRule = rule.title.toLowerCase().includes('front');
-
-        // --- DEEP SCAN MATCHING LOGIC ---
-        let candidates = [];
+        // --- DEFINED ONCE PER RULE ---
         const spokeGoal = cleanNum(rule.option_values["Spoke Count"]);
         const isFrontRule = rule.title.toLowerCase().includes('front');
         const vTitleCleanup = (t) => t.toLowerCase().replace(/×/g, 'x').replace(/\s+/g, ' ');
+        let candidates = [];
 
+        // --- MATCHING LOGIC ---
         switch (rule.vendor_name?.toLowerCase()) {
           case 'berd':
             candidates = vData.variants.filter(v => {
               const vTitle = vTitleCleanup(v.public_title);
               const ruleTitle = vTitleCleanup(rule.title);
-              
-              // 1. Spoke Match (Checks "28 Spoke", "28h", "28 Hole")
               const hasSpokeCount = vTitle.includes(`${spokeGoal} spoke`) || vTitle.includes(`${spokeGoal}h`) || vTitle.includes(`${spokeGoal} hole`);
+              
               if (!hasSpokeCount) return false;
+              if (isFrontRule) return vTitle.includes('front');
+              
+              const is157 = vTitle.includes('157') || vTitle.includes('super');
+              const is142 = vTitle.includes('142') || vTitle.includes('road') || vTitle.includes('gravel');
+              const is148 = vTitle.includes('148') || (vTitle.includes('boost') && !is157);
 
-              // 2. Position Match
-              if (isFrontRule && !vTitle.includes('front')) return false;
-              if (!isFrontRule && !(vTitle.includes('rear') || vTitle.includes('xd') || vTitle.includes('hg') || vTitle.includes('ms'))) return false;
-
-              // 3. Axle Standard Lock
-              const axleMatch = ['100', '110', '142', '148', '157'].find(size => ruleTitle.includes(size));
-              if (axleMatch && !vTitle.includes(axleMatch)) return false;
-
-              return true;
+              if (ruleTitle.includes('157') || ruleTitle.toLowerCase().includes('super')) return is157;
+              if (ruleTitle.includes('142')) return is142;
+              if (ruleTitle.includes('148')) return is148;
+              return vTitle.includes('rear');
             });
             break;
 
@@ -75,13 +72,6 @@ export default async function handler(req, res) {
               return vTitle.includes(spokeGoal) && (isFrontRule ? vTitle.includes('front') : true);
             });
         }
-
-        // --- DEBUG LOGGING ---
-        const debugSummary = candidates.length > 0 
-          ? `Found ${candidates.length} matches. Winner: ${candidates[0].public_title}`
-          : `FAILED: Found 0 matches among ${vData.variants.length} Berd variants. Goal: ${spokeGoal}h position matches.`;
-        
-        console.log(`[DEBUG] ${rule.title}: ${debugSummary}`);
 
         if (candidates.length > 0) {
           const highestPriceVariant = candidates.reduce((prev, current) => (prev.price > current.price) ? prev : current);
@@ -98,7 +88,6 @@ export default async function handler(req, res) {
           });
           const sData = await sResponse.json();
           const variant = sData.data.productVariant;
-          
           const myPrice = parseFloat(variant.price).toFixed(2);
           const myComparePrice = variant.compareAtPrice ? parseFloat(variant.compareAtPrice).toFixed(2) : null;
 
@@ -123,14 +112,18 @@ export default async function handler(req, res) {
             updated.push({ title: rule.title, reason: reasons.join(', ') });
           } else if (needsUpdate || marginAlert) {
             attention.push({ title: rule.title, reason: marginAlert ? `Margin Alert: ${Math.round(priceDropPercent*100)}% drop` : reasons.join(', ') });
-          } else { inSync.push({ title: rule.title, myPrice }); }
+          } else { 
+            inSync.push({ title: rule.title, myPrice }); 
+          }
 
           await supabase.from('watcher_rules').update({ 
             last_price: Math.round(vendorPrice * 100), 
             last_availability: vendorAvailable, 
             last_run_at: new Date().toISOString(), 
-            last_log: reasons[0] || 'In Sync' 
+            last_log: marginAlert ? "Margin Review Required" : `Match: ${candidates[0].public_title}. Goal: $${goalPrice}` 
           }).eq('id', rule.id);
+        } else {
+            await supabase.from('watcher_rules').update({ last_log: `FAILED: Found 0 matches on Berd site for ${spokeGoal}h.` }).eq('id', rule.id);
         }
       } catch (err) { console.error(`Error on ${rule.title}:`, err.message); }
     }
