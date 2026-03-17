@@ -73,6 +73,27 @@ export default function OpsDashboard() {
     });
     fetchRules();
   };
+
+  const handleAutoImport = async () => {
+    if (!confirm("This will scan Shopify and add all variants to the Registry. Continue?")) return;
+    setLoading(true);
+    try {
+      const res = await fetch('/api/Import-catalogue', { 
+        method: 'POST',
+        headers: { 'x-dashboard-auth': password } 
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert(`Success: Enrolled ${data.count} variants.`);
+        fetchRules(password); 
+      } else {
+        alert("Import failed: " + data.error);
+      }
+    } catch (e) {
+      alert("System Error during import");
+    }
+    setLoading(false);
+  };
   
   const toggleVendor = (name) => {
     setSelectedVendors(prev => 
@@ -149,7 +170,20 @@ export default function OpsDashboard() {
                     <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" />
                     <input type="text" placeholder="Quick search..." className="bg-zinc-100 p-3 pl-12 rounded-xl outline-none focus:ring-2 focus:ring-black border-2 border-transparent transition-all font-bold text-xs w-64" value={registrySearch} onChange={(e) => { setRegistrySearch(e.target.value); setVisibleCount(50); }} />
                 </div>
-                <button onClick={() => fetchRules()} className="bg-white border-2 border-zinc-200 p-3 px-4 rounded-xl hover:border-black transition-all shadow-sm"><RefreshCcw size={14} className={loading ? "animate-spin" : ""} /></button>
+                <button onClick={() => fetchRules()} className="bg-white borde{/* --- AUTO IMPORT BUTTON --- */}
+    <button 
+      onClick={handleAutoImport} 
+      disabled={loading}
+      className="bg-zinc-200 text-zinc-800 p-3 px-6 rounded-xl font-black uppercase italic text-[10px] flex items-center gap-2 hover:bg-zinc-300 transition-all disabled:opacity-50 shadow-sm"
+    >
+      {loading ? <Loader2 className="animate-spin" size={14} /> : <Package size={14} />} 
+      Auto Import Catalog
+    </button>
+
+    {/* --- REFRESH BUTTON --- */}
+    <button onClick={() => fetchRules()} className="bg-white border-2 border-zinc-200 p-3 px-4 rounded-xl hover:border-black transition-all shadow-sm">
+        <RefreshCcw size={14} className={loading ? "animate-spin" : ""} />
+    </button>r-2 border-zinc-200 p-3 px-4 rounded-xl hover:border-black transition-all shadow-sm"><RefreshCcw size={14} className={loading ? "animate-spin" : ""} /></button>
               </div>
             </div>
 
