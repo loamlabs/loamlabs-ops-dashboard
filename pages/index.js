@@ -119,11 +119,10 @@ export default function OpsDashboard() {
     );
   };
 
- // --- ROBUST FILTERING & SORTING ---
-  // 1. Get unique vendor names, clean them, and sort them A-Z
-  const vendorNames = [...new Set(rules.map(r => r.vendor_name).filter(Boolean))].sort();
+  // 1. Unified variable name to prevent the crash
+  const visibleVendorNames = [...new Set(rules.map(r => r.vendor_name).filter(Boolean))].sort();
 
-  // 2. Filter rules based on selection and search
+  // 2. Sorting: Alphabetical by Vendor, then by Product Title
   const filteredRules = rules.filter(r => {
     const matchesVendor = selectedVendors.length === 0 || selectedVendors.includes(r.vendor_name);
     const matchesSearch = r.title.toLowerCase().includes(registrySearch.toLowerCase());
