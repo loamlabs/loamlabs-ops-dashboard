@@ -16,6 +16,7 @@ async function getShopifyToken() {
 }
 
 export default async function handler(req, res) {
+  // --- FIXED AUTH: Allows Cron Secret OR Dashboard Password ---
   const authHeader = req.headers['x-loam-secret'] || req.headers['x-dashboard-auth'];
   const isValidCron = authHeader === process.env.CRON_SECRET;
   const isValidDash = authHeader === process.env.DASHBOARD_PASSWORD;
@@ -23,6 +24,9 @@ export default async function handler(req, res) {
   if (!isValidCron && !isValidDash) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
+
+  try {
+    const { data: rules, error } = await supabase.from('watcher_rules').select('*');
     if (error) throw error;
 
     const adminToken = await getShopifyToken();
@@ -37,7 +41,11 @@ export default async function handler(req, res) {
         
         const spokeGoal = cleanNum(rule.option_values["Spoke Count"]);
         const isFrontRule = rule.title.toLowerCase().includes('front');
+
+        // --- MATCHING LOGIC (REPLACEMENT BLOCK) ---
         let candidates = [];
+        const spokeGoal = cleanNum(rule.option_values["Spoke Count"]);
+        const isFrontRule = rule.title.toLowerCase().includes('front');
 
         switch (rule.vendor_name?.toLowerCase()) {
           case 'berd':
@@ -53,13 +61,13 @@ export default async function handler(req, res) {
               const is142 = vTitle.includes('142') || vTitle.includes('road') || vTitle.includes('gravel');
               const is148 = vTitle.includes('148') || (vTitle.includes('boost') && !is157);
 
-              if (ruleTitle.includes('157') || ruleTitle.includes('super')) return is157;
+              if (ruleTitle.includes('157') || ruleTitle.toLowerCase().includes('super')) return is157;
               if (ruleTitle.includes('142')) return is142;
               if (ruleTitle.includes('148')) return is148;
-
               return vTitle.includes('rear');
             });
             break;
+
           default:
             candidates = vData.variants.filter(v => {
               const vTitle = v.public_title.toLowerCase();
@@ -84,7 +92,6 @@ export default async function handler(req, res) {
           });
           const sData = await sResponse.json();
           const variant = sData.data.productVariant;
-          
           const myPrice = parseFloat(variant.price).toFixed(2);
           const myComparePrice = variant.compareAtPrice ? parseFloat(variant.compareAtPrice).toFixed(2) : null;
 
@@ -111,15 +118,24 @@ export default async function handler(req, res) {
             attention.push({ title: rule.title, reason: marginAlert ? `Margin Alert: ${Math.round(priceDropPercent*100)}% drop` : reasons.join(', ') });
           } else { inSync.push({ title: rule.title, myPrice }); }
 
-          await supabase.from('watcher_rules').update({ 
-            last_price: Math.round(vendorPrice * 100), 
-            last_availability: vendorAvailable, 
-            last_run_at: new Date(), 
-            last_log: reasons[0] || 'In Sync' 
-          }).eq('id', rule.id);
+          await supabase.from('watcher_rules').update({ last_price: Math.round(vendorPrice * 100), last_availability: vendorAvailable, last_run_at: new Date(), last_log: reasons[0] || 'In Sync' }).eq('id', rule.id);
         }
       } catch (err) { console.error(`Error on ${rule.title}:`, err.message); }
     }
+
+    if (updated.length > 0 || attention.length > 0) {
+      const updatedHtml = updated.map(i => `<li style="color:green;">🚀 <b>UPDATED:</b> ${i.title}<br><small>${i.reason}</small></li>`).join('');
+      const attentionHtml = attention.map(i => `<li style="color:red;">⚠️ <b>ALERT:</b> ${i.title}<br><small>${i.reason}</small></li>`).join('');
+      await resend.emails.send({
+        from: 'Watcher <system@loamlabsusa.com>', to: process.env.REPORT_EMAIL,
+        subject: `Vendor Watcher Report: ${updated.length} Updates`,
+        html: `<div style="font-family:sans-serif;"><h2>Shop Sync Report</h2>${updatedHtml}${attentionHtml}</div>`
+      });
+    }
+
+    res.status(200).json({ updated: updated.length, attention: attention.length });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+}
 
     // --- SEND EMAIL REPORT ---
     if (updated.length > 0 || attention.length > 0) {
