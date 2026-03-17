@@ -36,27 +36,29 @@ export default async function handler(req, res) {
         const vResponse = await fetch(`${rule.vendor_url}.js`);
         const vData = await vResponse.json();
         
+        // --- START REPLACEMENT: CHARACTER NORMALIZATION ---
+        const normalize = (t) => t.toLowerCase().replace(/×/g, 'x').replace(/\s+/g, ' ').trim();
         const spokeGoal = cleanNum(rule.option_values["Spoke Count"]);
         const isFrontRule = rule.title.toLowerCase().includes('front');
-        const clean = (t) => t.toLowerCase().replace(/×/g, 'x').replace(/\s+/g, ' ').trim();
 
-        // 2. DIAGNOSTIC MATCHING ENGINE
         let candidates = vData.variants.filter(v => {
-          const vTitle = clean(v.public_title);
-          const ruleTitle = clean(rule.title);
+          const vTitle = normalize(v.public_title);
+          const ruleTitle = normalize(rule.title);
           
           const hasSpoke = vTitle.includes(`${spokeGoal} spoke`) || vTitle.includes(`${spokeGoal}h`) || vTitle.includes(`${spokeGoal} hole`);
           if (!hasSpoke) return false;
+          if (isFrontRule) return vTitle.includes('front');
           
-          if (isFrontRule && !vTitle.includes('front')) return false;
-          if (!isFrontRule && !(vTitle.includes('rear') || vTitle.includes('xd') || vTitle.includes('hg') || vTitle.includes('ms'))) return false;
+          const is157 = vTitle.includes('157') || vTitle.includes('super');
+          const is142 = vTitle.includes('142') || vTitle.includes('road') || vTitle.includes('gravel');
+          const is148 = vTitle.includes('148') || (vTitle.includes('boost') && !is157 && !is142);
 
-          // Axle Standard Lock (Fixes 142 vs 148 vs 157)
-          const axleMatch = ['100', '110', '142', '148', '157'].find(size => ruleTitle.includes(size));
-          if (axleMatch && !vTitle.includes(axleMatch)) return false;
-
-          return true;
+          if (ruleTitle.includes('157')) return is157;
+          if (ruleTitle.includes('142')) return is142;
+          if (ruleTitle.includes('148')) return is148;
+          return vTitle.includes('rear') || vTitle.includes('xd') || vTitle.includes('hg') || vTitle.includes('ms');
         });
+        // --- END REPLACEMENT ---
 
         if (candidates.length > 0) {
           const winner = candidates.reduce((prev, curr) => (prev.price > curr.price) ? prev : curr);
@@ -94,11 +96,28 @@ export default async function handler(req, res) {
             }
 
             if (rule.auto_update === true) {
-              await fetch(`https://${process.env.SHOPIFY_SHOP_NAME}.myshopify.com/admin/api/2024-04/variants/${rule.shopify_variant_id}.json`, {
-                method: 'PUT', headers: { 'X-Shopify-Access-Token': adminToken, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ variant: updatePayload })
+            // 1. Fetch ALL variants for this product from Shopify
+            const pResponse = await fetch(`https://${process.env.SHOPIFY_SHOP_NAME}.myshopify.com/admin/api/2024-04/products/${rule.shopify_product_id}.json`, {
+              headers: { 'X-Shopify-Access-Token': adminToken }
+            });
+            const pData = await pResponse.json();
+            
+            // 2. Find all variants that match the same Spoke Count (ignoring colors)
+            const siblingsToUpdate = pData.product.variants.filter(v => {
+              const vTitle = v.title.toLowerCase().replace(/×/g, 'x');
+              return vTitle.includes(spokeGoal);
+            });
+
+            // 3. Update every matching variant (Black Spoke, White Spoke, etc.)
+            for (const sibling of siblingsToUpdate) {
+              await fetch(`https://${process.env.SHOPIFY_SHOP_NAME}.myshopify.com/admin/api/2024-04/variants/${sibling.id}.json`, {
+                method: 'PUT',
+                headers: { 'X-Shopify-Access-Token': adminToken, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ variant: { id: sibling.id, price: goalPrice } })
               });
-              updated.push({ title: rule.title, reason: changeReason });
+            }
+            updated.push({ title: rule.title, reason: `Updated ${siblingsToUpdate.length} color variants to $${goalPrice}` });
+          }
             } else {
               attention.push({ title: rule.title, reason: `Manual Sync Required: ${changeReason}` });
             }
