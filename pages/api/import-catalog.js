@@ -72,13 +72,15 @@ export default async function handler(req, res) {
           for (const v of p.node.variants.edges) {
             // Create a key based on Spoke Count but IGNORE Color
             // If the hub has "28h" and "Black", the key is just "28h"
-            const spokeCountValue = v.node.selectedOptions.find(opt => opt.name.toLowerCase().includes('spoke'))?.value || 'Std';
+            const spokeCountValue = v.node.selectedOptions.find(opt => opt.name.toLowerCase().includes('spoke count'))?.value || 'Std';
             
-            // Logic: Hubs group by Spoke Count. Wheelsets group by Spoke Count + Spoke Color.
+            // Logic: If it's a Wheelset (handbuilt), differentiate by Spoke Color.
             const isWheelset = p.node.tags.some(t => t.toLowerCase() === 'handbuilt');
-            const spokeColor = isWheelset ? (v.node.selectedOptions.find(opt => opt.name.toLowerCase().includes('color'))?.value || '') : '';
+            const spokeColorValue = isWheelset ? (v.node.selectedOptions.find(opt => opt.name.toLowerCase() === 'spoke color')?.value || '') : '';
             
-            const technicalKey = `${p.node.id}-${spokeCountValue}-${spokeColor}`;
+            // The key ensures we get one row per [Hole Count] for hubs, 
+            // but one row per [Hole Count + Spoke Color] for wheelsets.
+            const technicalKey = `${p.node.id}-${spokeCountValue}-${spokeColorValue}`;
 
             // If we haven't added this specific hole count for this hub yet, add it
             if (!seenTechnicalSpecs.has(technicalKey)) {
