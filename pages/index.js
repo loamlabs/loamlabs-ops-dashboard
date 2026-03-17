@@ -245,6 +245,33 @@ export default function OpsDashboard() {
                 })}
               </div>
             </div>
+            
+            {/* --- SYNC CONFIG FILTER BAR --- */}
+            <div className="mb-10">
+              <div className="flex items-center justify-between mb-4">
+                <label className="text-[10px] font-black uppercase text-zinc-400 tracking-[0.2em] italic">Auto-Update Filter</label>
+              </div>
+              <div className="flex flex-wrap gap-2 mb-8">
+                <button 
+                  onClick={() => setSyncFilter('all')} 
+                  className={`px-4 py-2 rounded-xl border-2 font-black text-[10px] uppercase transition-all ${syncFilter === 'all' ? 'bg-black text-white border-black shadow-lg scale-105' : 'bg-white text-zinc-400 border-zinc-100 hover:border-zinc-300'}`}
+                >
+                  All Items
+                </button>
+                <button 
+                  onClick={() => setSyncFilter('on')} 
+                  className={`px-4 py-2 rounded-xl border-2 font-black text-[10px] uppercase transition-all flex items-center gap-2 ${syncFilter === 'on' ? 'bg-green-500 text-white border-green-600 shadow-lg scale-105' : 'bg-white text-zinc-400 border-zinc-100 hover:border-zinc-300'}`}
+                >
+                  <Zap size={14} className={syncFilter === 'on' ? 'animate-pulse' : ''} /> Active (True)
+                </button>
+                <button 
+                  onClick={() => setSyncFilter('off')} 
+                  className={`px-4 py-2 rounded-xl border-2 font-black text-[10px] uppercase transition-all flex items-center gap-2 ${syncFilter === 'off' ? 'bg-zinc-600 text-white border-zinc-700 shadow-lg scale-105' : 'bg-white text-zinc-400 border-zinc-100 hover:border-zinc-300'}`}
+                >
+                  <ZapOff size={14} /> Paused (False)
+                </button>
+              </div>
+            </div>
 
             <div className="bg-white rounded-[2rem] shadow-sm border border-zinc-200 overflow-hidden text-sm">
               <table className="w-full text-left">

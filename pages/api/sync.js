@@ -27,8 +27,21 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { data: rules, error } = await supabase.from('watcher_rules').select('*');
-    if (error) throw error;
+    let rules = [];
+    let hasMore = true;
+    let rangeStart = 0;
+
+    while (hasMore) {
+      const { data, error } = await supabase.from('watcher_rules').select('*').range(rangeStart, rangeStart + 999);
+      if (error) throw error;
+      if (data && data.length > 0) {
+        rules = rules.concat(data);
+        if (data.length < 1000) hasMore = false;
+        else rangeStart += 1000;
+      } else {
+        hasMore = false;
+      }
+    }
 
     const adminToken = await getShopifyToken();
     let updated = [], attention = [], inSync = [];
@@ -40,7 +53,11 @@ export default async function handler(req, res) {
         const vResponse = await fetch(`${rule.vendor_url}.js`);
         const vData = await vResponse.json();
         
-        const spokeGoal = cleanNum(rule.option_values["Spoke Count"]);
+        let parsedOptions = rule.option_values || {};
+        if (typeof parsedOptions === 'string') {
+          try { parsedOptions = JSON.parse(parsedOptions); } catch (e) {}
+        }
+        const spokeGoal = cleanNum(parsedOptions["Spoke Count"]);
         const isFrontRule = rule.title.toLowerCase().includes('front');
         const normalize = (t) => String(t || "").toLowerCase().replace(/×/g, 'x').replace(/\s+/g, ' ').trim();
 

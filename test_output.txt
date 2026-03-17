@@ -1,0 +1,24 @@
+
+Testing: Berd Talon Front Hub - Centerlock - 12x100mm (24h)
+Spoke Goal: 24, isFront: true
+Winner: Talon 24 Spoke / 12x100 Front ($149)
+
+Testing: Berd Talon Front Hub - Centerlock - 15x110mm (28h)
+Spoke Goal: 28, isFront: true
+Winner: Talon 28 Spoke 15x110 Front ($149)
+
+Testing: Berd Talon Rear Hub - Centerlock - 12x142mm (24h)
+Spoke Goal: 24, isFront: false
+Winner: Talon 24 Spoke / 12x142 Rear Microspline ($399)
+
+Testing: Berd Talon Rear Hub - Centerlock - 12x142mm (28h)
+Spoke Goal: 28, isFront: false
+Winner: Talon 28 Spoke / 12x142 Rear Microspline ($399)
+
+Testing: Berd Talon Rear Hub - Centerlock - 12x148mm (28h)
+Spoke Goal: 28, isFront: false
+Winner: Talon 28 Spoke 12x148 Rear Microspline ($399)
+
+Testing: Berd Talon Superboost Rear Hub - Centerlock - 12x157mm (28h)
+Spoke Goal: 28, isFront: false
+Winner: Talon 28 Spoke 12x157 Rear Shimano HG ($399)
