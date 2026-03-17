@@ -65,34 +65,15 @@ export default async function handler(req, res) {
       if (filtered.length > 0) {
         let variantBatch = [];
         for (const p of filtered) {
-          
-          // --- COLOR-BLIND GROUPING LOGIC ---
           const seenTechnicalSpecs = new Set();
-
           for (const v of p.node.variants.edges) {
-            // Create a key based on Spoke Count but IGNORE Color
-            // If the hub has "28h" and "Black", the key is just "28h"
             const spokeCountValue = v.node.selectedOptions.find(opt => opt.name.toLowerCase().includes('spoke count'))?.value || 'Std';
-            
-            // Logic: If it's a Wheelset (handbuilt), differentiate by Spoke Color.
-            const isWheelset = p.node.tags.some(t => t.toLowerCase() === 'handbuilt');
-            const spokeColorValue = isWheelset ? (v.node.selectedOptions.find(opt => opt.name.toLowerCase() === 'spoke color')?.value || '') : '';
-            
-            // The key ensures we get one row per [Hole Count] for hubs, 
-            // but one row per [Hole Count + Spoke Color] for wheelsets.
-            const technicalKey = `${p.node.id}-${spokeCountValue}-${spokeColorValue}`;
+            const technicalKey = `${p.node.id}-${spokeCountValue}`;
 
-            // If we haven't added this specific hole count for this hub yet, add it
             if (!seenTechnicalSpecs.has(technicalKey)) {
               seenTechnicalSpecs.add(technicalKey);
-
-              else mappedOptions[opt.name] = const mappedOptions = {};
-            v.node.selectedOptions.forEach(opt => { 
-              // Standardize names to "Spoke Count" and "Spoke Color" for the sync engine
-              if (opt.name.toLowerCase().includes('spoke count')) mappedOptions["Spoke Count"] = opt.value;
-              else if (opt.name.toLowerCase() === 'spoke color') mappedOptions["Spoke Color"] = opt.value;
-              else mappedOptions[opt.name] = opt.value;
-            });opt.value;
+              const mappedOptions = {};
+              v.node.selectedOptions.forEach(opt => { mappedOptions[opt.name] = opt.value; });
 
               variantBatch.push({
                 shopify_product_id: p.node.id.split('/').pop(),
