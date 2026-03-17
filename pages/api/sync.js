@@ -137,23 +137,30 @@ export default async function handler(req, res) {
           // 5. DIAGNOSTIC LOG (Writes to your Dashboard)
           const vendorOptions = vData.variants.slice(0, 2).map(v => v.public_title).join(', ');
           await supabase.from('watcher_rules').update({ 
+            last_price: Math.round(vendorPrice * 100), 
+            last_availability: winner.available,
+            last_run_at: new Date().toISOString(),
+            last_log: `Matched: "${winner.public_title}".`
+          }).eq('id', rule.id);
+
+        } else {
+          const vendorOptions = vData.variants.slice(0, 2).map(v => v.public_title).join(', ');
+          await supabase.from('watcher_rules').update({ 
             last_log: `FAILED: Found 0 matches for ${spokeGoal}h. Vendor uses: ${vendorOptions}` 
           }).eq('id', rule.id);
         }
       } catch (err) { console.error(`Error on ${rule.title}:`, err.message); }
     }
 
-    // 6. GATED REPORTING
     if (updated.length > 0 || attention.length > 0) {
       const updatedHtml = updated.map(i => `<li style="color:green;">🚀 <b>UPDATED:</b> ${i.title}<br><small>${i.reason}</small></li>`).join('');
       const attentionHtml = attention.map(i => `<li style="color:red;">⚠️ <b>ALERT:</b> ${i.title}<br><small>${i.reason}</small></li>`).join('');
       await resend.emails.send({
         from: 'Watcher <system@loamlabsusa.com>', to: process.env.REPORT_EMAIL,
-        subject: `Vendor Watcher: ${updated.length} Updates, ${attention.length} Alerts`,
+        subject: `Vendor Watcher Report: ${updated.length} Updates`,
         html: `<div style="font-family:sans-serif;"><h2>Shop Sync Report</h2><ul>${updatedHtml}${attentionHtml}</ul></div>`
       });
     }
-
     res.status(200).json({ updated: updated.length, attention: attention.length });
   } catch (err) { res.status(500).json({ error: err.message }); }
 }
