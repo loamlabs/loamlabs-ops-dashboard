@@ -38,32 +38,29 @@ export default async function handler(req, res) {
 
         // MATCHING LOGIC
         let candidates = [];
-        
+        const spokeGoal = cleanNum(rule.option_values["Spoke Count"]);
+        const isFrontRule = rule.title.toLowerCase().includes('front');
+
         switch (rule.vendor_name?.toLowerCase()) {
           case 'berd':
             candidates = vData.variants.filter(v => {
               const vTitle = v.public_title.toLowerCase();
               const hasSpokeCount = vTitle.includes(`${spokeGoal} spoke`) || vTitle.includes(`${spokeGoal}h`) || vTitle.includes(`${spokeGoal} hole`);
               if (!hasSpokeCount) return false;
-
               if (isFrontRule) return vTitle.includes('front');
               
-              // REAR AXLE LOGIC
               const is157 = vTitle.includes('157') || vTitle.includes('super');
               const is142 = vTitle.includes('142') || vTitle.includes('road') || vTitle.includes('gravel');
-              const is148 = vTitle.includes('148') || (vTitle.includes('boost') && !vTitle.includes('157'));
+              const is148 = vTitle.includes('148') || (vTitle.includes('boost') && !is157);
 
-              // Match against the Registry Title from Supabase
               if (rule.title.includes('157') || rule.title.toLowerCase().includes('super')) return is157;
               if (rule.title.includes('142')) return is142;
               if (rule.title.includes('148')) return is148;
-
               return vTitle.includes('rear');
             });
             break;
 
           default:
-            // Generic Fallback
             candidates = vData.variants.filter(v => {
               const vTitle = v.public_title.toLowerCase();
               const spokeMatch = vTitle.includes(`${spokeGoal} spoke`) || vTitle.includes(`${spokeGoal}h`) || vTitle.includes(`${spokeGoal} hole`);
