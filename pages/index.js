@@ -124,15 +124,27 @@ export default function OpsDashboard() {
 
   // 2. Sorting: Alphabetical by Vendor, then by Product Title
   const filteredRules = rules.filter(r => {
-    const normalize = (str) => (str || "").toLowerCase().replace(/×/g, 'x').trim();
-    const matchesVendor = selectedVendors.length === 0 || 
+    if (!r) return false;
+    const normalize = (str) => String(str || "").toLowerCase().replace(/×/g, 'x').replace(/\s+/g, ' ').trim();
+    const vendorMatch = selectedVendors.length === 0 || 
       selectedVendors.some(v => normalize(v) === normalize(r.vendor_name));
-    const matchesSearch = normalize(r.title).includes(normalize(registrySearch));
-    const matchesSync = syncFilter === 'all' ? true : syncFilter === 'on' ? r.auto_update : !r.auto_update;
-    return matchesVendor && matchesSearch && matchesSync;
+    
+    // Safety check for title search
+    const searchString = normalize(registrySearch);
+    const searchMatch = !searchString || normalize(r.title).includes(searchString);
+    
+    // Safety check for sync filter
+    let syncMatch = true;
+    if (syncFilter === 'on') syncMatch = r.auto_update === true;
+    if (syncFilter === 'off') syncMatch = r.auto_update === false;
+    
+    return vendorMatch && searchMatch && syncMatch;
   }).sort((a, b) => {
-    const vendorSort = (a.vendor_name || "").localeCompare(b.vendor_name || "");
-    return vendorSort !== 0 ? vendorSort : a.title.localeCompare(b.title);
+    const vendorA = String(a.vendor_name || "");
+    const vendorB = String(b.vendor_name || "");
+    const vendorSort = vendorA.localeCompare(vendorB);
+    if (vendorSort !== 0) return vendorSort;
+    return String(a.title || "").localeCompare(String(b.title || ""));
   });
 
   const paginatedRules = filteredRules.slice(0, visibleCount);
@@ -185,7 +197,7 @@ export default function OpsDashboard() {
               <div>
                 <h1 className="text-4xl font-black tracking-tight text-zinc-900 uppercase italic">Registry</h1>
                 <div className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mt-1">
-                  Found {filteredRules.length} items
+                  Viewing {filteredRules.length} of {rules.length} Total Registry Items
                 </div>
               </div>
               <div className="flex items-center gap-3">

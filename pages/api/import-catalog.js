@@ -78,7 +78,7 @@ export default async function handler(req, res) {
               variantBatch.push({
                 shopify_product_id: p.node.id.split('/').pop(),
                 shopify_variant_id: v.node.id.split('/').pop(),
-                title: `${p.node.title} (${spokeCountValue})`,
+                title: `${p.node.title} (${spokeCountValue})`.replace(/×/g, 'x'),
                 vendor_name: p.node.vendor,
                 auto_update: false,
                 site_type: 'SHOPIFY',

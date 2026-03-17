@@ -42,7 +42,7 @@ export default async function handler(req, res) {
         
         const spokeGoal = cleanNum(rule.option_values["Spoke Count"]);
         const isFrontRule = rule.title.toLowerCase().includes('front');
-        const normalize = (t) => t.toLowerCase().replace(/×/g, 'x').replace(/\s+/g, ' ').trim();
+        const normalize = (t) => String(t || "").toLowerCase().replace(/×/g, 'x').replace(/\s+/g, ' ').trim();
 
         // 1. MATCHING ENGINE
         let candidates = vData.variants.filter(v => {
@@ -61,7 +61,7 @@ export default async function handler(req, res) {
         });
 
         if (candidates.length > 0) {
-          const winner = candidates.reduce((prev, curr) => (prev.price > curr.price) ? prev : current);
+          const winner = candidates.reduce((prev, curr) => (prev.price > curr.price) ? prev : curr);
           const vendorPrice = winner.price / 100;
           const goalPrice = parseFloat(vendorPrice * (rule.price_adjustment_factor || 1.1111)).toFixed(2);
 

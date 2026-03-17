@@ -8,11 +8,32 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
-  const { data, error } = await supabase
-    .from('watcher_rules')
-    .select('*')
-    .order('created_at', { ascending: false });
+  let allData = [];
+  let hasMore = true;
+  let rangeStart = 0;
+  let rangeEnd = 999;
 
-  if (error) return res.status(500).json({ error: error.message });
-  res.status(200).json(data);
+  while (hasMore) {
+    const { data, error } = await supabase
+      .from('watcher_rules')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .range(rangeStart, rangeEnd);
+
+    if (error) return res.status(500).json({ error: error.message });
+
+    if (data && data.length > 0) {
+      allData = allData.concat(data);
+      if (data.length < 1000) {
+        hasMore = false;
+      } else {
+        rangeStart += 1000;
+        rangeEnd += 1000;
+      }
+    } else {
+      hasMore = false;
+    }
+  }
+
+  res.status(200).json(allData);
 }
