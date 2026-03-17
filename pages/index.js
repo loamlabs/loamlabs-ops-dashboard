@@ -78,10 +78,10 @@ export default function OpsDashboard() {
     if (!confirm("This will scan Shopify and add all variants to the Registry. Continue?")) return;
     setLoading(true);
     try {
-      const res = await fetch('/api/import-catalogue', { // Changed to lowercase
-        method: 'POST',
-        headers: { 'x-dashboard-auth': password } 
-      });
+      const res = await fetch('/api/import-catalog', { 
+  method: 'POST',
+  headers: { 'x-dashboard-auth': password } 
+});
       
       const data = await res.json();
       
