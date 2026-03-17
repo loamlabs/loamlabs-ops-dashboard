@@ -119,23 +119,17 @@ export default function OpsDashboard() {
     );
   };
 
-  const visibleVendorNames = [...new Set(rules.map(r => r.vendor_name).filter(Boolean))].sort();
+ // --- ROBUST FILTERING & SORTING ---
+  // 1. Get unique vendor names, clean them, and sort them A-Z
+  const vendorNames = [...new Set(rules.map(r => r.vendor_name).filter(Boolean))].sort();
 
-  // --- ROBUST FILTERING & ALPHABETIZING ---
+  // 2. Filter rules based on selection and search
   const filteredRules = rules.filter(r => {
-    // 1. Vendor Match (Case-insensitive + Trimmed)
-    const matchesVendor = selectedVendors.length === 0 || 
-      selectedVendors.some(v => v.toLowerCase().trim() === (r.vendor_name || "").toLowerCase().trim());
-    
-    // 2. Search Match
+    const matchesVendor = selectedVendors.length === 0 || selectedVendors.includes(r.vendor_name);
     const matchesSearch = r.title.toLowerCase().includes(registrySearch.toLowerCase());
-    
-    // 3. Sync Toggle Match
     const matchesSync = syncFilter === 'all' ? true : syncFilter === 'on' ? r.auto_update : !r.auto_update;
-    
     return matchesVendor && matchesSearch && matchesSync;
-  }).sort((a, b) => {
-    // Sort primarily by Title (so 24h and 28h stay together)
+  }).sort((a, b) => a.title.localeCompare(b.title)); // Keeps 24h and 28h together
     return a.title.localeCompare(b.title);
   });
 
