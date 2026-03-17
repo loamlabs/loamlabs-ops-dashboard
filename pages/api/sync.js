@@ -38,94 +38,76 @@ export default async function handler(req, res) {
         const vResponse = await fetch(`${rule.vendor_url}.js`);
         const vData = await vResponse.json();
         
-        // --- DEFINED ONCE PER RULE ---
         const spokeGoal = cleanNum(rule.option_values["Spoke Count"]);
         const isFrontRule = rule.title.toLowerCase().includes('front');
-        const vTitleCleanup = (t) => t.toLowerCase().replace(/×/g, 'x').replace(/\s+/g, ' ');
-        let candidates = [];
+        const vTitleCleanup = (t) => t.toLowerCase().replace(/×/g, 'x').replace(/\s+/g, ' ').trim();
 
-        // --- MATCHING LOGIC ---
-        switch (rule.vendor_name?.toLowerCase()) {
-          case 'berd':
-            candidates = vData.variants.filter(v => {
-              const vTitle = vTitleCleanup(v.public_title);
-              const ruleTitle = vTitleCleanup(rule.title);
-              const hasSpokeCount = vTitle.includes(`${spokeGoal} spoke`) || vTitle.includes(`${spokeGoal}h`) || vTitle.includes(`${spokeGoal} hole`);
-              
-              if (!hasSpokeCount) return false;
-              if (isFrontRule) return vTitle.includes('front');
-              
-              const is157 = vTitle.includes('157') || vTitle.includes('super');
-              const is142 = vTitle.includes('142') || vTitle.includes('road') || vTitle.includes('gravel');
-              const is148 = vTitle.includes('148') || (vTitle.includes('boost') && !is157);
+        let candidates = vData.variants.filter(v => {
+          const vTitle = vTitleCleanup(v.public_title);
+          // Permissive Spoke Check
+          const hasSpoke = vTitle.includes(`${spokeGoal} spoke`) || vTitle.includes(`${spokeGoal}h`) || vTitle.includes(`${spokeGoal} hole`) || vTitle.split(' ').includes(spokeGoal);
+          if (!hasSpoke) return false;
 
-              if (ruleTitle.includes('157') || ruleTitle.toLowerCase().includes('super')) return is157;
-              if (ruleTitle.includes('142')) return is142;
-              if (ruleTitle.includes('148')) return is148;
-              return vTitle.includes('rear');
-            });
-            break;
+          if (isFrontRule) return vTitle.includes('front');
+          
+          // Rear/Axle Logic
+          const is157 = vTitle.includes('157') || vTitle.includes('super');
+          const is142 = vTitle.includes('142') || vTitle.includes('road') || vTitle.includes('gravel');
+          const is148 = vTitle.includes('148') || (vTitle.includes('boost') && !is157 && !is142);
 
-          default:
-            candidates = vData.variants.filter(v => {
-              const vTitle = vTitleCleanup(v.public_title);
-              return vTitle.includes(spokeGoal) && (isFrontRule ? vTitle.includes('front') : true);
-            });
-        }
+          if (rule.title.includes('157')) return is157;
+          if (rule.title.includes('142')) return is142;
+          if (rule.title.includes('148')) return is148;
+
+          return vTitle.includes('rear') || vTitle.includes('xd') || vTitle.includes('hg') || vTitle.includes('ms');
+        });
 
         if (candidates.length > 0) {
-          const highestPriceVariant = candidates.reduce((prev, current) => (prev.price > current.price) ? prev : current);
-          const vendorPrice = highestPriceVariant.price / 100;
-          const vendorAvailable = highestPriceVariant.available;
-          const goalPrice = parseFloat(vendorPrice * (rule.price_adjustment_factor || 1.1111)).toFixed(2);
+          const winner = candidates.reduce((prev, curr) => (prev.price > curr.price) ? prev : curr);
+          const vendorPrice = winner.price / 100;
+          const factor = rule.price_adjustment_factor || 1.1111;
+          const goalPrice = parseFloat(vendorPrice * factor).toFixed(2);
 
           const sResponse = await fetch(`https://${process.env.SHOPIFY_SHOP_NAME}.myshopify.com/admin/api/2024-04/graphql.json`, {
             method: 'POST', headers: { 'X-Shopify-Access-Token': adminToken, 'Content-Type': 'application/json' },
             body: JSON.stringify({
               query: `query($id: ID!) { productVariant(id: $id) { price compareAtPrice inventoryQuantity product { vendor } } }`,
-              variables: { id: `gid://shopify/ProductVariant/${rule.shopify_variant_id}` }
+              variables: { id: `gid://shopify/gid/ProductVariant/${rule.shopify_variant_id}`.replace('gid/gid/', 'gid/') }
             })
           });
           const sData = await sResponse.json();
-          const variant = sData.data.productVariant;
-          const myPrice = parseFloat(variant.price).toFixed(2);
-          const myComparePrice = variant.compareAtPrice ? parseFloat(variant.compareAtPrice).toFixed(2) : null;
-
-          let needsUpdate = false, updatePayload = { id: rule.shopify_variant_id }, reasons = [];
-          const priceDropPercent = (myPrice - goalPrice) / myPrice;
-          let marginAlert = priceDropPercent > (rule.price_drop_threshold || 0.20);
-
-          if (goalPrice !== myPrice && !marginAlert) {
-            updatePayload.price = goalPrice;
-            if (myComparePrice && parseFloat(myComparePrice) > parseFloat(myPrice)) {
-              updatePayload.compare_at_price = (parseFloat(goalPrice) + (parseFloat(myComparePrice) - parseFloat(myPrice))).toFixed(2);
-            }
-            reasons.push(`Sync: $${myPrice} -> $${goalPrice}`);
-            needsUpdate = true;
+          const variant = sData.data?.productVariant;
+          
+          if (!variant) {
+            await supabase.from('watcher_rules').update({ last_log: `Shopify ID ${rule.shopify_variant_id} not found.` }).eq('id', rule.id);
+            continue;
           }
 
-          if (needsUpdate && rule.auto_update === true) {
+          const myPrice = parseFloat(variant.price).toFixed(2);
+          const isDiff = Number(goalPrice) !== Number(myPrice);
+
+          if (isDiff && rule.auto_update === true) {
             await fetch(`https://${process.env.SHOPIFY_SHOP_NAME}.myshopify.com/admin/api/2024-04/variants/${rule.shopify_variant_id}.json`, {
               method: 'PUT', headers: { 'X-Shopify-Access-Token': adminToken, 'Content-Type': 'application/json' },
-              body: JSON.stringify({ variant: updatePayload })
+              body: JSON.stringify({ variant: { id: rule.shopify_variant_id, price: goalPrice } })
             });
-            updated.push({ title: rule.title, reason: reasons.join(', ') });
-          } else if (needsUpdate || marginAlert) {
-            attention.push({ title: rule.title, reason: marginAlert ? `Margin Alert: ${Math.round(priceDropPercent*100)}% drop` : reasons.join(', ') });
-          } else { 
-            inSync.push({ title: rule.title, myPrice }); 
+            updated.push({ title: rule.title });
           }
 
           await supabase.from('watcher_rules').update({ 
             last_price: Math.round(vendorPrice * 100), 
-            last_availability: vendorAvailable, 
-            last_run_at: new Date().toISOString(), 
-            last_log: marginAlert ? "Margin Review Required" : `Match: ${candidates[0].public_title}. Goal: $${goalPrice}` 
+            last_availability: winner.available,
+            last_run_at: new Date().toISOString(),
+            last_log: `Matched: ${winner.public_title}. Goal: $${goalPrice}.`
           }).eq('id', rule.id);
+
         } else {
-            await supabase.from('watcher_rules').update({ last_log: `FAILED: Found 0 matches on Berd site for ${spokeGoal}h.` }).eq('id', rule.id);
+          // LOG FAILURE TO DATABASE
+          await supabase.from('watcher_rules').update({ 
+            last_log: `FAILED: No Berd variants matched "${spokeGoal}" and Position. Check URL.` 
+          }).eq('id', rule.id);
         }
-      } catch (err) { console.error(`Error on ${rule.title}:`, err.message); }
+      } catch (err) { console.error(err); }
     }
 
     if (updated.length > 0 || attention.length > 0) {
