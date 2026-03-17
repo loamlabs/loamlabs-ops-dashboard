@@ -129,7 +129,9 @@ export default function OpsDashboard() {
     const matchesSearch = r.title.toLowerCase().includes(registrySearch.toLowerCase());
     const matchesSync = syncFilter === 'all' ? true : syncFilter === 'on' ? r.auto_update : !r.auto_update;
     return matchesVendor && matchesSearch && matchesSync;
-  }).sort((a, b) => a.title.localeCompare(b.title)); // Keeps 24h and 28h together
+  }).sort((a, b) => {
+    const vendorSort = (a.vendor_name || "").localeCompare(b.vendor_name || "");
+    if (vendorSort !== 0) return vendorSort;
     return a.title.localeCompare(b.title);
   });
 
