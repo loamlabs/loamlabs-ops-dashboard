@@ -86,8 +86,13 @@ export default async function handler(req, res) {
             if (!seenTechnicalSpecs.has(technicalKey)) {
               seenTechnicalSpecs.add(technicalKey);
 
-              const mappedOptions = {};
-              v.node.selectedOptions.forEach(opt => { mappedOptions[opt.name] = opt.value; });
+              else mappedOptions[opt.name] = const mappedOptions = {};
+            v.node.selectedOptions.forEach(opt => { 
+              // Standardize names to "Spoke Count" and "Spoke Color" for the sync engine
+              if (opt.name.toLowerCase().includes('spoke count')) mappedOptions["Spoke Count"] = opt.value;
+              else if (opt.name.toLowerCase() === 'spoke color') mappedOptions["Spoke Color"] = opt.value;
+              else mappedOptions[opt.name] = opt.value;
+            });opt.value;
 
               variantBatch.push({
                 shopify_product_id: p.node.id.split('/').pop(),
