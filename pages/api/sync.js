@@ -40,6 +40,7 @@ export default async function handler(req, res) {
         let candidates = [];
         const spokeGoal = cleanNum(rule.option_values["Spoke Count"]);
         const isFrontRule = rule.title.toLowerCase().includes('front');
+        let candidates = [];
 
         switch (rule.vendor_name?.toLowerCase()) {
           case 'berd':
@@ -53,9 +54,11 @@ export default async function handler(req, res) {
               const is142 = vTitle.includes('142') || vTitle.includes('road') || vTitle.includes('gravel');
               const is148 = vTitle.includes('148') || (vTitle.includes('boost') && !is157);
 
+              // Match against the Registry Title from Supabase
               if (rule.title.includes('157') || rule.title.toLowerCase().includes('super')) return is157;
               if (rule.title.includes('142')) return is142;
               if (rule.title.includes('148')) return is148;
+
               return vTitle.includes('rear');
             });
             break;
