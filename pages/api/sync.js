@@ -17,10 +17,7 @@ async function getShopifyToken() {
 
 export default async function handler(req, res) {
   const authHeader = req.headers['x-loam-secret'] || req.headers['x-dashboard-auth'];
-  const isValidCron = authHeader === process.env.CRON_SECRET;
-  const isValidDash = authHeader === process.env.DASHBOARD_PASSWORD;
-
-  if (!isValidCron && !isValidDash) {
+  if (authHeader !== process.env.CRON_SECRET && authHeader !== process.env.DASHBOARD_PASSWORD) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
@@ -37,51 +34,42 @@ export default async function handler(req, res) {
       try {
         const vResponse = await fetch(`${rule.vendor_url}.js`);
         const vData = await vResponse.json();
-        
         const spokeGoal = cleanNum(rule.option_values["Spoke Count"]);
         const isFrontRule = rule.title.toLowerCase().includes('front');
         const vTitleCleanup = (t) => t.toLowerCase().replace(/×/g, 'x').replace(/\s+/g, ' ').trim();
 
         let candidates = vData.variants.filter(v => {
           const vTitle = vTitleCleanup(v.public_title);
-          // Permissive Spoke Check
-          const hasSpoke = vTitle.includes(`${spokeGoal} spoke`) || vTitle.includes(`${spokeGoal}h`) || vTitle.includes(`${spokeGoal} hole`) || vTitle.split(' ').includes(spokeGoal);
+          const hasSpoke = vTitle.includes(`${spokeGoal} spoke`) || vTitle.includes(`${spokeGoal}h`) || vTitle.includes(`${spokeGoal} hole`);
           if (!hasSpoke) return false;
-
           if (isFrontRule) return vTitle.includes('front');
-          
-          // Rear/Axle Logic
           const is157 = vTitle.includes('157') || vTitle.includes('super');
           const is142 = vTitle.includes('142') || vTitle.includes('road') || vTitle.includes('gravel');
           const is148 = vTitle.includes('148') || (vTitle.includes('boost') && !is157 && !is142);
-
           if (rule.title.includes('157')) return is157;
           if (rule.title.includes('142')) return is142;
           if (rule.title.includes('148')) return is148;
-
           return vTitle.includes('rear') || vTitle.includes('xd') || vTitle.includes('hg') || vTitle.includes('ms');
         });
 
         if (candidates.length > 0) {
           const winner = candidates.reduce((prev, curr) => (prev.price > curr.price) ? prev : curr);
           const vendorPrice = winner.price / 100;
-          const factor = rule.price_adjustment_factor || 1.1111;
-          const goalPrice = parseFloat(vendorPrice * factor).toFixed(2);
+          const goalPrice = parseFloat(vendorPrice * (rule.price_adjustment_factor || 1.1111)).toFixed(2);
 
+          // FIXED GID FORMATTING:
+          const variantGid = `gid://shopify/ProductVariant/${rule.shopify_variant_id}`;
           const sResponse = await fetch(`https://${process.env.SHOPIFY_SHOP_NAME}.myshopify.com/admin/api/2024-04/graphql.json`, {
             method: 'POST', headers: { 'X-Shopify-Access-Token': adminToken, 'Content-Type': 'application/json' },
             body: JSON.stringify({
               query: `query($id: ID!) { productVariant(id: $id) { price compareAtPrice inventoryQuantity product { vendor } } }`,
-              variables: { id: `gid://shopify/gid/ProductVariant/${rule.shopify_variant_id}`.replace('gid/gid/', 'gid/') }
+              variables: { id: variantGid }
             })
           });
           const sData = await sResponse.json();
           const variant = sData.data?.productVariant;
           
-          if (!variant) {
-            await supabase.from('watcher_rules').update({ last_log: `Shopify ID ${rule.shopify_variant_id} not found.` }).eq('id', rule.id);
-            continue;
-          }
+          if (!variant) throw new Error("Shopify ID not found");
 
           const myPrice = parseFloat(variant.price).toFixed(2);
           const isDiff = Number(goalPrice) !== Number(myPrice);
@@ -91,8 +79,10 @@ export default async function handler(req, res) {
               method: 'PUT', headers: { 'X-Shopify-Access-Token': adminToken, 'Content-Type': 'application/json' },
               body: JSON.stringify({ variant: { id: rule.shopify_variant_id, price: goalPrice } })
             });
-            updated.push({ title: rule.title });
-          }
+            updated.push({ title: rule.title, reason: `$${myPrice} -> $${goalPrice}` });
+          } else if (isDiff) {
+            attention.push({ title: rule.title, reason: `Mismatch: $${goalPrice}` });
+          } else { inSync.push({ title: rule.title }); }
 
           await supabase.from('watcher_rules').update({ 
             last_price: Math.round(vendorPrice * 100), 
@@ -100,14 +90,10 @@ export default async function handler(req, res) {
             last_run_at: new Date().toISOString(),
             last_log: `Matched: ${winner.public_title}. Goal: $${goalPrice}.`
           }).eq('id', rule.id);
-
         } else {
-          // LOG FAILURE TO DATABASE
-          await supabase.from('watcher_rules').update({ 
-            last_log: `FAILED: No Berd variants matched "${spokeGoal}" and Position. Check URL.` 
-          }).eq('id', rule.id);
+          await supabase.from('watcher_rules').update({ last_log: `FAILED: No Berd variants matched Spoke goal.` }).eq('id', rule.id);
         }
-      } catch (err) { console.error(err); }
+      } catch (err) { console.error(`Error on ${rule.title}:`, err.message); }
     }
 
     if (updated.length > 0 || attention.length > 0) {
@@ -119,7 +105,6 @@ export default async function handler(req, res) {
         html: `<div style="font-family:sans-serif;"><h2>Shop Sync Report</h2><ul>${updatedHtml}${attentionHtml}</ul></div>`
       });
     }
-
     res.status(200).json({ updated: updated.length, attention: attention.length });
   } catch (err) { res.status(500).json({ error: err.message }); }
 }
