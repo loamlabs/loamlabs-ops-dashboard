@@ -120,12 +120,18 @@ export default function OpsDashboard() {
 
   const visibleVendorNames = [...new Set(rules.map(r => r.vendor_name).filter(Boolean))].sort();
 
+  // --- SORTED FILTERED RULES ---
   const filteredRules = rules.filter(r => {
     const matchesVendor = selectedVendors.length === 0 || selectedVendors.includes(r.vendor_name);
     const matchesSearch = r.title.toLowerCase().includes(registrySearch.toLowerCase());
     const matchesSync = syncFilter === 'all' ? true : syncFilter === 'on' ? r.auto_update : !r.auto_update;
     return matchesVendor && matchesSearch && matchesSync;
-  }).sort((a, b) => a.vendor_name?.localeCompare(b.vendor_name) || a.title.localeCompare(b.title));
+  }).sort((a, b) => {
+    // Sort primarily by Vendor Name, secondarily by Product Title
+    const vendorSort = (a.vendor_name || "").localeCompare(b.vendor_name || "");
+    if (vendorSort !== 0) return vendorSort;
+    return a.title.localeCompare(b.title);
+  });
 
   const paginatedRules = filteredRules.slice(0, visibleCount);
 
@@ -200,8 +206,13 @@ export default function OpsDashboard() {
               </div>
               <div className="flex flex-wrap gap-2">
                 {/* --- ADDED "ALL" BUTTON --- */}
-                <button onClick={() => setSelectedVendors([])} className={`px-4 py-2 rounded-xl border-2 font-black text-[10px] uppercase transition-all ${selectedVendors.length === 0 ? 'bg-black text-white border-black' : 'bg-white text-zinc-400 border-zinc-100'}`}>All</button>
-                
+                <button 
+                  onClick={() => setSelectedVendors([])} 
+                  className={`px-4 py-2 rounded-xl border-2 font-black text-[10px] uppercase transition-all ${selectedVendors.length === 0 ? 'bg-black text-white border-black shadow-lg scale-105' : 'bg-white text-zinc-400 border-zinc-100 hover:border-zinc-300'}`}
+                >
+                  All Vendors
+                </button>
+
                 {visibleVendorNames.map(v => {
                   const logo = vendorLogos.find(l => l.name.toLowerCase() === v.toLowerCase());
                   const isActive = selectedVendors.includes(v);
