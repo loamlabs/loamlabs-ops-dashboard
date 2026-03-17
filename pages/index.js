@@ -221,15 +221,13 @@ export default function OpsDashboard() {
             All Vendors
           </button>
           {visibleVendorNames.map(v => {
-                
-                {/* Dynamically Generated Brand Buttons */}
-                {visibleVendorNames.map(v => {
                   const logo = vendorLogos.find(l => l.name.toLowerCase() === v.toLowerCase());
                   const isActive = selectedVendors.includes(v);
                   return (
-                    <button key={v} onClick={() => { toggleVendor(v); setVisibleCount(50); }} className={`flex items-center gap-3 px-4 py-2 rounded-xl border-2 transition-all whitespace-nowrap ${isActive ? 'bg-zinc-900 text-white border-zinc-900 shadow-lg scale-105' : 'bg-white text-zinc-500 border-zinc-100 hover:border-zinc-300'}`}>
-                      {logo?.logo_url && <img src={logo.logo_url} className="h-3 w-auto object-contain" alt="" />}
-                      <span className="text-[10px] font-black uppercase tracking-tight">{v}</span>
+                    <button key={v} onClick={() => { toggleVendor(v); setVisibleCount(50); }} className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border-2 transition-all ${isActive ? 'border-green-500 bg-green-50 text-green-900 shadow-sm scale-[1.02]' : 'bg-white text-zinc-500 border-zinc-100 hover:border-zinc-300'}`}>
+                      {logo?.logo_url && <img src={logo.logo_url} className="h-3 w-auto object-contain grayscale-[0.5]" alt="" />}
+                      <span className="text-[10px] font-bold uppercase tracking-tight">{v}</span>
+                      <div className={`w-2 h-2 rounded-full border ${isActive ? 'bg-green-500 border-green-600' : 'bg-zinc-100 border-zinc-200'}`}></div>
                     </button>
                   );
                 })}
