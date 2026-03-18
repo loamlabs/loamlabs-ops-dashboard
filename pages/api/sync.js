@@ -119,7 +119,32 @@ export default async function handler(req, res) {
         if (candidates.length > 0) {
           const winner = candidates.reduce((prev, curr) => (prev.price > curr.price) ? prev : curr);
           const vendorPrice = winner.price / 100;
-          const goalPrice = parseFloat(vendorPrice * (rule.price_adjustment_factor || 1.1111)).toFixed(2);
+
+          // Sale Reversion & Smart Margin Safety Logic
+          const stdFactor = rule.standard_factor || 1.0;
+          let goalPriceNum = vendorPrice * stdFactor;
+          let isDeepSale = false;
+
+          if (rule.original_msrp && rule.original_msrp > 0) {
+            const discountRatio = (rule.original_msrp - vendorPrice) / rule.original_msrp;
+            if (discountRatio >= 0.10) {
+              // 10%+ SALE: Adjust final price so that a 10% builder discount matches the vendor sale price exactly
+              goalPriceNum = vendorPrice / 0.90;
+              isDeepSale = true;
+            }
+          }
+          const goalPrice = parseFloat(goalPriceNum).toFixed(2);
+
+          // 45-Day New Normal Timer Logic
+          let newPriceLastChangedAt = rule.price_last_changed_at || null;
+          if (rule.last_price !== winner.price) {
+            newPriceLastChangedAt = new Date().toISOString();
+          } else if (newPriceLastChangedAt && isDeepSale) {
+            const daysPersistent = (new Date() - new Date(newPriceLastChangedAt)) / (1000 * 60 * 60 * 24);
+            if (daysPersistent >= 45) {
+               attention.push({ title: rule.title, reason: `Sale Price persistent for ${Math.floor(daysPersistent)} days: Confirm as New MSRP?` });
+            }
+          }
 
           const variantGid = `gid://shopify/ProductVariant/${rule.shopify_variant_id}`;
           const sResponse = await fetch(`https://${process.env.SHOPIFY_SHOP_NAME}.myshopify.com/admin/api/2024-04/graphql.json`, {
@@ -164,7 +189,8 @@ export default async function handler(req, res) {
             last_price: Math.round(vendorPrice * 100), 
             last_availability: winner.available,
             last_run_at: new Date().toISOString(),
-            last_log: `Matched: "${winner.public_title}".`
+            last_log: `Matched: "${winner.public_title}".`,
+            price_last_changed_at: newPriceLastChangedAt
           }).eq('id', rule.id);
 
         } else {

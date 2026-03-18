@@ -1,24 +1,66 @@
-
-Testing: Berd Talon Front Hub - Centerlock - 12x100mm (24h)
-Spoke Goal: 24, isFront: true
-Winner: Talon 24 Spoke / 12x100 Front ($149)
-
-Testing: Berd Talon Front Hub - Centerlock - 15x110mm (28h)
-Spoke Goal: 28, isFront: true
-Winner: Talon 28 Spoke 15x110 Front ($149)
-
-Testing: Berd Talon Rear Hub - Centerlock - 12x142mm (24h)
-Spoke Goal: 24, isFront: false
-Winner: Talon 24 Spoke / 12x142 Rear Microspline ($399)
-
-Testing: Berd Talon Rear Hub - Centerlock - 12x142mm (28h)
-Spoke Goal: 28, isFront: false
-Winner: Talon 28 Spoke / 12x142 Rear Microspline ($399)
-
-Testing: Berd Talon Rear Hub - Centerlock - 12x148mm (28h)
-Spoke Goal: 28, isFront: false
-Winner: Talon 28 Spoke 12x148 Rear Microspline ($399)
-
-Testing: Berd Talon Superboost Rear Hub - Centerlock - 12x157mm (28h)
-Spoke Goal: 28, isFront: false
-Winner: Talon 28 Spoke 12x157 Rear Shimano HG ($399)
+[
+  {
+    "title": "HAWK27 / White / Talon 15x110 Front/12x148 Rear Shimano HG",
+    "price": 209500
+  },
+  {
+    "title": "HAWK27 / White / Talon 15x110 Front/12x148 Rear MS",
+    "price": 209500
+  },
+  {
+    "title": "HAWK27 / White / Talon 15x110 Front/12x148 Rear XD",
+    "price": 209500
+  },
+  {
+    "title": "HAWK27 / White / Talon 15x110 Front/12x157 Rear MS",
+    "price": 209500
+  },
+  {
+    "title": "HAWK27 / White / Talon 15x110 Front/12x157 Rear XD",
+    "price": 209500
+  },
+  {
+    "title": "HAWK27 / White / Talon 15x110 Front/12x157 Rear Shimano HG",
+    "price": 209500
+  },
+  {
+    "title": "HAWK27 / White / Onyx Hook Flange Hubs (Berd will contact you for details)",
+    "price": 259500
+  },
+  {
+    "title": "HAWK27 / White / Industry Nine Hubs (Berd will contact you for details)",
+    "price": 239500
+  },
+  {
+    "title": "HAWK27 / Black / Talon 15x110 Front/12x148 Rear Shimano HG",
+    "price": 209500
+  },
+  {
+    "title": "HAWK27 / Black / Talon 15x110 Front/12x148 Rear MS",
+    "price": 209500
+  },
+  {
+    "title": "HAWK27 / Black / Talon 15x110 Front/12x148 Rear XD",
+    "price": 209500
+  },
+  {
+    "title": "HAWK27 / Black / Talon 15x110 Front/12x157 Rear MS",
+    "price": 209500
+  },
+  {
+    "title": "HAWK27 / Black / Talon 15x110 Front/12x157 Rear XD",
+    "price": 209500
+  },
+  {
+    "title": "HAWK27 / Black / Talon 15x110 Front/12x157 Rear Shimano HG",
+    "price": 209500
+  },
+  {
+    "title": "HAWK27 / Black / Onyx Hook Flange Hubs (Berd will contact you for details)",
+    "price": 259500
+  },
+  {
+    "title": "HAWK27 / Black / Industry Nine Hubs (Berd will contact you for details)",
+    "price": 239500
+  }
+]
