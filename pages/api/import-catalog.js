@@ -82,18 +82,40 @@ export default async function handler(req, res) {
         for (const p of filtered) {
           const seenTechnicalSpecs = new Set();
           for (const v of p.node.variants.edges) {
-            const spokeCountValue = v.node.selectedOptions.find(opt => opt.name.toLowerCase().includes('spoke count'))?.value || 'Std';
-            const technicalKey = `${p.node.id}-${spokeCountValue}`;
+            const mappedOptions = {};
+            v.node.selectedOptions.forEach(opt => { mappedOptions[opt.name] = opt.value; });
+
+            const isRim = p.node.title.toLowerCase().includes('rim');
+            const spokeOptNames = Object.keys(mappedOptions).filter(k => k.toLowerCase().includes('spoke'));
+            const spokeCountValue = spokeOptNames.length > 0 ? mappedOptions[spokeOptNames[0]] : 'Std';
+
+            let technicalKey = `${p.node.id}-${spokeCountValue}`;
+            let titleSuffix = `(${spokeCountValue})`;
+
+            if (isRim) {
+              const sizeOptNames = Object.keys(mappedOptions).filter(k => k.toLowerCase().includes('size'));
+              const colorOptNames = Object.keys(mappedOptions).filter(k => k.toLowerCase().includes('color'));
+              
+              const sizeValue = sizeOptNames.length > 0 ? mappedOptions[sizeOptNames[0]] : '';
+              const colorValue = colorOptNames.length > 0 ? mappedOptions[colorOptNames[0]] : '';
+              
+              technicalKey = `${p.node.id}-${spokeCountValue}-${sizeValue}-${colorValue}`;
+              
+              const parts = [];
+              if (sizeValue) parts.push(sizeValue);
+              if (colorValue) parts.push(colorValue);
+              if (spokeCountValue !== 'Std') parts.push(spokeCountValue);
+              
+              titleSuffix = parts.length > 0 ? `(${parts.join(' / ')})` : '';
+            }
 
             if (!seenTechnicalSpecs.has(technicalKey)) {
               seenTechnicalSpecs.add(technicalKey);
-              const mappedOptions = {};
-              v.node.selectedOptions.forEach(opt => { mappedOptions[opt.name] = opt.value; });
 
               variantBatch.push({
                 shopify_product_id: p.node.id.split('/').pop(),
                 shopify_variant_id: v.node.id.split('/').pop(),
-                title: `${p.node.title} (${spokeCountValue})`.replace(/×/g, 'x'),
+                title: `${p.node.title} ${titleSuffix}`.replace(/×/g, 'x').trim(),
                 vendor_name: p.node.vendor,
                 auto_update: false,
                 site_type: 'SHOPIFY',
