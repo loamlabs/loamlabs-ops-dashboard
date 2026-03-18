@@ -138,9 +138,12 @@ export default async function handler(req, res) {
                 if (spokeCount && !vTitle.includes(spokeCount)) return false;
 
                 // Only require DH/EN/GR if the vendor actually specifies it in the variant title
-                if (ruleTitle.includes('dh') && vTitle.includes('dh') === false && (vTitle.includes('en') || vTitle.includes('gr'))) return false;
-                if (ruleTitle.includes('en') && vTitle.includes('en') === false && (vTitle.includes('dh') || vTitle.includes('gr'))) return false;
-                if (ruleTitle.includes('gr') && vTitle.includes('gr') === false && (vTitle.includes('dh') || vTitle.includes('en'))) return false;
+                const ruleTokens = ruleTitle.split(' ');
+                const vTokens = vTitle.replace(/[^a-z0-9\s]/g, ' ').split(/\s+/);
+                
+                if (ruleTokens.includes('dh') && !vTokens.includes('dh') && (vTokens.includes('en') || vTokens.includes('gr'))) return false;
+                if (ruleTokens.includes('en') && !vTokens.includes('en') && (vTokens.includes('dh') || vTokens.includes('gr'))) return false;
+                if (ruleTokens.includes('gr') && !vTokens.includes('gr') && (vTokens.includes('dh') || vTokens.includes('en'))) return false;
              }
 
              // HUB LOGIC
@@ -163,6 +166,10 @@ export default async function handler(req, res) {
                 if (ruleTitle.includes('superboost') && !vTitle.includes('157')) return false;
                 if (!ruleTitle.includes('superboost') && ruleTitle.includes('rear') && !vTitle.includes('148')) return false;
                 
+                // Special e*thirteen hub variants (DM 7spd, Mini HG) shouldn't match standard MTB hub rules unless specified
+                if (!ruleTitle.includes('7spd') && !ruleTitle.includes('7 spd') && (vTitle.includes('7spd') || vTitle.includes('7 spd'))) return false;
+                if (!ruleTitle.includes('mini') && vTitle.includes('mini')) return false;
+
                 // E*thirteen often groups SL hubs underneath generic front hubs without appending 'SL' to the variant title.
                 // We will NOT strictly fail 'sl' if it's missing from the variant title.
              }
