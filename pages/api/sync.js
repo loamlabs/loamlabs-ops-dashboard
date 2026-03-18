@@ -243,6 +243,7 @@ export default async function handler(req, res) {
 
           const myPrice = parseFloat(variant.price).toFixed(2);
           const myCompare = variant.compareAtPrice ? parseFloat(variant.compareAtPrice).toFixed(2) : null;
+          let finalShopifyPriceNum = Number(myPrice);
           const isDiff = Number(goalPrice) !== Number(myPrice);
 
           let updatePayload = { id: rule.shopify_variant_id, price: goalPrice };
@@ -263,6 +264,7 @@ export default async function handler(req, res) {
                 body: JSON.stringify({ variant: updatePayload })
               });
               updated.push({ title: rule.title, reason: changeReason });
+              finalShopifyPriceNum = Number(goalPrice);
             } else {
               attention.push({ title: rule.title, reason: `Manual Sync Required: ${changeReason}` });
             }
@@ -275,7 +277,7 @@ export default async function handler(req, res) {
             last_log: `Matched: "${winner.public_title}".`,
             price_last_changed_at: newPriceLastChangedAt,
             out_of_stock_since: newOutOfStockSince,
-            current_shopify_price: Math.round(Number(myPrice) * 100)
+            current_shopify_price: Math.round(finalShopifyPriceNum * 100)
           }).eq('id', rule.id);
 
         } else {
