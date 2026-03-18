@@ -121,9 +121,17 @@ export default async function handler(req, res) {
              if (isRim) {
                 let expectedSize = parsedOptions["Size"] ? parsedOptions["Size"].toLowerCase() : null;
                 if (expectedSize) {
-                    if (expectedSize.includes('700c')) expectedSize = '29"';
-                    const numOnly = expectedSize.replace(/[^\d.]/g, '');
-                    if (!vTitle.includes(numOnly)) return false;
+                    if (expectedSize.includes('700c') && !vTitle.includes('700c')) {
+                         expectedSize = '29';
+                    }
+                    const cleanExpected = expectedSize.replace(/["'\\\\ ]/g, '');
+                    const cleanVTitle = vTitle.replace(/["' ]/g, '');
+                    
+                    const sizeString = cleanExpected.replace(/[^\d.c]/g, ''); 
+                    
+                    if (!cleanVTitle.includes(sizeString)) {
+                        return false;
+                    }
                 }
 
                 const spokeCount = parsedOptions["Spoke Count"] ? parsedOptions["Spoke Count"].toLowerCase() : null;
