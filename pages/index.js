@@ -103,6 +103,22 @@ export default function OpsDashboard() {
     setLoading(false);
   };
 
+  const bulkIgnore = async () => {
+    if (!confirm(`⚠️ PERMANENT DESTRUCTIVE ACTION: Do you want to tag these ${selectedRules.length} items to be permanently ignored in Shopify and purged from this Registry?`)) return;
+    setLoading(true);
+    try {
+      const productIds = [...new Set(selectedRules.map(id => rules.find(r => r.id === id)?.shopify_product_id).filter(Boolean))];
+      await fetch('/api/ignore-product', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-dashboard-auth': password },
+        body: JSON.stringify({ product_ids: productIds })
+      });
+      setSelectedRules([]);
+      fetchRules();
+    } catch(e) { console.error(e); }
+    setLoading(false);
+  };
+
   const handleAutoImport = async () => {
     const input = prompt("Enter Vendor Name ('Berd'), a specific Shopify Product ID ('7615286575192'), or 'ALL' for a full scan:");
     if (!input) return;
@@ -175,8 +191,11 @@ export default function OpsDashboard() {
     
     // Safety check for sync filter
     let syncMatch = true;
+    const isDeepSale = r.original_msrp && (r.original_msrp - (r.last_price / 100)) / r.original_msrp >= 0.10;
+
     if (syncFilter === 'on') syncMatch = r.auto_update === true;
     if (syncFilter === 'off') syncMatch = r.auto_update === false;
+    if (syncFilter === 'sale') syncMatch = isDeepSale;
     
     return vendorMatch && searchMatch && syncMatch;
   }).sort((a, b) => {
@@ -310,6 +329,12 @@ export default function OpsDashboard() {
                 >
                   <ZapOff size={14} /> Paused (False)
                 </button>
+                <button 
+                  onClick={() => setSyncFilter('sale')} 
+                  className={`px-4 py-2 rounded-xl border-2 font-black text-[10px] uppercase transition-all flex items-center gap-2 ${syncFilter === 'sale' ? 'bg-amber-500 text-white border-amber-500/30 shadow-lg shadow-amber-500/30 scale-105' : 'bg-white text-zinc-400 border-zinc-100 hover:border-zinc-300'}`}
+                >
+                   Drastic Sales (10%+)
+                </button>
               </div>
             </div>
 
@@ -323,7 +348,8 @@ export default function OpsDashboard() {
                   <button onClick={() => bulkSetAutoSync(true)} className="flex items-center gap-2 text-[10px] font-black uppercase text-green-400 hover:text-green-300 transition-colors bg-green-950/30 px-3 py-2 rounded-xl"><Zap size={14} /> Enable Auto-Sync</button>
                   <button onClick={() => bulkSetAutoSync(false)} className="flex items-center gap-2 text-[10px] font-black uppercase text-zinc-400 hover:text-white transition-colors bg-zinc-900 px-3 py-2 rounded-xl"><ZapOff size={14} /> Disable Auto-Sync</button>
                   <div className="w-px h-6 bg-zinc-800 hidden sm:block"></div>
-                  <button onClick={bulkDelete} className="flex items-center gap-2 text-[10px] font-black uppercase text-red-500 hover:text-red-400 transition-colors bg-red-950/30 px-3 py-2 rounded-xl"><Trash2 size={14} /> Delete Selected</button>
+                  <button onClick={bulkDelete} className="flex items-center gap-2 text-[10px] font-black uppercase text-red-500/60 hover:text-red-400 transition-colors px-3 py-2"><Trash2 size={14} /> Delete Selected</button>
+                  <button onClick={bulkIgnore} className="flex items-center gap-2 text-[10px] font-black uppercase text-white hover:text-red-400 transition-colors bg-red-600 px-3 py-2 rounded-xl animate-in zoom-in"><ShieldAlert size={14} /> Ignore & Purge Product(s)</button>
                 </div>
               </div>
             )}
@@ -352,9 +378,10 @@ export default function OpsDashboard() {
                     const expectedPriceText = rule.last_price ? ((rule.last_price / 100) * (rule.price_adjustment_factor || 1.0)).toFixed(2) : '--';
                     const shopifyPriceText = rule.current_shopify_price ? (rule.current_shopify_price / 100).toFixed(2) : '--';
                     const priceMismatch = expectedPriceText !== '--' && shopifyPriceText !== '--' && expectedPriceText !== shopifyPriceText;
+                    const isDeepSale = rule.original_msrp && (rule.original_msrp - (rule.last_price / 100)) / rule.original_msrp >= 0.10;
 
                     return (
-                      <tr key={rule.id} className={`${rule.needs_review ? 'bg-red-500/20 shadow-inner' : rule.bti_part_number ? 'bg-blue-50/70 hover:bg-blue-100' : isMissingUrl ? 'bg-red-50/50' : selectedRules.includes(rule.id) ? 'bg-zinc-100 shadow-inner' : 'hover:bg-zinc-50'} transition-colors group cursor-pointer`} onClick={(e) => { if (e.target.tagName !== 'BUTTON' && e.target.tagName !== 'INPUT') { setSelectedRules(prev => prev.includes(rule.id) ? prev.filter(id => id !== rule.id) : [...prev, rule.id]); }}}>
+                      <tr key={rule.id} className={`${rule.needs_review ? 'bg-red-500/20 shadow-inner' : isDeepSale ? 'bg-amber-100/60 hover:bg-amber-100 shadow-sm shadow-amber-500/10 border-l-4 border-l-amber-500' : rule.bti_part_number ? 'bg-blue-50/70 hover:bg-blue-100' : isMissingUrl ? 'bg-red-50/50' : selectedRules.includes(rule.id) ? 'bg-zinc-100 shadow-inner' : 'hover:bg-zinc-50'} transition-colors group cursor-pointer`} onClick={(e) => { if (e.target.tagName !== 'BUTTON' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'DIV') { setSelectedRules(prev => prev.includes(rule.id) ? prev.filter(id => id !== rule.id) : [...prev, rule.id]); }}}>
                         <td className="p-6 pr-0" onClick={e => e.stopPropagation()}>
                           <input type="checkbox" className="w-4 h-4 rounded text-black focus:ring-black cursor-pointer pointer-events-auto" checked={selectedRules.includes(rule.id)} onChange={() => {
                             if (selectedRules.includes(rule.id)) setSelectedRules(prev => prev.filter(id => id !== rule.id));
