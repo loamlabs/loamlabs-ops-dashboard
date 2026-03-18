@@ -66,55 +66,103 @@ export default async function handler(req, res) {
           const vTitle = normalize(v.public_title);
           const ruleTitle = normalize(rule.title);
           const isHub = ruleTitle.includes('hub');
+          const isRim = ruleTitle.includes('rim');
           
-          let reqTokens = [];
-          for (const [optName, optValue] of Object.entries(parsedOptions)) {
-             if (!optValue || optValue.toLowerCase() === 'default title') continue;
-             
-             // Berd skips "Color" in hub titles, avoiding false negatives
-             if (isHub && optName.toLowerCase().includes('color')) continue;
+          if (rule.vendor_name === 'Berd') {
+            let reqTokens = [];
+            for (const [optName, optValue] of Object.entries(parsedOptions)) {
+               if (!optValue || optValue.toLowerCase() === 'default title') continue;
+               
+               // Berd skips "Color" in hub titles, avoiding false negatives
+               if (isHub && optName.toLowerCase().includes('color')) continue;
 
-             // Handle spoke count independently below
-             if (isHub && optName.toLowerCase().includes('spoke')) continue;
+               // Handle spoke count independently below
+               if (isHub && optName.toLowerCase().includes('spoke')) continue;
 
-             // Tokenize option values (e.g. "HAWK30 29" -> ["hawk30", "29"])
-             let tokens = optValue.toLowerCase().replace(/×/g, 'x').replace(/[\"\']/g, '').split(/[\s/+\-]+/).filter(t => t.length > 0);
-             reqTokens.push(...tokens);
+               // Tokenize option values (e.g. "HAWK30 29" -> ["hawk30", "29"])
+               let tokens = optValue.toLowerCase().replace(/×/g, 'x').replace(/[\"\']/g, '').split(/[\s/+\-]+/).filter(t => t.length > 0);
+               reqTokens.push(...tokens);
+            }
+
+            // Ensure vTitle contains all required tokens
+            const normalizedTitleForTokens = vTitle.replace(/[\"\']/g, '');
+            for (let token of reqTokens) {
+                if (!normalizedTitleForTokens.includes(token)) {
+                    return false;
+                }
+            }
+
+            if (isHub) {
+                const isFrontRule = ruleTitle.includes('front');
+                if (isFrontRule && !vTitle.includes('front')) return false;
+                if (!isFrontRule && !(vTitle.includes('rear') || vTitle.includes('xd') || vTitle.includes('hg') || vTitle.includes('ms'))) return false;
+
+                const axleMatch = ['100', '110', '142', '148', '157'].find(size => ruleTitle.includes(size));
+                if (axleMatch && !vTitle.includes(axleMatch)) return false;
+
+                // Enforce Spoke Count for hubs
+                let hasSpokeOption = false;
+                let spokeMatch = false;
+                for (const [optName, optValue] of Object.entries(parsedOptions)) {
+                    if (optName.toLowerCase().includes('spoke')) {
+                        hasSpokeOption = true;
+                        const numOnly = cleanNum(optValue);
+                        if (numOnly && (vTitle.includes(`${numOnly} spoke`) || vTitle.includes(`${numOnly}h`) || vTitle.includes(`${numOnly} hole`))) {
+                            spokeMatch = true;
+                        }
+                    }
+                }
+                if (hasSpokeOption && !spokeMatch) return false;
+            }
+            return true;
+          } 
+          else if (rule.vendor_name === 'e*thirteen') {
+             // RIM LOGIC
+             if (isRim) {
+                let expectedSize = parsedOptions["Size"] ? parsedOptions["Size"].toLowerCase() : null;
+                if (expectedSize) {
+                    if (expectedSize.includes('700c')) expectedSize = '29"';
+                    const numOnly = expectedSize.replace(/[^\d.]/g, '');
+                    if (!vTitle.includes(numOnly)) return false;
+                }
+
+                const spokeCount = parsedOptions["Spoke Count"] ? parsedOptions["Spoke Count"].toLowerCase() : null;
+                if (spokeCount && !vTitle.includes(spokeCount)) return false;
+
+                if (ruleTitle.includes('dh') && !vTitle.includes('dh')) return false;
+                if (ruleTitle.includes('en') && !vTitle.includes('en')) return false;
+                if (ruleTitle.includes('gr') && !vTitle.includes('gr')) return false;
+             }
+
+             // HUB LOGIC
+             if (isHub) {
+                const isFrontRule = ruleTitle.includes('front');
+                if (isFrontRule && !vTitle.includes('front') && !vTitle.includes('15x') && !vTitle.includes('15mm') && !vTitle.includes('110x')) return false;
+                
+                if (!isFrontRule && !vTitle.includes('rear') && !vTitle.includes('148') && !vTitle.includes('157')) return false;
+
+                let expectedHoles = null;
+                if (parsedOptions["Spoke Count"]) {
+                   expectedHoles = cleanNum(parsedOptions["Spoke Count"]);
+                } else if (ruleTitle.includes('28h')) expectedHoles = '28';
+                else if (ruleTitle.includes('32h')) expectedHoles = '32';
+
+                if (expectedHoles && !vTitle.includes(`${expectedHoles} hole`) && !vTitle.includes(`${expectedHoles}h`) && !vTitle.includes(`${expectedHoles} h`)) {
+                    return false;
+                }
+
+                if (ruleTitle.includes('superboost') && !vTitle.includes('157')) return false;
+                if (!ruleTitle.includes('superboost') && ruleTitle.includes('rear') && !vTitle.includes('148')) return false;
+                
+                if (ruleTitle.includes('sl') && !vTitle.includes('sl')) return false;
+             }
+             return true;
           }
 
-          // Ensure vTitle contains all required tokens
-          const normalizedTitleForTokens = vTitle.replace(/[\"\']/g, '');
-          for (let token of reqTokens) {
-              if (!normalizedTitleForTokens.includes(token)) {
-                  return false;
-              }
-          }
-
-          if (isHub) {
-              const isFrontRule = ruleTitle.includes('front');
-              if (isFrontRule && !vTitle.includes('front')) return false;
-              if (!isFrontRule && !(vTitle.includes('rear') || vTitle.includes('xd') || vTitle.includes('hg') || vTitle.includes('ms'))) return false;
-
-              const axleMatch = ['100', '110', '142', '148', '157'].find(size => ruleTitle.includes(size));
-              if (axleMatch && !vTitle.includes(axleMatch)) return false;
-
-              // Enforce Spoke Count for hubs
-              let hasSpokeOption = false;
-              let spokeMatch = false;
-              for (const [optName, optValue] of Object.entries(parsedOptions)) {
-                  if (optName.toLowerCase().includes('spoke')) {
-                      hasSpokeOption = true;
-                      const numOnly = cleanNum(optValue);
-                      if (numOnly && (vTitle.includes(`${numOnly} spoke`) || vTitle.includes(`${numOnly}h`) || vTitle.includes(`${numOnly} hole`))) {
-                          spokeMatch = true;
-                      }
-                  }
-              }
-              if (hasSpokeOption && !spokeMatch) return false;
-          }
-
+          // Fallback if vendor not strictly mapped yet
           return true;
         });
+
 
         if (candidates.length > 0) {
           const winner = candidates.reduce((prev, curr) => (prev.price > curr.price) ? prev : curr);
