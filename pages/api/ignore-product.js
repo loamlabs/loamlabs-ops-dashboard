@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { getShopifyToken } from './get-rules';
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
@@ -12,9 +13,10 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Missing or invalid product_ids array' });
   }
 
-  const adminToken = process.env.SHOPIFY_ADMIN_TOKEN;
-  
   try {
+    const adminToken = await getShopifyToken();
+    if (!adminToken) throw new Error("Missing Shopify Token");
+
     // Deduplicate array
     const uniqueIds = [...new Set(product_ids)];
 
