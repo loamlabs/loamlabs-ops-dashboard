@@ -7,12 +7,15 @@ export default async function handler(req, res) {
 
   const { id, updates } = req.body;
   
-  const sanitizedUpdates = {
-    vendor_url: updates.vendor_url,
-    auto_update: updates.auto_update,
-    price_adjustment_factor: parseFloat(updates.price_adjustment_factor) || 1.1111,
-    needs_review: false 
-  };
+  const sanitizedUpdates = {};
+  if (updates.vendor_url !== undefined) sanitizedUpdates.vendor_url = updates.vendor_url;
+  if (updates.auto_update !== undefined) sanitizedUpdates.auto_update = updates.auto_update;
+  if (updates.price_adjustment_factor !== undefined) sanitizedUpdates.price_adjustment_factor = updates.price_adjustment_factor === null ? null : parseFloat(updates.price_adjustment_factor);
+  if (updates.price_drop_threshold !== undefined) sanitizedUpdates.price_drop_threshold = parseFloat(updates.price_drop_threshold);
+  
+  if (updates.price_adjustment_factor !== undefined || updates.vendor_url !== undefined) {
+      sanitizedUpdates.needs_review = false;
+  }
 
   try {
     const { error } = await supabase
