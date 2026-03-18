@@ -61,24 +61,35 @@ export default async function handler(req, res) {
         const isFrontRule = rule.title.toLowerCase().includes('front');
         const normalize = (t) => String(t || "").toLowerCase().replace(/×/g, 'x').replace(/\s+/g, ' ').trim();
 
+        // 1. DYNAMIC MATCHING ENGINE (TOKENIZED)
         let candidates = vData.variants.filter(v => {
           const vTitle = normalize(v.public_title);
           const ruleTitle = normalize(rule.title);
+          const isHub = ruleTitle.includes('hub');
           
+          let reqTokens = [];
           for (const [optName, optValue] of Object.entries(parsedOptions)) {
-             const cleanOptVal = normalize(optValue);
-             if (cleanOptVal && !vTitle.includes(cleanOptVal)) {
-                 if (optName.toLowerCase().includes('spoke')) {
-                    const numOnly = cleanNum(optValue);
-                    if (numOnly && (vTitle.includes(`${numOnly} spoke`) || vTitle.includes(`${numOnly}h`) || vTitle.includes(`${numOnly} hole`))) {
-                        continue;
-                    }
-                 }
-                 return false;
-             }
+             if (!optValue || optValue.toLowerCase() === 'default title') continue;
+             
+             // Berd skips "Color" in hub titles, avoiding false negatives
+             if (isHub && optName.toLowerCase().includes('color')) continue;
+
+             // Handle spoke count independently below
+             if (isHub && optName.toLowerCase().includes('spoke')) continue;
+
+             // Tokenize option values (e.g. "HAWK30 29" -> ["hawk30", "29"])
+             let tokens = optValue.toLowerCase().replace(/×/g, 'x').replace(/[\"\']/g, '').split(/[\s/+\-]+/).filter(t => t.length > 0);
+             reqTokens.push(...tokens);
           }
 
-          const isHub = ruleTitle.includes('hub');
+          // Ensure vTitle contains all required tokens
+          const normalizedTitleForTokens = vTitle.replace(/[\"\']/g, '');
+          for (let token of reqTokens) {
+              if (!normalizedTitleForTokens.includes(token)) {
+                  return false;
+              }
+          }
+
           if (isHub) {
               const isFrontRule = ruleTitle.includes('front');
               if (isFrontRule && !vTitle.includes('front')) return false;
@@ -86,6 +97,20 @@ export default async function handler(req, res) {
 
               const axleMatch = ['100', '110', '142', '148', '157'].find(size => ruleTitle.includes(size));
               if (axleMatch && !vTitle.includes(axleMatch)) return false;
+
+              // Enforce Spoke Count for hubs
+              let hasSpokeOption = false;
+              let spokeMatch = false;
+              for (const [optName, optValue] of Object.entries(parsedOptions)) {
+                  if (optName.toLowerCase().includes('spoke')) {
+                      hasSpokeOption = true;
+                      const numOnly = cleanNum(optValue);
+                      if (numOnly && (vTitle.includes(`${numOnly} spoke`) || vTitle.includes(`${numOnly}h`) || vTitle.includes(`${numOnly} hole`))) {
+                          spokeMatch = true;
+                      }
+                  }
+              }
+              if (hasSpokeOption && !spokeMatch) return false;
           }
 
           return true;
