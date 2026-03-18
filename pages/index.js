@@ -369,6 +369,7 @@ export default function OpsDashboard() {
                     <th className="p-6">Memory (Base)</th>
                     <th className="p-6">Adjusted Price</th>
                     <th className="p-6">Current (Shopify)</th>
+                    <th className="p-6">Compare-At (Shopify)</th>
                     <th className="p-6 text-right">Auto-Sync / Actions</th>
                   </tr>
                 </thead>
@@ -412,6 +413,9 @@ export default function OpsDashboard() {
                                {priceMismatch && <AlertCircle size={14}/>}
                             </div>
                           ) : '--'}
+                        </td>
+                        <td className="p-6 font-mono font-bold text-lg text-zinc-400">
+                          {rule.current_compare_at_price ? `$${(rule.current_compare_at_price / 100).toFixed(2)}` : '--'}
                         </td>
                         <td className="p-6 flex justify-end items-center gap-4 pointer-events-auto" onClick={e => e.stopPropagation()}>
                           <button onClick={() => toggleAutoSync(rule.id, rule.auto_update)} className={`w-12 h-6 rounded-full p-1 flex items-center transition-all ${rule.auto_update ? 'bg-black justify-end shadow-inner' : 'bg-zinc-300 justify-start'}`}><div className="w-4 h-4 bg-white rounded-full shadow-md"></div></button>

@@ -292,7 +292,8 @@ export default async function handler(req, res) {
             last_log: `Matched: "${winner.public_title}".`,
             price_last_changed_at: newPriceLastChangedAt,
             out_of_stock_since: newOutOfStockSince,
-            current_shopify_price: Math.round(finalShopifyPriceNum * 100)
+            current_shopify_price: Math.round(finalShopifyPriceNum * 100),
+            current_compare_at_price: myCompare ? Math.round(Number(myCompare) * 100) : null
           }).eq('id', rule.id);
 
         } else {

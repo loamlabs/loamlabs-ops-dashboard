@@ -55,10 +55,11 @@ export default async function handler(req, res) {
            console.error("Shopify Mutate Error:", updateData.data.productUpdate.userErrors);
         }
       }
-
-      // Purge all variants of this product from Supabase to clear the dashboard
-      await supabase.from('watcher_rules').delete().eq('shopify_product_id', pid.toString());
     }
+
+    // Purge all variants of the targeted products from Supabase natively using a vectorized IN block mapped precisely to Strings to safely bypass Javascript BigInt arithmetic limits
+    const stringifiedIds = uniqueIds.map(id => id.toString());
+    await supabase.from('watcher_rules').delete().in('shopify_product_id', stringifiedIds);
 
     res.status(200).json({ success: true, count: uniqueIds.length });
   } catch (err) {
