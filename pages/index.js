@@ -397,9 +397,12 @@ export default function OpsDashboard() {
 
 
             {selectedRules.length > 0 && (
-              <div className="bg-black text-white p-4 rounded-[1.5rem] mb-6 flex items-center justify-between shadow-2xl animate-in slide-in-from-bottom-4 border border-zinc-800">
-                <div className="font-bold text-sm tracking-widest uppercase italic border-r border-zinc-800 pr-6 mr-4 flex-shrink-0">
-                  {selectedRules.length} Selected
+              <div className="fixed bottom-6 left-[calc(16rem+1.5rem)] right-6 z-50 bg-black text-white p-4 rounded-[1.5rem] flex items-center justify-between shadow-2xl border border-zinc-800" style={{animation: 'slideUp 0.3s ease-out'}}>
+                <div className="flex items-center gap-3 flex-shrink-0">
+                  <button onClick={() => setSelectedRules([])} className="text-zinc-500 hover:text-white transition-colors"><X size={16} /></button>
+                  <div className="font-bold text-sm tracking-widest uppercase italic border-r border-zinc-800 pr-6 mr-1">
+                    {selectedRules.length} Selected
+                  </div>
                 </div>
                 <div className="flex items-center gap-4 flex-wrap">
                   <button onClick={() => bulkSetAutoSync(true)} className="flex items-center gap-2 text-[10px] font-black uppercase text-green-400 hover:text-green-300 transition-colors bg-green-950/30 px-3 py-2 rounded-xl"><Zap size={14} /> Enable Auto-Sync</button>
@@ -409,7 +412,7 @@ export default function OpsDashboard() {
                   <button onClick={bulkSetCompareAt} className="flex items-center gap-2 text-[10px] font-black uppercase text-purple-400 hover:text-purple-300 transition-colors bg-purple-950/30 px-3 py-2 rounded-xl"><Tag size={14} /> Set Compare-At → Base</button>
                   <div className="w-px h-6 bg-zinc-800 hidden sm:block"></div>
                   <button onClick={bulkDelete} className="flex items-center gap-2 text-[10px] font-black uppercase text-red-500/60 hover:text-red-400 transition-colors px-3 py-2"><Trash2 size={14} /> Delete Selected</button>
-                  <button onClick={bulkIgnore} className="flex items-center gap-2 text-[10px] font-black uppercase text-white hover:text-red-400 transition-colors bg-red-600 px-3 py-2 rounded-xl animate-in zoom-in"><ShieldAlert size={14} /> Ignore & Purge Product(s)</button>
+                  <button onClick={bulkIgnore} className="flex items-center gap-2 text-[10px] font-black uppercase text-white hover:text-red-400 transition-colors bg-red-600 px-3 py-2 rounded-xl"><ShieldAlert size={14} /> Ignore & Purge Product(s)</button>
                 </div>
               </div>
             )}
