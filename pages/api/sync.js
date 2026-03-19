@@ -151,6 +151,14 @@ export default async function handler(req, res) {
             
             if (rule.vendor_name === 'Berd') {
               let reqTokens = [];
+
+              // I9 Hydra / Solix: Berd has one generic "Industry Nine Hubs" variant for all I9 builds
+              let isI9Hub = false;
+              for (const [optName, optValue] of Object.entries(parsedOptions)) {
+                  if (optName.toLowerCase().includes('hub') && optValue && optValue.toLowerCase().includes('i9')) { isI9Hub = true; break; }
+              }
+              if (isI9Hub) return vTitle.includes('industry nine');
+
               for (const [optName, optValue] of Object.entries(parsedOptions)) {
                  if (!optValue || optValue.toLowerCase() === 'default title') continue;
                  
