@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { RefreshCcw, Search, Package, ShieldCheck, ShieldAlert, Plus, X, Info, Image as ImageIcon, Loader2, LogOut, ChevronUp, Trash2, AlertCircle, Zap, ZapOff, DollarSign, Tag } from 'lucide-react';
 
 export default function OpsDashboard() {
@@ -15,6 +15,24 @@ export default function OpsDashboard() {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [visibleCount, setVisibleCount] = useState(50);
   const [selectedRules, setSelectedRules] = useState([]);
+  const lastCheckedIndex = useRef(null);
+
+  const handleCheckboxClick = (index, ruleId, e) => {
+    if (e.shiftKey && lastCheckedIndex.current !== null && lastCheckedIndex.current !== index) {
+      const start = Math.min(lastCheckedIndex.current, index);
+      const end = Math.max(lastCheckedIndex.current, index);
+      const rangeIds = paginatedRules.slice(start, end + 1).map(r => r.id);
+      setSelectedRules(prev => {
+        const combined = new Set([...prev, ...rangeIds]);
+        return [...combined];
+      });
+    } else {
+      setSelectedRules(prev =>
+        prev.includes(ruleId) ? prev.filter(id => id !== ruleId) : [...prev, ruleId]
+      );
+    }
+    lastCheckedIndex.current = index;
+  };
 
   useEffect(() => {
     const savedPass = localStorage.getItem('loam_ops_auth');
@@ -426,12 +444,9 @@ export default function OpsDashboard() {
                     const isDeepSale = dynamicMsrp && (dynamicMsrp - (rule.last_price / 100)) / dynamicMsrp >= 0.10;
 
                     return (
-                      <tr key={rule.id} className={`${rule.needs_review ? 'bg-red-500/20 shadow-inner' : isDeepSale ? 'bg-amber-100/60 hover:bg-amber-100 shadow-sm shadow-amber-500/10 border-l-4 border-l-amber-500' : rule.bti_part_number ? 'bg-blue-50/70 hover:bg-blue-100' : isMissingUrl ? 'bg-red-50/50' : selectedRules.includes(rule.id) ? 'bg-zinc-100 shadow-inner' : 'hover:bg-zinc-50'} transition-colors group cursor-pointer`} onClick={(e) => { if (e.target.tagName !== 'BUTTON' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'DIV') { setSelectedRules(prev => prev.includes(rule.id) ? prev.filter(id => id !== rule.id) : [...prev, rule.id]); }}}>
+                      <tr key={rule.id} className={`${rule.needs_review ? 'bg-red-500/20 shadow-inner' : isDeepSale ? 'bg-amber-100/60 hover:bg-amber-100 shadow-sm shadow-amber-500/10 border-l-4 border-l-amber-500' : rule.bti_part_number ? 'bg-blue-50/70 hover:bg-blue-100' : isMissingUrl ? 'bg-red-50/50' : selectedRules.includes(rule.id) ? 'bg-zinc-100 shadow-inner' : 'hover:bg-zinc-50'} transition-colors group cursor-pointer`} onClick={(e) => { if (e.target.tagName !== 'BUTTON' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'DIV') { const idx = paginatedRules.findIndex(r => r.id === rule.id); handleCheckboxClick(idx, rule.id, e); }}}>
                         <td className="p-6 pr-0" onClick={e => e.stopPropagation()}>
-                          <input type="checkbox" className="w-4 h-4 rounded text-black focus:ring-black cursor-pointer pointer-events-auto" checked={selectedRules.includes(rule.id)} onChange={() => {
-                            if (selectedRules.includes(rule.id)) setSelectedRules(prev => prev.filter(id => id !== rule.id));
-                            else setSelectedRules(prev => [...prev, rule.id]);
-                          }} />
+                          <input type="checkbox" className="w-4 h-4 rounded text-black focus:ring-black cursor-pointer pointer-events-auto" checked={selectedRules.includes(rule.id)} onClick={(e) => { const idx = paginatedRules.findIndex(r => r.id === rule.id); handleCheckboxClick(idx, rule.id, e); }} onChange={() => {}} />
                         </td>
                         <td className="p-6">
                           <div className="flex items-center gap-2"><div className="font-bold text-zinc-900 text-base">{rule.title}</div>
