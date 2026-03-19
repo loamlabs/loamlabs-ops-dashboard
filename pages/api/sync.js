@@ -100,7 +100,7 @@ export default async function handler(req, res) {
                 if (!optValue) continue;
                 if (optName.toLowerCase().includes('rear')) rearSizeValue = optValue.toLowerCase().replace(/["']/g, '').trim();
                 if (optName.toLowerCase().includes('front')) frontWheelValue = optValue.toLowerCase().replace(/["']/g, '').trim();
-                if (optName.toLowerCase().includes('driver') || optName.toLowerCase().includes('axle')) driverValue = optValue.toLowerCase().replace(/["']/g, '').trim();
+                if (optName.toLowerCase().includes('driver') || optName.toLowerCase().includes('axle') || optName.toLowerCase().includes('freehub')) driverValue = optValue.toLowerCase().replace(/["']/g, '').trim();
             }
 
             if (rearSizeValue) {
