@@ -300,20 +300,6 @@ export default async function handler(req, res) {
             }
           }
 
-          // Out-of-Stock Stopwatch
-          let newOutOfStockSince = rule.out_of_stock_since || null;
-          if (!winner.available) {
-             if (!newOutOfStockSince) {
-                newOutOfStockSince = new Date().toISOString();
-             } else {
-                const daysOOS = (new Date() - new Date(newOutOfStockSince)) / (1000 * 60 * 60 * 24);
-                if (Math.floor(daysOOS) === 90 || Math.floor(daysOOS) === 91 || Math.floor(daysOOS) === 92) {
-                   attention.push({ title: rule.title, reason: `Out of Stock for 3 Months. Discontinued or Backorder?` });
-                }
-             }
-          } else {
-             newOutOfStockSince = null;
-          }
 
           const variantGid = `gid://shopify/ProductVariant/${rule.shopify_variant_id}`;
           const sResponse = await fetch(`https://${process.env.SHOPIFY_SHOP_NAME}.myshopify.com/admin/api/2024-04/graphql.json`, {
@@ -360,38 +346,51 @@ export default async function handler(req, res) {
           } else { inSync.push({ title: rule.title }); }
 
           // --- STOCK STATUS SYNC (non-BTI products only) ---
+          let effectivePolicy = variant.inventoryPolicy; // Current Shopify state (may reflect BTI sync)
           if (!rule.bti_part_number && rule.auto_update === true) {
             const shopifyQty = variant.inventoryQuantity || 0;
-            const currentPolicy = variant.inventoryPolicy; // "CONTINUE" or "DENY"
             const vendorInStock = winner.available;
 
             if (shopifyQty <= 0) {
-              // No local stock — vendor status is the source of truth
-              if (!vendorInStock && currentPolicy === 'CONTINUE') {
-                // Vendor OOS → uncheck "Continue selling when out of stock"
+              if (!vendorInStock && effectivePolicy === 'CONTINUE') {
                 await fetch(`https://${process.env.SHOPIFY_SHOP_NAME}.myshopify.com/admin/api/2024-04/variants/${rule.shopify_variant_id}.json`, {
                   method: 'PUT', headers: { 'X-Shopify-Access-Token': adminToken, 'Content-Type': 'application/json' },
                   body: JSON.stringify({ variant: { id: rule.shopify_variant_id, inventory_policy: 'deny' } })
                 });
                 stockChanges.push({ title: rule.title, action: '🔴 Made Unavailable (Vendor OOS)' });
-              } else if (vendorInStock && currentPolicy === 'DENY') {
-                // Vendor back in stock → re-enable "Continue selling"
+                effectivePolicy = 'DENY';
+              } else if (vendorInStock && effectivePolicy === 'DENY') {
                 await fetch(`https://${process.env.SHOPIFY_SHOP_NAME}.myshopify.com/admin/api/2024-04/variants/${rule.shopify_variant_id}.json`, {
                   method: 'PUT', headers: { 'X-Shopify-Access-Token': adminToken, 'Content-Type': 'application/json' },
                   body: JSON.stringify({ variant: { id: rule.shopify_variant_id, inventory_policy: 'continue' } })
                 });
                 stockChanges.push({ title: rule.title, action: '🟢 Back In Stock (Vendor Available)' });
+                effectivePolicy = 'CONTINUE';
               }
             }
-            // else: shopifyQty > 0 → local stock override, skip
+          }
 
-            // --- Rolling OOS Reminder ---
-            if (rule.oos_reminder_enabled !== false && newOutOfStockSince) {
-              const daysSinceOOS = Math.floor((new Date() - new Date(newOutOfStockSince)) / (1000 * 60 * 60 * 24));
-              const reminderInterval = rule.oos_reminder_days || 20;
-              if (daysSinceOOS > 0 && daysSinceOOS % reminderInterval === 0) {
-                oosReminders.push({ title: rule.title, days: daysSinceOOS });
+          // --- OOS Stopwatch (based on Shopify inventoryPolicy — the ultimate source of truth) ---
+          let newOutOfStockSince = rule.out_of_stock_since || null;
+          if (effectivePolicy === 'DENY') {
+            if (!newOutOfStockSince) {
+              newOutOfStockSince = new Date().toISOString();
+            } else {
+              const daysOOS = (new Date() - new Date(newOutOfStockSince)) / (1000 * 60 * 60 * 24);
+              if (Math.floor(daysOOS) === 90 || Math.floor(daysOOS) === 91 || Math.floor(daysOOS) === 92) {
+                attention.push({ title: rule.title, reason: `Out of Stock for 3 Months. Discontinued or Backorder?` });
               }
+            }
+          } else {
+            newOutOfStockSince = null;
+          }
+
+          // --- Rolling OOS Reminder ---
+          if (rule.oos_reminder_enabled !== false && newOutOfStockSince) {
+            const daysSinceOOS = Math.floor((new Date() - new Date(newOutOfStockSince)) / (1000 * 60 * 60 * 24));
+            const reminderInterval = rule.oos_reminder_days || 20;
+            if (daysSinceOOS > 0 && daysSinceOOS % reminderInterval === 0) {
+              oosReminders.push({ title: rule.title, days: daysSinceOOS });
             }
           }
 
