@@ -253,6 +253,7 @@ export default function OpsDashboard() {
     if (syncFilter === 'on') syncMatch = r.auto_update === true;
     if (syncFilter === 'off') syncMatch = r.auto_update === false;
     if (syncFilter === 'sale') syncMatch = isDeepSale;
+    if (syncFilter === 'oos') syncMatch = r.last_availability === false;
     
     return vendorMatch && searchMatch && syncMatch;
   }).sort((a, b) => {
@@ -391,6 +392,12 @@ export default function OpsDashboard() {
                   className={`px-4 py-2 rounded-xl border-2 font-black text-[10px] uppercase transition-all flex items-center gap-2 ${syncFilter === 'sale' ? 'bg-amber-500 text-white border-amber-500/30 shadow-lg shadow-amber-500/30 scale-105' : 'bg-white text-zinc-400 border-zinc-100 hover:border-zinc-300'}`}
                 >
                    Drastic Sales (10%+)
+                </button>
+                <button 
+                  onClick={() => setSyncFilter('oos')} 
+                  className={`px-4 py-2 rounded-xl border-2 font-black text-[10px] uppercase transition-all flex items-center gap-2 ${syncFilter === 'oos' ? 'bg-red-600 text-white border-red-700 shadow-lg shadow-red-500/30 scale-105' : 'bg-white text-zinc-400 border-zinc-100 hover:border-zinc-300'}`}
+                >
+                   <AlertCircle size={14} /> Out of Stock
                 </button>
               </div>
             </div>
