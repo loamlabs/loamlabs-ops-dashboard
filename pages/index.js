@@ -369,7 +369,8 @@ export default function OpsDashboard() {
               <div className="flex items-center justify-between mb-4">
                 <label className="text-[10px] font-black uppercase text-zinc-400 tracking-[0.2em] italic">Auto-Update Filter</label>
               </div>
-              <div className="flex flex-wrap gap-2 mb-8">
+              <div className="flex items-center gap-2 mb-8">
+                <div className="flex flex-wrap gap-2 flex-1">
                 <button 
                   onClick={() => setSyncFilter('all')} 
                   className={`px-4 py-2 rounded-xl border-2 font-black text-[10px] uppercase transition-all ${syncFilter === 'all' ? 'bg-black text-white border-black shadow-lg scale-105' : 'bg-white text-zinc-400 border-zinc-100 hover:border-zinc-300'}`}
@@ -378,9 +379,9 @@ export default function OpsDashboard() {
                 </button>
                 <button 
                   onClick={() => setSyncFilter('on')} 
-                  className={`px-4 py-2 rounded-xl border-2 font-black text-[10px] uppercase transition-all flex items-center gap-2 ${syncFilter === 'on' ? 'bg-green-500 text-white border-green-600 shadow-lg scale-105' : 'bg-white text-zinc-400 border-zinc-100 hover:border-zinc-300'}`}
+                  className={`px-4 py-2 rounded-xl border-2 font-black text-[10px] uppercase transition-all flex items-center gap-2 ${syncFilter === 'on' ? 'bg-green-600 text-white border-green-700 shadow-lg shadow-green-500/30 scale-105' : 'bg-white text-zinc-400 border-zinc-100 hover:border-zinc-300'}`}
                 >
-                  <Zap size={14} className={syncFilter === 'on' ? 'animate-pulse' : ''} /> Active (True)
+                  <Zap size={14} /> Syncing (True)
                 </button>
                 <button 
                   onClick={() => setSyncFilter('off')} 
@@ -400,6 +401,12 @@ export default function OpsDashboard() {
                 >
                    <AlertCircle size={14} /> Out of Stock
                 </button>
+                </div>
+                <div className="relative flex-shrink-0">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-300" />
+                  <input type="text" placeholder="Search products..." value={registrySearch} onChange={(e) => setRegistrySearch(e.target.value)} className="pl-9 pr-3 py-2 w-52 rounded-xl border-2 border-zinc-100 text-xs font-bold outline-none focus:border-black transition-all placeholder:text-zinc-300" />
+                  {registrySearch && <button onClick={() => setRegistrySearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-300 hover:text-zinc-600"><X size={12} /></button>}
+                </div>
               </div>
             </div>
 
