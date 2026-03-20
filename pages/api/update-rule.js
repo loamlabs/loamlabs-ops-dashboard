@@ -12,6 +12,8 @@ export default async function handler(req, res) {
   if (updates.auto_update !== undefined) sanitizedUpdates.auto_update = updates.auto_update;
   if (updates.price_adjustment_factor !== undefined) sanitizedUpdates.price_adjustment_factor = updates.price_adjustment_factor === null ? null : parseFloat(updates.price_adjustment_factor);
   if (updates.price_drop_threshold !== undefined) sanitizedUpdates.price_drop_threshold = parseFloat(updates.price_drop_threshold);
+  if (updates.oos_reminder_days !== undefined) sanitizedUpdates.oos_reminder_days = parseInt(updates.oos_reminder_days) || 20;
+  if (updates.oos_reminder_enabled !== undefined) sanitizedUpdates.oos_reminder_enabled = !!updates.oos_reminder_enabled;
   
   if (updates.price_adjustment_factor !== undefined || updates.vendor_url !== undefined) {
       sanitizedUpdates.needs_review = false;

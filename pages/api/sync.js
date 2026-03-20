@@ -45,6 +45,7 @@ export default async function handler(req, res) {
 
     const adminToken = await getShopifyToken();
     let updated = [], attention = [], inSync = [];
+    let stockChanges = [], oosReminders = [];
 
     for (const rule of rules) {
       if (!rule.vendor_url) continue;
@@ -318,7 +319,7 @@ export default async function handler(req, res) {
           const sResponse = await fetch(`https://${process.env.SHOPIFY_SHOP_NAME}.myshopify.com/admin/api/2024-04/graphql.json`, {
             method: 'POST', headers: { 'X-Shopify-Access-Token': adminToken, 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              query: `query($id: ID!) { productVariant(id: $id) { price compareAtPrice product { id } } }`,
+              query: `query($id: ID!) { productVariant(id: $id) { price compareAtPrice inventoryQuantity inventoryPolicy product { id } } }`,
               variables: { id: variantGid }
             })
           });
@@ -358,6 +359,42 @@ export default async function handler(req, res) {
             }
           } else { inSync.push({ title: rule.title }); }
 
+          // --- STOCK STATUS SYNC (non-BTI products only) ---
+          if (!rule.bti_part_number && rule.auto_update === true) {
+            const shopifyQty = variant.inventoryQuantity || 0;
+            const currentPolicy = variant.inventoryPolicy; // "CONTINUE" or "DENY"
+            const vendorInStock = winner.available;
+
+            if (shopifyQty <= 0) {
+              // No local stock — vendor status is the source of truth
+              if (!vendorInStock && currentPolicy === 'CONTINUE') {
+                // Vendor OOS → uncheck "Continue selling when out of stock"
+                await fetch(`https://${process.env.SHOPIFY_SHOP_NAME}.myshopify.com/admin/api/2024-04/variants/${rule.shopify_variant_id}.json`, {
+                  method: 'PUT', headers: { 'X-Shopify-Access-Token': adminToken, 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ variant: { id: rule.shopify_variant_id, inventory_policy: 'deny' } })
+                });
+                stockChanges.push({ title: rule.title, action: '🔴 Made Unavailable (Vendor OOS)' });
+              } else if (vendorInStock && currentPolicy === 'DENY') {
+                // Vendor back in stock → re-enable "Continue selling"
+                await fetch(`https://${process.env.SHOPIFY_SHOP_NAME}.myshopify.com/admin/api/2024-04/variants/${rule.shopify_variant_id}.json`, {
+                  method: 'PUT', headers: { 'X-Shopify-Access-Token': adminToken, 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ variant: { id: rule.shopify_variant_id, inventory_policy: 'continue' } })
+                });
+                stockChanges.push({ title: rule.title, action: '🟢 Back In Stock (Vendor Available)' });
+              }
+            }
+            // else: shopifyQty > 0 → local stock override, skip
+
+            // --- Rolling OOS Reminder ---
+            if (rule.oos_reminder_enabled !== false && newOutOfStockSince) {
+              const daysSinceOOS = Math.floor((new Date() - new Date(newOutOfStockSince)) / (1000 * 60 * 60 * 24));
+              const reminderInterval = rule.oos_reminder_days || 20;
+              if (daysSinceOOS > 0 && daysSinceOOS % reminderInterval === 0) {
+                oosReminders.push({ title: rule.title, days: daysSinceOOS });
+              }
+            }
+          }
+
           await supabase.from('watcher_rules').update({ 
             last_price: Math.round(vendorPrice * 100), 
             last_availability: winner.available,
@@ -378,13 +415,28 @@ export default async function handler(req, res) {
       } catch (err) { console.error(`Error on ${rule.title}:`, err.message); }
     }
 
-    if (updated.length > 0 || attention.length > 0) {
+    const hasReport = updated.length > 0 || attention.length > 0 || stockChanges.length > 0 || oosReminders.length > 0;
+    if (hasReport) {
       const updatedHtml = updated.map(i => `<li style="color:green;">🚀 <b>UPDATED:</b> ${i.title}<br><small>${i.reason}</small></li>`).join('');
       const attentionHtml = attention.map(i => `<li style="color:red;">⚠️ <b>ALERT:</b> ${i.title}<br><small>${i.reason}</small></li>`).join('');
+
+      let stockHtml = '';
+      if (stockChanges.length > 0) {
+        stockHtml = `<h3 style="margin-top:20px;">📦 Stock Status Changes (${stockChanges.length})</h3><ul>` +
+          stockChanges.map(s => `<li>${s.action}: <b>${s.title}</b></li>`).join('') + '</ul>';
+      }
+
+      let oosHtml = '';
+      if (oosReminders.length > 0) {
+        oosHtml = `<h3 style="margin-top:20px;">⏰ Items Still Out of Stock</h3><ul>` +
+          oosReminders.map(r => `<li><b>${r.title}</b> — out of stock for <b>${r.days} days</b></li>`).join('') + '</ul>';
+      }
+
+      const totalAlerts = updated.length + attention.length + stockChanges.length;
       await resend.emails.send({
         from: 'Watcher <system@loamlabsusa.com>', to: process.env.REPORT_EMAIL,
-        subject: `Vendor Watcher: ${updated.length} Updates, ${attention.length} Alerts`,
-        html: `<div style="font-family:sans-serif;"><h2>Shop Sync Report</h2><ul>${updatedHtml}${attentionHtml}</ul></div>`
+        subject: `Vendor Watcher: ${totalAlerts} Updates${oosReminders.length > 0 ? ` + ${oosReminders.length} OOS Reminders` : ''}`,
+        html: `<div style="font-family:sans-serif;"><h2>Shop Sync Report</h2><ul>${updatedHtml}${attentionHtml}</ul>${stockHtml}${oosHtml}</div>`
       });
     }
 
