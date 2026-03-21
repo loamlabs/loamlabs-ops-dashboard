@@ -65,6 +65,9 @@ export default function OpsDashboard() {
         const logoData = await logoRes.json();
         setVendorLogos(logoData.savedLogos || []);
         setIsAuthorized(true); 
+      } else {
+        const err = await res.json();
+        alert("❌ Dashboard Error: " + (err.error || "Login Failed"));
       }
     } catch (e) { console.error(e); }
     setLoading(false);
