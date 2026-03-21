@@ -40,6 +40,9 @@ export default async function handler(req, res) {
       includeImages: includeMedia ?? true,
       newStatus: status || 'ACTIVE'
     });
+
+    console.log('[DUPLICATE_DEBUG] Shopify Raw Response:', JSON.stringify(dupRes, null, 2));
+
     const dupData = dupRes.data?.productDuplicate;
     if (!dupData) return res.status(500).json({ error: 'Shopify API returned no duplication data' });
 

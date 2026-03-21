@@ -184,6 +184,7 @@ export default function OpsDashboard() {
         body: JSON.stringify({ id, updates: { auto_update: state } })
       })));
       fetchRules();
+      setSelectedRules([]);
     } catch(e) { console.error(e); }
     setLoading(false);
   };
@@ -234,6 +235,7 @@ export default function OpsDashboard() {
       })));
       alert(`Price adjustment set to ${factor} for ${selectedRules.length} items.`);
       fetchRules();
+      setSelectedRules([]);
     } catch(e) { console.error(e); alert('Error updating price adjustment.'); }
     setLoading(false);
   };
@@ -329,7 +331,10 @@ export default function OpsDashboard() {
     const vendorMatch = selectedVendors.length === 0 || 
       selectedVendors.some(v => normalize(v) === normalize(r.vendor_name));
 
+    const itemTags = Array.isArray(r.tags) ? r.tags.map(t => t.toLowerCase()) : [];
+    
     if (activeTab === 'bti_sync') {
+      if (itemTags.includes('bti-sync-ignore')) return false;
       let btiMatch = true;
       if (btiSyncFilter === 'has') btiMatch = !!r.bti_part_number;
       if (btiSyncFilter === 'none') btiMatch = !r.bti_part_number;
@@ -337,6 +342,7 @@ export default function OpsDashboard() {
     }
 
     // Default 'vendors' tab logic
+    if (activeTab === 'vendors' && itemTags.includes('watcher-ignore')) return false;
     
     let syncMatch = true;
     if (syncFilter === 'on') syncMatch = r.auto_update === true;

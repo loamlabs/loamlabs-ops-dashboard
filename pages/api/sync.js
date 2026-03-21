@@ -48,6 +48,8 @@ export default async function handler(req, res) {
     let stockChanges = [], oosReminders = [];
 
     for (const rule of rules) {
+      const itemTags = Array.isArray(rule.tags) ? rule.tags : [];
+      if (itemTags.includes('watcher-ignore')) continue;
       if (!rule.vendor_url) continue;
 
       let vendorPrice;
