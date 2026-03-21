@@ -18,22 +18,28 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
-  const { productId } = req.body; // GID of the product to duplicate
+  const { productId, options } = req.body; 
   if (!productId) return res.status(400).json({ error: 'Missing productId' });
+
+  const { newTitle, status, includeMedia } = options || {};
 
   try {
     // 1. Duplicate the Product via Shopify GraphQL
     const duplicateMutation = `
-      mutation productDuplicate($newTitle: String, $productId: ID!) {
-        productDuplicate(newTitle: $newTitle, productId: $productId) {
+      mutation productDuplicate($newTitle: String, $productId: ID!, $includeImages: Boolean, $newStatus: ProductStatus) {
+        productDuplicate(newTitle: $newTitle, productId: $productId, includeImages: $includeImages, newStatus: $newStatus) {
           newProduct { id title handle variants(first: 100) { edges { node { id title sku } } } }
           userErrors { field message }
         }
       }
     `;
 
-    // We'll append " (CLONE)" to the title initially
-    const dupRes = await shopifyQuery(duplicateMutation, { productId });
+    const dupRes = await shopifyQuery(duplicateMutation, { 
+      productId, 
+      newTitle: newTitle || undefined,
+      includeImages: includeMedia ?? true,
+      newStatus: status || 'ACTIVE'
+    });
     const dupData = dupRes.data?.productDuplicate;
 
     if (dupData?.userErrors?.length > 0) {

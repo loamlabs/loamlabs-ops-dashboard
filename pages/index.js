@@ -16,8 +16,14 @@ export default function OpsDashboard() {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [visibleCount, setVisibleCount] = useState(50);
   const [selectedRules, setSelectedRules] = useState([]);
-  const [showLogsModal, setShowLogsModal] = useState(false);
-  const [syncLogs, setSyncLogs] = useState([]);
+  const [showDupModal, setShowDupModal] = useState(false);
+  const [dupSourceProduct, setDupSourceProduct] = useState(null);
+  const [dupOptions, setDupOptions] = useState({ 
+    newTitle: '', 
+    includeMedia: true, 
+    includeInventory: true, 
+    status: 'ACTIVE' 
+  });
   const lastCheckedIndex = useRef(null);
 
   const handleCheckboxClick = (index, ruleId, e) => {
@@ -103,18 +109,33 @@ export default function OpsDashboard() {
     fetchRules();
   };
 
-  const duplicateProduct = async (shopifyId) => {
-    if (!confirm("Duplicating product... this will also copy all variant metafields. Continue?")) return;
+  const openDupModal = (product) => {
+    setDupSourceProduct(product);
+    setDupOptions({
+      newTitle: `${product.title.split('(')[0].trim()} (CLONE)`,
+      includeMedia: true,
+      includeInventory: true,
+      status: 'ACTIVE'
+    });
+    setShowDupModal(true);
+  };
+
+  const executeDuplication = async () => {
+    if (!dupSourceProduct) return;
     setLoading(true);
     try {
       const res = await fetch('/api/duplicate-product', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-dashboard-auth': password },
-        body: JSON.stringify({ productId: `gid://shopify/Product/${shopifyId}` })
+        body: JSON.stringify({ 
+          productId: `gid://shopify/Product/${dupSourceProduct.shopify_product_id}`,
+          options: dupOptions
+        })
       });
       const data = await res.json();
       if (res.ok) {
         alert("✅ " + data.message + "\nNew Handle: " + data.newHandle);
+        setShowDupModal(false);
         fetchRules(); 
       } else {
         alert("❌ Error: " + data.error);
@@ -723,6 +744,37 @@ export default function OpsDashboard() {
                </button>
              </div>
              
+             {/* --- VENDOR FILTER BAR --- */}
+             <div className="mb-10">
+               <div className="flex items-center justify-between mb-4">
+                 <label className="text-[10px] font-black uppercase text-zinc-400 tracking-[0.2em] italic">Filter by Vendor</label>
+                 {selectedVendors.length > 0 && (
+                   <button onClick={() => setSelectedVendors([])} className="text-[10px] font-black uppercase text-red-500 hover:text-red-700 transition-all underline underline-offset-4">
+                     Clear Filters
+                   </button>
+                 )}
+               </div>
+               <div className="flex flex-wrap gap-2 mb-8">
+                 <button 
+                   onClick={() => setSelectedVendors([])} 
+                   className={`px-4 py-2 rounded-xl border-2 font-black text-[10px] uppercase transition-all ${selectedVendors.length === 0 ? 'bg-black text-white border-black shadow-lg scale-105' : 'bg-white text-zinc-400 border-zinc-100 hover:border-zinc-300'}`}
+                 >
+                   All Vendors
+                 </button>
+                 {visibleVendorNames.map(v => {
+                   const logo = vendorLogos.find(l => l.name.toLowerCase() === v.toLowerCase());
+                   const isActive = selectedVendors.includes(v);
+                   return (
+                     <button key={v} onClick={() => { toggleVendor(v); setVisibleCount(50); }} className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border-2 transition-all ${isActive ? 'border-green-500 bg-green-50 text-green-900 shadow-sm scale-[1.02]' : 'bg-white text-zinc-500 border-zinc-100 hover:border-zinc-300'}`}>
+                       {logo?.logo_url && <img src={logo.logo_url} className="h-3 w-auto object-contain grayscale-[0.5]" alt="" />}
+                       <span className="text-[10px] font-bold uppercase tracking-tight">{v}</span>
+                       <div className={`w-2 h-2 rounded-full border ${isActive ? 'bg-green-500 border-green-600' : 'bg-zinc-100 border-zinc-200'}`}></div>
+                     </button>
+                   );
+                 })}
+               </div>
+             </div>
+             
              <div className="bg-white rounded-[2.5rem] border border-zinc-200 shadow-xl overflow-hidden mb-12">
                 <table className="w-full text-left border-collapse">
                   <thead className="bg-zinc-100 border-b text-[10px] uppercase font-black text-zinc-500 tracking-widest font-mono">
@@ -734,7 +786,10 @@ export default function OpsDashboard() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-50">
-                    {Object.values(rules.reduce((acc, r) => {
+                    {/* Grouping variants into Product rows (Respecting Vendor Filter) */}
+                    {Object.values(rules.filter(r => {
+                      return selectedVendors.length === 0 || selectedVendors.includes(r.vendor_name);
+                    }).reduce((acc, r) => {
                       if (!acc[r.shopify_product_id]) acc[r.shopify_product_id] = { ...r, variantCount: 0 };
                       acc[r.shopify_product_id].variantCount++;
                       return acc;
@@ -747,12 +802,12 @@ export default function OpsDashboard() {
                         </td>
                         <td className="p-6 text-right">
                           <button 
-                            onClick={() => duplicateProduct(product.shopify_product_id)} 
+                            onClick={() => openDupModal(product)} 
                             disabled={loading}
                             className={`bg-zinc-100 border-2 border-transparent hover:border-black text-zinc-600 px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2 ml-auto ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
                           >
                             <RefreshCcw size={12} className={loading ? 'animate-spin' : ''}/>
-                            {loading ? 'Processing...' : 'Duplicate & Clone Metafields'}
+                            {loading ? 'Processing...' : 'Configure Duplicate'}
                           </button>
                         </td>
                       </tr>
@@ -775,6 +830,76 @@ export default function OpsDashboard() {
                 <h3 className="text-xl font-black uppercase italic">Data Audit in Progress</h3>
                 <p className="text-zinc-400 text-sm max-w-xs mx-auto mt-2">Integrating Section 4.11 from Master Notes. Reporting on Negative Inventory coming next.</p>
              </div>
+          </div>
+        )}
+
+        {showDupModal && dupSourceProduct && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden text-sm border border-zinc-800 animate-in fade-in zoom-in-95">
+              <div className="p-6 border-b flex justify-between items-center bg-zinc-50">
+                <h3 className="text-xl font-black uppercase italic tracking-tighter">Clone Architect</h3>
+                <button onClick={() => setShowDupModal(false)}><X size={20}/></button>
+              </div>
+              <div className="p-8 space-y-6">
+                 <div>
+                    <label className="text-[10px] font-black uppercase text-zinc-400 mb-2 block tracking-widest italic">New Product Title</label>
+                    <input 
+                      type="text" 
+                      className="w-full p-4 bg-zinc-100 rounded-xl font-bold outline-none border-2 border-transparent focus:border-black transition-all" 
+                      value={dupOptions.newTitle} 
+                      onChange={(e) => setDupOptions({...dupOptions, newTitle: e.target.value})} 
+                      placeholder="Enter new product title..."
+                    />
+                 </div>
+                 
+                 <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-[10px] font-black uppercase text-zinc-400 mb-2 block tracking-widest italic">Status</label>
+                      <select 
+                        className="w-full p-4 bg-zinc-100 rounded-xl font-bold outline-none border-2 border-transparent focus:border-black transition-all appearance-none"
+                        value={dupOptions.status}
+                        onChange={(e) => setDupOptions({...dupOptions, status: e.target.value})}
+                      >
+                        <option value="ACTIVE">ACTIVE</option>
+                        <option value="DRAFT">DRAFT</option>
+                        <option value="ARCHIVED">ARCHIVED</option>
+                      </select>
+                    </div>
+                    <div className="flex flex-col justify-center gap-3 pt-4">
+                       <label className="flex items-center gap-3 cursor-pointer group">
+                          <input 
+                            type="checkbox" 
+                            className="w-5 h-5 rounded-lg border-2 border-zinc-200 text-black focus:ring-black"
+                            checked={dupOptions.includeMedia}
+                            onChange={(e) => setDupOptions({...dupOptions, includeMedia: e.target.checked})}
+                          />
+                          <span className="text-[10px] font-black uppercase text-zinc-500 group-hover:text-black transition-colors">Include Media</span>
+                       </label>
+                       <label className="flex items-center gap-3 cursor-pointer group">
+                          <input 
+                            type="checkbox" 
+                            className="w-5 h-5 rounded-lg border-2 border-zinc-200 text-black focus:ring-black"
+                            checked={dupOptions.includeInventory}
+                            onChange={(e) => setDupOptions({...dupOptions, includeInventory: e.target.checked})}
+                          />
+                          <span className="text-[10px] font-black uppercase text-zinc-500 group-hover:text-black transition-colors">Include Inventory</span>
+                       </label>
+                    </div>
+                 </div>
+
+                 <div className="pt-4">
+                    <button 
+                      onClick={() => executeDuplication()}
+                      disabled={loading || !dupOptions.newTitle}
+                      className="w-full bg-black text-white p-5 rounded-2xl font-black uppercase italic tracking-tight hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:scale-100"
+                    >
+                      {loading ? <Loader2 className="animate-spin" size={20}/> : <Plus size={20}/>}
+                      {loading ? 'Cloning Engine Running...' : 'Execute Duplication'}
+                    </button>
+                    <p className="text-[9px] text-zinc-400 text-center mt-4 uppercase font-bold tracking-widest">Variant Metafields will be migrated automatically</p>
+                 </div>
+              </div>
+            </div>
           </div>
         )}
 
