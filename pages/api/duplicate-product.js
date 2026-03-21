@@ -41,12 +41,14 @@ export default async function handler(req, res) {
       newStatus: status || 'ACTIVE'
     });
     const dupData = dupRes.data?.productDuplicate;
+    if (!dupData) return res.status(500).json({ error: 'Shopify API returned no duplication data' });
 
     if (dupData?.userErrors?.length > 0) {
       return res.status(400).json({ error: dupData.userErrors[0].message });
     }
 
     const newProduct = dupData.newProduct;
+    if (!newProduct) return res.status(500).json({ error: 'Shopify duplication succeeded but new product was not returned' });
 
     // 2. Fetch Metafields from Source Product & Variants
     const sourceDataQuery = `

@@ -854,7 +854,7 @@ export default function OpsDashboard() {
                     {(() => {
                       const filtered = Object.values(rules.filter(r => {
                         const matchesVendor = selectedVendors.length === 0 || selectedVendors.includes(r.vendor_name);
-                        const labTags = ['component:hub','component:rim','component:spoke','component:nipple','component:valvestem','component:freehub','addon','accessory'];
+                        const labTags = ['component:hub','component:rim','component:spoke','component:nipple','component:valvestem','component:freehub','addon','accessory','spoke','nipple','valvestem','hub','rim','freehub'];
                         const itemTags = Array.isArray(r.tags) ? r.tags : [];
                         const isLabItem = itemTags.some(t => labTags.includes(t.toLowerCase()));
                         const matchesCategory = labCategory === 'all' || itemTags.some(t => t.toLowerCase() === labCategory);
