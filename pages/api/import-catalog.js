@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
-const EXCLUDED_TAGS = ['tires', 'rotor', 'tubeless-tape', 'forgebond', 'coloring-kit', 'wheelbuildingtools', 'fillmore-capkit', 'apparel', 'loamlabs10', 'assembly-service', 'watcher-ignore'];
+const EXCLUDED_TAGS = ['tires', 'rotor', 'tubeless-tape', 'forgebond', 'coloring-kit', 'wheelbuildingtools', 'fillmore-capkit', 'apparel', 'loamlabs10', 'assembly-service'];
 
 async function getShopifyToken() {
   const response = await fetch(`https://${process.env.SHOPIFY_SHOP_NAME}.myshopify.com/admin/oauth/access_token`, {
@@ -126,10 +126,8 @@ export default async function handler(req, res) {
                 shopify_variant_id: v.node.id.split('/').pop(),
                 title: `${p.node.title} ${titleSuffix}`.replace(/×/g, 'x').trim(),
                 vendor_name: p.node.vendor,
-                auto_update: false,
                 site_type: 'SHOPIFY',
                 option_values: mappedOptions,
-                price_adjustment_factor: 1.0,
                 bti_part_number: v.node.metafield?.value || null,
                 tags: p.node.tags || []
               });

@@ -25,6 +25,7 @@ export default function OpsDashboard() {
     status: 'ACTIVE' 
   });
   const [labCategory, setLabCategory] = useState('all');
+  const [labSearch, setLabSearch] = useState('');
   const [showLogsModal, setShowLogsModal] = useState(false);
   const [syncLogs, setSyncLogs] = useState([]);
   const lastCheckedIndex = useRef(null);
@@ -821,6 +822,11 @@ export default function OpsDashboard() {
              <div className="mb-10">
                <div className="flex items-center justify-between mb-4">
                  <label className="text-[10px] font-black uppercase text-zinc-400 tracking-[0.2em] italic">Filter by Tag</label>
+                 <div className="relative flex-shrink-0">
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-300" />
+                    <input type="text" placeholder="Search Lab..." value={labSearch} onChange={(e) => setLabSearch(e.target.value)} className="pl-9 pr-3 py-2 w-52 rounded-xl border-2 border-zinc-100 text-xs font-bold outline-none focus:border-black transition-all placeholder:text-zinc-300" />
+                    {labSearch && <button onClick={() => setLabSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-300 hover:text-zinc-600"><X size={12} /></button>}
+                  </div>
                </div>
                <div className="flex flex-wrap gap-2 mb-8">
                  {[
@@ -860,11 +866,18 @@ export default function OpsDashboard() {
                     {(() => {
                       const filtered = Object.values(rules.filter(r => {
                         const matchesVendor = selectedVendors.length === 0 || selectedVendors.includes(r.vendor_name);
+                        const normalize = (str) => String(str || "").toLowerCase().replace(/×/g, 'x').replace(/\s+/g, ' ').trim();
+                        const searchString = normalize(labSearch);
+                        const searchMatch = !searchString || normalize(r.title).includes(searchString) || normalize(r.vendor_name).includes(searchString);
+
                         const labTags = ['component:hub','component:rim','component:spoke','component:nipple','component:valvestem','component:freehub','addon','accessory','spoke','nipple','valvestem','hub','rim','freehub'];
-                        const itemTags = Array.isArray(r.tags) ? r.tags : [];
+                        const itemTags = Array.isArray(r.tags) ? r.tags.map(t => t.toLowerCase()) : [];
+                        
+                        if (itemTags.includes('lab-ignore')) return false;
+
                         const isLabItem = itemTags.some(t => labTags.includes(t.toLowerCase()));
                         const matchesCategory = labCategory === 'all' || itemTags.some(t => t.toLowerCase() === labCategory);
-                        return matchesVendor && isLabItem && matchesCategory;
+                        return matchesVendor && isLabItem && matchesCategory && searchMatch;
                       }).reduce((acc, r) => {
                         if (!acc[r.shopify_product_id]) acc[r.shopify_product_id] = { ...r, variantCount: 0 };
                         acc[r.shopify_product_id].variantCount++;
