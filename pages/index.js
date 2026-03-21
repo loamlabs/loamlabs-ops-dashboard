@@ -568,9 +568,9 @@ export default function OpsDashboard() {
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <div className="bg-blue-50 text-blue-700 p-3 px-6 rounded-xl font-black uppercase italic text-[10px] flex items-center gap-2 border border-blue-100 shadow-sm">
-                  <RefreshCcw size={14} /> Distributor Feed Active
-                </div>
+                <button onClick={() => fetchRules()} className={`bg-blue-50 text-blue-700 p-3 px-6 rounded-xl font-black uppercase italic text-[10px] flex items-center gap-2 border border-blue-100 shadow-sm hover:bg-blue-100 transition-all ${loading ? 'opacity-50' : ''}`} disabled={loading}>
+                  <RefreshCcw size={14} className={loading ? 'animate-spin' : ''} /> Distributor Feed Active
+                </button>
               </div>
             </div>
 
