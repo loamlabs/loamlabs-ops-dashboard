@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { RefreshCcw, Search, Package, ShieldCheck, ShieldAlert, Plus, X, Info, Image as ImageIcon, Loader2, LogOut, ChevronUp, Trash2, AlertCircle, Zap, ZapOff, DollarSign, Tag } from 'lucide-react';
+import { RefreshCcw, Search, Package, ShieldCheck, ShieldAlert, Plus, X, Info, Image as ImageIcon, Loader2, LogOut, ChevronUp, Trash2, AlertCircle, Zap, ZapOff, DollarSign, Tag, History, Activity } from 'lucide-react';
 
 export default function OpsDashboard() {
   const [editingRule, setEditingRule] = useState(null);
@@ -12,9 +12,12 @@ export default function OpsDashboard() {
   const [selectedVendors, setSelectedVendors] = useState([]); 
   const [registrySearch, setRegistrySearch] = useState(''); 
   const [syncFilter, setSyncFilter] = useState('all'); 
+  const [btiSyncFilter, setBtiSyncFilter] = useState('all'); 
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [visibleCount, setVisibleCount] = useState(50);
   const [selectedRules, setSelectedRules] = useState([]);
+  const [showLogsModal, setShowLogsModal] = useState(false);
+  const [syncLogs, setSyncLogs] = useState([]);
   const lastCheckedIndex = useRef(null);
 
   const handleCheckboxClick = (index, ruleId, e) => {
@@ -56,6 +59,13 @@ export default function OpsDashboard() {
       }
     } catch (e) { console.error(e); }
     setLoading(false);
+  };
+
+  const fetchLogs = async () => {
+    try {
+      const res = await fetch('/api/get-sync-logs', { headers: { 'x-dashboard-auth': password } });
+      if (res.ok) setSyncLogs(await res.json());
+    } catch (e) { console.error(e); }
   };
 
   const updateRule = async (id, updates) => {
@@ -239,24 +249,33 @@ export default function OpsDashboard() {
   const filteredRules = rules.filter(r => {
     if (!r) return false;
     const normalize = (str) => String(str || "").toLowerCase().replace(/×/g, 'x').replace(/\s+/g, ' ').trim();
+    
+    // Search is universal
+    const searchString = normalize(registrySearch);
+    const searchMatch = !searchString || normalize(r.title).includes(searchString) || normalize(r.vendor_name).includes(searchString);
+
+    if (activeTab === 'bti_sync') {
+      let btiMatch = true;
+      if (btiSyncFilter === 'has') btiMatch = !!r.bti_part_number;
+      if (btiSyncFilter === 'none') btiMatch = !r.bti_part_number;
+      return searchMatch && btiMatch;
+    }
+
+    // Default 'vendors' tab logic
     const vendorMatch = selectedVendors.length === 0 || 
       selectedVendors.some(v => normalize(v) === normalize(r.vendor_name));
     
-    // Safety check for title search
-    const searchString = normalize(registrySearch);
-    const searchMatch = !searchString || normalize(r.title).includes(searchString);
-    
-    // Safety check for sync filter
     let syncMatch = true;
-    const filterMsrp = r.original_msrp || (r.current_compare_at_price ? r.current_compare_at_price / 100 : null);
-    const isDeepSale = filterMsrp && r.last_price && (filterMsrp - (r.last_price / 100)) / filterMsrp >= 0.10;
-
     if (syncFilter === 'on') syncMatch = r.auto_update === true;
     if (syncFilter === 'off') syncMatch = r.auto_update === false;
-    if (syncFilter === 'sale') syncMatch = isDeepSale;
+    if (syncFilter === 'sale') {
+      const msrp = r.original_msrp || 0;
+      const price = (r.last_price || 0) / 100;
+      syncMatch = msrp > 0 && (msrp - price) / msrp >= 0.10;
+    }
     if (syncFilter === 'oos') syncMatch = r.last_availability === false;
     
-    return vendorMatch && searchMatch && syncMatch;
+    return searchMatch && syncMatch && vendorMatch;
   }).sort((a, b) => {
     const vendorA = String(a.vendor_name || "");
     const vendorB = String(b.vendor_name || "");
@@ -290,12 +309,14 @@ export default function OpsDashboard() {
         </div>
         <nav className="space-y-1 flex-grow">
           <SidebarLink icon={<Package size={18}/>} label="Vendor Watcher" active={activeTab === 'vendors'} onClick={() => setActiveTab('vendors')} />
+          <SidebarLink icon={<RefreshCcw size={18}/>} label="BTI Sync" active={activeTab === 'bti_sync'} onClick={() => setActiveTab('bti_sync')} />
           <SidebarLink icon={<ShieldCheck size={18}/>} label="Shop Health" active={activeTab === 'audit'} onClick={() => setActiveTab('audit')} />
           <SidebarLink icon={<ImageIcon size={18}/>} label="Branding" active={false} onClick={() => window.location.href = '/logos'} />
         </nav>
         <div className="relative mt-auto border-t border-zinc-800 pt-6">
            {showUserMenu && (
              <div className="absolute bottom-full left-0 w-full mb-2 bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden">
+                <button onClick={() => { fetchLogs(); setShowLogsModal(true); setShowUserMenu(false); }} className="w-full p-4 flex items-center gap-3 text-zinc-400 hover:bg-zinc-800 hover:text-white font-bold text-xs uppercase transition-all border-b border-zinc-800"><History size={16}/> View Sync Logs</button>
                 <button onClick={() => { localStorage.removeItem('loam_ops_auth'); window.location.reload(); }} className="w-full p-4 flex items-center gap-3 text-red-500 hover:bg-red-500/10 font-bold text-xs uppercase transition-all"><LogOut size={16}/> End Session</button>
              </div>
            )}
@@ -536,6 +557,107 @@ export default function OpsDashboard() {
               )}
             </div>
           </>
+        ) : activeTab === 'bti_sync' ? (
+          <>
+            {/* --- BTI REGISTRY HEADER --- */}
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h1 className="text-4xl font-black tracking-tight text-zinc-900 uppercase italic">BTI Sync Management</h1>
+                <div className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mt-1">
+                  Managing Shopify Metafields for Distributor Integration
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="bg-blue-50 text-blue-700 p-3 px-6 rounded-xl font-black uppercase italic text-[10px] flex items-center gap-2 border border-blue-100 shadow-sm">
+                  <RefreshCcw size={14} /> Distributor Feed Active
+                </div>
+              </div>
+            </div>
+
+            {/* --- BTI FILTER BAR --- */}
+            <div className="mb-10">
+              <div className="flex items-center justify-between mb-4">
+                <label className="text-[10px] font-black uppercase text-zinc-400 tracking-[0.2em] italic">Metafield Assignment Filter</label>
+              </div>
+              <div className="flex items-center gap-2 mb-8">
+                <div className="flex flex-wrap gap-2 flex-1">
+                <button 
+                  onClick={() => setBtiSyncFilter('all')} 
+                  className={`px-4 py-2 rounded-xl border-2 font-black text-[10px] uppercase transition-all ${btiSyncFilter === 'all' ? 'bg-black text-white border-black shadow-lg scale-105' : 'bg-white text-zinc-400 border-zinc-100 hover:border-zinc-300'}`}
+                >
+                  All Products
+                </button>
+                <button 
+                  onClick={() => setBtiSyncFilter('has')} 
+                  className={`px-4 py-2 rounded-xl border-2 font-black text-[10px] uppercase transition-all flex items-center gap-2 ${btiSyncFilter === 'has' ? 'bg-blue-600 text-white border-blue-700 shadow-lg shadow-blue-500/30 scale-105' : 'bg-white text-zinc-400 border-zinc-100 hover:border-zinc-300'}`}
+                >
+                  <Package size={14} /> Managed (Has BTI #)
+                </button>
+                <button 
+                  onClick={() => setBtiSyncFilter('none')} 
+                  className={`px-4 py-2 rounded-xl border-2 font-black text-[10px] uppercase transition-all flex items-center gap-2 ${btiSyncFilter === 'none' ? 'bg-zinc-600 text-white border-zinc-700 shadow-lg scale-105' : 'bg-white text-zinc-400 border-zinc-100 hover:border-zinc-300'}`}
+                >
+                  <RefreshCcw size={14} /> Unassigned (No BTI #)
+                </button>
+                </div>
+                <div className="relative flex-shrink-0">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-300" />
+                  <input type="text" placeholder="Search BTI items..." value={registrySearch} onChange={(e) => setRegistrySearch(e.target.value)} className="pl-9 pr-3 py-2 w-52 rounded-xl border-2 border-zinc-100 text-xs font-bold outline-none focus:border-black transition-all placeholder:text-zinc-300" />
+                  {registrySearch && <button onClick={() => setRegistrySearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-300 hover:text-zinc-600"><X size={12} /></button>}
+                </div>
+              </div>
+            </div>
+
+            {/* --- BTI TABLE --- */}
+            <div className="bg-white rounded-[2.5rem] border border-zinc-200 shadow-xl overflow-hidden mb-12">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-zinc-50 border-b border-zinc-100">
+                    <th className="p-6 text-[10px] font-black uppercase text-zinc-400 tracking-widest italic">Product / Variant</th>
+                    <th className="p-6 text-[10px] font-black uppercase text-zinc-400 tracking-widest italic">BTI Part Number</th>
+                    <th className="p-6 text-[10px] font-black uppercase text-zinc-400 tracking-widest italic text-center">Status</th>
+                    <th className="p-6 text-[10px] font-black uppercase text-zinc-400 tracking-widest italic text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-50">
+                  {filteredRules.slice(0, visibleCount).map((rule, index) => {
+                    const isBTI = !!rule.bti_part_number;
+                    return (
+                      <tr 
+                        key={rule.id} 
+                        className={`group transition-all hover:bg-zinc-50/50 ${isBTI ? 'bg-blue-50/30' : 'bg-white'}`}
+                      >
+                        <td className="p-6">
+                          <div className="font-black text-sm text-zinc-900 group-hover:text-black transition-colors">{rule.title}</div>
+                          <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-tight mt-0.5">{rule.vendor_name}</div>
+                        </td>
+                        <td className="p-6">
+                          <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-lg border font-mono font-bold text-xs ${isBTI ? 'bg-blue-600 text-white border-blue-700 shadow-sm' : 'bg-zinc-100 text-zinc-400 border-zinc-200 italic'}`}>
+                             {rule.bti_part_number || 'none_assigned'}
+                          </div>
+                        </td>
+                        <td className="p-6 text-center">
+                           {isBTI ? (
+                             <span className="bg-green-100 text-green-700 text-[9px] font-black px-3 py-1 rounded-full uppercase italic whitespace-nowrap">Distributor Sync Active</span>
+                           ) : (
+                             <span className="bg-zinc-100 text-zinc-400 text-[9px] font-black px-3 py-1 rounded-full uppercase italic whitespace-nowrap">Manual Inventory Only</span>
+                           )}
+                        </td>
+                        <td className="p-6 text-right">
+                           <button onClick={() => setEditingRule(rule)} className="bg-white hover:bg-black hover:text-white text-zinc-600 border border-zinc-200 px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all shadow-sm">Manage BTI Settings</button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              {filteredRules.length > visibleCount && (
+                <div className="p-12 text-center bg-zinc-50 border-t border-zinc-100">
+                    <button onClick={() => setVisibleCount(visibleCount + 100)} className="bg-white border-2 border-zinc-200 px-8 py-4 rounded-2xl font-black uppercase italic text-xs hover:border-black transition-all shadow-sm">Load More ({filteredRules.length - visibleCount} remaining)</button>
+                </div>
+              )}
+            </div>
+          </>
         ) : (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
              <h1 className="text-4xl font-black tracking-tight text-zinc-900 uppercase italic mb-2">Shop Health</h1>
@@ -598,7 +720,91 @@ export default function OpsDashboard() {
                         </button>
                     </div>
                 </div>
+                <div className="pt-4 border-t border-zinc-100 mt-6">
+                    <h4 className="text-[10px] font-black uppercase text-zinc-400 mb-4 tracking-[0.2em] italic">BTI Sync Settings</h4>
+                    <div className="space-y-4">
+                        <div>
+                            <label className="text-[10px] font-black uppercase text-zinc-400 mb-2 block tracking-widest italic">BTI Part Number</label>
+                            <input type="text" className="w-full p-4 bg-blue-50/50 rounded-xl font-mono text-xs outline-none border-2 border-transparent focus:border-blue-400 transition-all font-bold" placeholder="bti-12345" value={editingRule.bti_part_number || ''} onChange={(e) => setEditingRule({...editingRule, bti_part_number: e.target.value})} />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="text-[10px] font-black uppercase text-zinc-400 mb-2 block tracking-widest italic">OOS Action</label>
+                                <select className="w-full p-4 bg-zinc-100 rounded-xl font-bold outline-none border-2 border-transparent focus:border-black appearance-none" value={editingRule.bti_oos_action || 'continue'} onChange={(e) => setEditingRule({...editingRule, bti_oos_action: e.target.value})}>
+                                    <option value="continue">Continue Selling</option>
+                                    <option value="deny">Stop Selling (Deny)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-black uppercase text-zinc-400 mb-2 block tracking-widest italic">Monitoring</label>
+                                <button onClick={() => setEditingRule({...editingRule, bti_monitoring_enabled: !editingRule.bti_monitoring_enabled})} className={`w-full p-4 rounded-xl font-black text-sm uppercase transition-all border-2 ${editingRule.bti_monitoring_enabled !== false ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-zinc-100 text-zinc-400 border-transparent'}`}>
+                                    {editingRule.bti_monitoring_enabled !== false ? '✓ Active' : '✗ Off'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <button onClick={() => updateRule(editingRule.id, editingRule)} className="w-full bg-black text-white font-black p-5 rounded-2xl uppercase tracking-widest hover:bg-zinc-800 transition-all shadow-xl italic">Save Changes</button>
+              </div>
+            </div>
+          </div>
+        )}
+        {showLogsModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm" style={{animation: 'fadeIn 0.2s ease-out'}}>
+            <div className="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl flex flex-col max-h-[80vh] overflow-hidden border border-zinc-100" style={{animation: 'scaleUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)'}}>
+              <div className="p-8 border-b border-zinc-100 flex items-center justify-between bg-zinc-50/50">
+                <div>
+                  <h2 className="text-2xl font-black uppercase italic tracking-tight">Sync History</h2>
+                  <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mt-1">Last 50 Heartbeats (30 Day Retention)</p>
+                </div>
+                <button onClick={() => setShowLogsModal(false)} className="p-3 bg-white hover:bg-zinc-100 rounded-2xl border border-zinc-200 transition-all text-zinc-400 hover:text-black">
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="flex-grow overflow-auto p-4 space-y-3 bg-zinc-50/30">
+                {syncLogs.length === 0 ? (
+                  <div className="text-center py-20 text-zinc-400 font-bold uppercase text-xs italic tracking-widest">No logs found yet...</div>
+                ) : (
+                  syncLogs.map((log) => (
+                    <div key={log.id} className="bg-white p-5 rounded-3xl border border-zinc-100 shadow-sm flex items-center gap-4 hover:border-zinc-300 transition-all group">
+                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border ${
+                        log.status === 'success' ? 'bg-green-50 border-green-100 text-green-600' : 
+                        log.status === 'error' ? 'bg-red-50 border-red-100 text-red-600' : 
+                        'bg-zinc-50 border-zinc-100 text-zinc-400'
+                      }`}>
+                        {log.status === 'success' ? <Zap size={20} /> : log.status === 'error' ? <AlertCircle size={20} /> : <Activity size={20} />}
+                      </div>
+                      <div className="flex-grow">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[10px] font-black uppercase text-zinc-400 tracking-tighter italic">
+                            {new Date(log.created_at).toLocaleString()}
+                          </span>
+                          <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md border ${
+                            log.status === 'success' ? 'bg-green-100 border-green-200 text-green-700' : 
+                            log.status === 'error' ? 'bg-red-100 border-red-200 text-red-700' : 
+                            'bg-zinc-100 border-zinc-200 text-zinc-500'
+                          }`}>
+                            {log.status}
+                          </span>
+                        </div>
+                        <p className="text-xs font-bold text-zinc-800 line-clamp-1 group-hover:line-clamp-none transition-all">{log.message}</p>
+                        {log.status !== 'error' && (
+                          <div className="flex gap-4 mt-2">
+                            <div className="flex items-center gap-1.5 text-[10px] font-black uppercase text-zinc-400">
+                              <span className="text-green-600">{log.updated_count || 0}</span> Updates
+                            </div>
+                            <div className="flex items-center gap-1.5 text-[10px] font-black uppercase text-zinc-400">
+                              <span className="text-red-500">{log.attention_count || 0}</span> Alerts
+                            </div>
+                            <div className="flex items-center gap-1.5 text-[10px] font-black uppercase text-zinc-400">
+                              <span className="text-orange-500">{log.stock_changes_count || 0}</span> Stock
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>

@@ -347,7 +347,7 @@ export default async function handler(req, res) {
 
           // --- STOCK STATUS SYNC (non-BTI products only) ---
           let effectivePolicy = variant.inventoryPolicy; // Current Shopify state (may reflect BTI sync)
-          if (!rule.bti_part_number && rule.auto_update === true) {
+          if (rule.auto_update === true) {
             const shopifyQty = variant.inventoryQuantity || 0;
             const vendorInStock = winner.available;
 
@@ -402,7 +402,7 @@ export default async function handler(req, res) {
             price_last_changed_at: newPriceLastChangedAt,
             out_of_stock_since: newOutOfStockSince,
             current_shopify_price: Math.round(finalShopifyPriceNum * 100),
-            current_compare_at_price: myCompare ? Math.round(Number(myCompare) * 100) : null
+            current_compare_at_price: updatePayload.compare_at_price ? Math.round(Number(updatePayload.compare_at_price) * 100) : (myCompare ? Math.round(Number(myCompare) * 100) : null)
           }).eq('id', rule.id);
 
         } else {
@@ -413,6 +413,10 @@ export default async function handler(req, res) {
         }
       } catch (err) { console.error(`Error on ${rule.title}:`, err.message); }
     }
+
+    // --- 30-Day Log Cleanup ---
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    await supabase.from('sync_logs').delete().lt('created_at', thirtyDaysAgo);
 
     const hasReport = updated.length > 0 || attention.length > 0 || stockChanges.length > 0 || oosReminders.length > 0;
     if (hasReport) {
@@ -439,6 +443,28 @@ export default async function handler(req, res) {
       });
     }
 
-    res.status(200).json({ updated: updated.length, attention: attention.length });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+    // --- Record Sync Log (The Heartbeat) ---
+    const logStatus = hasReport ? 'success' : 'no_changes';
+    const logMessage = hasReport 
+      ? `Sync completed with ${updated.length} price updates and ${stockChanges.length} stock status changes.`
+      : 'Sync completed. No changes detected across the registry.';
+
+    await supabase.from('sync_logs').insert([{
+      status: logStatus,
+      updated_count: updated.length,
+      attention_count: attention.length,
+      stock_changes_count: stockChanges.length,
+      oos_reminders_count: oosReminders.length,
+      message: logMessage
+    }]);
+
+    res.status(200).json({ updated: updated.length, attention: attention.length, stock_changes: stockChanges.length });
+  } catch (err) { 
+    // Log error to DB if possible
+    await supabase.from('sync_logs').insert([{
+      status: 'error',
+      message: `CRITICAL ERROR: ${err.message}`
+    }]);
+    res.status(500).json({ error: err.message }); 
+  }
 }
