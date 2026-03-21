@@ -24,6 +24,8 @@ export default function OpsDashboard() {
     includeInventory: true, 
     status: 'ACTIVE' 
   });
+  const [showLogsModal, setShowLogsModal] = useState(false);
+  const [syncLogs, setSyncLogs] = useState([]);
   const lastCheckedIndex = useRef(null);
 
   const handleCheckboxClick = (index, ruleId, e) => {
