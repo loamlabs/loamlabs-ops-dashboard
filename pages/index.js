@@ -103,6 +103,29 @@ export default function OpsDashboard() {
     fetchRules();
   };
 
+  const duplicateProduct = async (shopifyId) => {
+    if (!confirm("Duplicating product... this will also copy all variant metafields. Continue?")) return;
+    setLoading(true);
+    try {
+      const res = await fetch('/api/duplicate-product', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-dashboard-auth': password },
+        body: JSON.stringify({ productId: `gid://shopify/Product/${shopifyId}` })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert("✅ " + data.message + "\nNew Handle: " + data.newHandle);
+        fetchRules(); 
+      } else {
+        alert("❌ Error: " + data.error);
+      }
+    } catch (e) {
+      console.error(e);
+      alert("❌ Critical Error during duplication.");
+    }
+    setLoading(false);
+  };
+
   const bulkSetAutoSync = async (state) => {
     setLoading(true);
     try {
@@ -723,7 +746,14 @@ export default function OpsDashboard() {
                           <span className="bg-zinc-100 text-zinc-600 px-3 py-1 rounded-full font-black text-[10px]">{product.variantCount} SKUs</span>
                         </td>
                         <td className="p-6 text-right">
-                          <button onClick={() => { /* TODO: Select for Lab */ }} className="bg-zinc-100 hover:bg-black hover:text-white text-zinc-600 px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all">Select for Lab</button>
+                          <button 
+                            onClick={() => duplicateProduct(product.shopify_product_id)} 
+                            disabled={loading}
+                            className={`bg-zinc-100 border-2 border-transparent hover:border-black text-zinc-600 px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2 ml-auto ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          >
+                            <RefreshCcw size={12} className={loading ? 'animate-spin' : ''}/>
+                            {loading ? 'Processing...' : 'Duplicate & Clone Metafields'}
+                          </button>
                         </td>
                       </tr>
                     ))}
