@@ -26,6 +26,7 @@ export default function OpsDashboard() {
   });
   const [labCategory, setLabCategory] = useState('all');
   const [labSearch, setLabSearch] = useState('');
+  const [selectedLabProducts, setSelectedLabProducts] = useState([]);
   const [showLogsModal, setShowLogsModal] = useState(false);
   const [syncLogs, setSyncLogs] = useState([]);
   const lastCheckedIndex = useRef(null);
@@ -310,6 +311,29 @@ export default function OpsDashboard() {
     } catch (e) { alert("Sync failed to connect."); }
     setLoading(false);
   };
+
+  const bulkIgnoreLab = async () => {
+    if (selectedLabProducts.length === 0) return;
+    if (!confirm(`⚠️ Are you sure you want to hide ${selectedLabProducts.length} items from the Product Lab?`)) return;
+    setLoading(true);
+    try {
+      const res = await fetch('/api/bulk-update-tags', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-dashboard-auth': password },
+        body: JSON.stringify({ productIds: selectedLabProducts, addTag: 'lab-ignore' })
+      });
+      if (res.ok) {
+        setSelectedLabProducts([]);
+        fetchRules(password);
+      } else {
+        alert("Bulk ignore failed.");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Bulk ignore error.");
+    }
+    setLoading(false);
+  };
   
   const toggleVendor = (name) => {
     setSelectedVendors(prev => 
@@ -364,7 +388,15 @@ export default function OpsDashboard() {
     return String(a.title || "").localeCompare(String(b.title || ""));
   });
 
-  const paginatedRules = filteredRules.slice(0, visibleCount);
+  // 3. UI-Level Deduplication (Safety measure against DB duplicates)
+  const seenIds = new Set();
+  const dedupedRules = filteredRules.filter(r => {
+    if (seenIds.has(r.shopify_variant_id)) return false;
+    seenIds.add(r.shopify_variant_id);
+    return true;
+  });
+
+  const paginatedRules = dedupedRules.slice(0, visibleCount);
 
   if (!isAuthorized) {
     return (
@@ -838,7 +870,8 @@ export default function OpsDashboard() {
                    { id: 'component:valvestem', label: 'Valve Stems' },
                    { id: 'component:freehub', label: 'Freehubs' },
                    { id: 'addon', label: 'Addons' },
-                   { id: 'accessory', label: 'Accessories' }
+                   { id: 'accessory', label: 'Accessories' },
+                   { id: 'handbuilt', label: 'Wheel Sets' }
                  ].map(cat => (
                    <button 
                      key={cat.id} 
@@ -850,11 +883,40 @@ export default function OpsDashboard() {
                  ))}
                </div>
              </div>
+
+             {selectedLabProducts.length > 0 && (
+                <div className="mb-6 animate-in slide-in-from-top-2 duration-300">
+                  <div className="bg-black text-white p-4 rounded-3xl flex items-center justify-between shadow-2xl border border-zinc-800">
+                    <div className="flex items-center gap-6 px-4">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center font-black text-xs">{selectedLabProducts.length}</div>
+                        <div className="text-[10px] font-black uppercase tracking-widest italic text-zinc-400">Products Selected</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 px-2">
+                      <button onClick={bulkIgnoreLab} className="bg-red-600 hover:bg-red-700 text-white px-6 py-2.5 rounded-2xl text-[10px] font-black uppercase flex items-center gap-2 transition-all shadow-lg shadow-red-500/20">
+                        <Trash2 size={14} /> Ignore & Purge Product(s)
+                      </button>
+                      <button onClick={() => setSelectedLabProducts([])} className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-6 py-2.5 rounded-2xl text-[10px] font-black uppercase transition-all">Cancel</button>
+                    </div>
+                  </div>
+                </div>
+              )}
              
              <div className="bg-white rounded-[2.5rem] border border-zinc-200 shadow-xl overflow-hidden mb-12">
                 <table className="w-full text-left border-collapse">
                   <thead className="bg-zinc-100 border-b text-[10px] uppercase font-black text-zinc-500 tracking-widest font-mono">
                     <tr>
+                      <th className="w-12 p-6">
+                        <input 
+                          type="checkbox" 
+                          className="w-5 h-5 rounded-lg border-2 border-zinc-200 text-black focus:ring-black"
+                          checked={selectedLabProducts.length > 0} 
+                          onChange={(e) => {
+                            if (!e.target.checked) setSelectedLabProducts([]);
+                          }}
+                        />
+                      </th>
                       <th className="p-6">Product Family (A-Z)</th>
                       <th className="p-6">Vendor</th>
                       <th className="p-6 text-center">Variants</th>
@@ -870,7 +932,7 @@ export default function OpsDashboard() {
                         const searchString = normalize(labSearch);
                         const searchMatch = !searchString || normalize(r.title).includes(searchString) || normalize(r.vendor_name).includes(searchString);
 
-                        const labTags = ['component:hub','component:rim','component:spoke','component:nipple','component:valvestem','component:freehub','addon','accessory','spoke','nipple','valvestem','hub','rim','freehub'];
+                        const labTags = ['component:hub','component:rim','component:spoke','component:nipple','component:valvestem','component:freehub', 'addon','accessory','spoke','nipple','valvestem','hub','rim','freehub', 'handbuilt'];
                         const itemTags = Array.isArray(r.tags) ? r.tags.map(t => t.toLowerCase()) : [];
                         
                         if (itemTags.includes('lab-ignore')) return false;
@@ -888,7 +950,7 @@ export default function OpsDashboard() {
                       if (filtered.length === 0) {
                         return (
                           <tr>
-                            <td colSpan="4" className="p-20 text-center">
+                            <td colSpan="5" className="p-20 text-center">
                               <div className="flex flex-col items-center gap-4">
                                 <div className="p-6 bg-zinc-50 rounded-full text-zinc-300">
                                   <Search size={40} />
@@ -903,6 +965,20 @@ export default function OpsDashboard() {
 
                       return filtered.map(product => (
                         <tr key={product.shopify_product_id} className="hover:bg-zinc-50 transition-colors">
+                          <td className="p-6">
+                            <input 
+                              type="checkbox" 
+                              className="w-5 h-5 rounded-lg border-2 border-zinc-200 text-black focus:ring-black"
+                              checked={selectedLabProducts.includes(product.shopify_product_id)}
+                              onChange={() => {
+                                setSelectedLabProducts(prev => 
+                                  prev.includes(product.shopify_product_id) 
+                                    ? prev.filter(id => id !== product.shopify_product_id) 
+                                    : [...prev, product.shopify_product_id]
+                                );
+                              }}
+                            />
+                          </td>
                           <td className="p-6 font-black text-sm">{product.title.split('(')[0].trim()}</td>
                           <td className="p-6 text-zinc-400 font-bold uppercase text-[10px] tracking-widest">{product.vendor_name}</td>
                           <td className="p-6 text-center">
