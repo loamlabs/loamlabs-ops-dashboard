@@ -16,7 +16,7 @@ export default async function handler(req, res) {
   while (hasMore) {
     const { data, error } = await supabase
       .from('watcher_rules')
-      .select('id, shopify_product_id, shopify_variant_id, title, vendor_name, vendor_url, auto_update, last_price, last_availability, last_run_at, original_msrp, current_shopify_price, current_compare_at_price, needs_review, price_last_changed_at, out_of_stock_since, oos_reminder_enabled, oos_reminder_days, bti_part_number, bti_oos_action, bti_monitoring_enabled, price_adjustment_factor, price_drop_threshold')
+      .select('id, shopify_product_id, shopify_variant_id, title, vendor_name, vendor_url, auto_update, last_price, last_availability, last_run_at, original_msrp, current_shopify_price, current_compare_at_price, needs_review, price_last_changed_at, out_of_stock_since, oos_reminder_enabled, oos_reminder_days, bti_part_number, bti_oos_action, bti_monitoring_enabled, price_adjustment_factor, price_drop_threshold, tags')
       .order('created_at', { ascending: false })
       .range(rangeStart, rangeEnd);
 

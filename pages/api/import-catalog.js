@@ -130,7 +130,8 @@ export default async function handler(req, res) {
                 site_type: 'SHOPIFY',
                 option_values: mappedOptions,
                 price_adjustment_factor: 1.0,
-                bti_part_number: v.node.metafield?.value || null
+                bti_part_number: v.node.metafield?.value || null,
+                tags: p.node.tags || []
               });
             }
           }

@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
-const SHOPIFY_DOMAIN = process.env.SHOPIFY_STORE_DOMAIN;
-const SHOPIFY_TOKEN = process.env.SHOPIFY_ADMIN_API_TOKEN;
+const SHOPIFY_DOMAIN = `${process.env.SHOPIFY_SHOP_NAME}.myshopify.com`;
+const SHOPIFY_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN || process.env.SHOPIFY_ADMIN_API_ACCESS_TOKEN;
 
 async function shopifyQuery(query, variables = {}) {
   const res = await fetch(`https://${SHOPIFY_DOMAIN}/admin/api/2024-01/graphql.json`, {

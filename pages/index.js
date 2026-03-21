@@ -24,6 +24,7 @@ export default function OpsDashboard() {
     includeInventory: true, 
     status: 'ACTIVE' 
   });
+  const [labCategory, setLabCategory] = useState('all');
   const [showLogsModal, setShowLogsModal] = useState(false);
   const [syncLogs, setSyncLogs] = useState([]);
   const lastCheckedIndex = useRef(null);
@@ -777,25 +778,64 @@ export default function OpsDashboard() {
                </div>
              </div>
              
+             {/* --- COMPONENT CATEGORY FILTER --- */}
+             <div className="mb-10">
+               <div className="flex items-center justify-between mb-4">
+                 <label className="text-[10px] font-black uppercase text-zinc-400 tracking-[0.2em] italic">Filter by Tag</label>
+               </div>
+               <div className="flex flex-wrap gap-2 mb-8">
+                 {[
+                   { id: 'all', label: 'All Components' },
+                   { id: 'component:rim', label: 'Rims' },
+                   { id: 'component:hub', label: 'Hubs' },
+                   { id: 'component:spoke', label: 'Spokes' },
+                   { id: 'component:nipple', label: 'Nipples' },
+                   { id: 'component:valvestem', label: 'Valve Stems' },
+                   { id: 'component:freehub', label: 'Freehubs' },
+                   { id: 'addon', label: 'Addons' },
+                   { id: 'accessory', label: 'Accessories' }
+                 ].map(cat => (
+                   <button 
+                     key={cat.id} 
+                     onClick={() => setLabCategory(cat.id)} 
+                     className={`px-4 py-2 rounded-xl border-2 font-black text-[10px] uppercase transition-all ${labCategory === cat.id ? 'bg-black text-white border-black shadow-lg scale-105' : 'bg-white text-zinc-400 border-zinc-100 hover:border-zinc-300'}`}
+                   >
+                     {cat.label}
+                   </button>
+                 ))}
+               </div>
+             </div>
+             
              <div className="bg-white rounded-[2.5rem] border border-zinc-200 shadow-xl overflow-hidden mb-12">
                 <table className="w-full text-left border-collapse">
                   <thead className="bg-zinc-100 border-b text-[10px] uppercase font-black text-zinc-500 tracking-widest font-mono">
                     <tr>
-                      <th className="p-6">Product Family</th>
+                      <th className="p-6">Product Family (A-Z)</th>
                       <th className="p-6">Vendor</th>
                       <th className="p-6 text-center">Variants</th>
                       <th className="p-6 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-50">
-                    {/* Grouping variants into Product rows (Respecting Vendor Filter) */}
+                    {/* Grouping variants into Product rows (Respecting Vendor Filter + Tag Filter + Sorting) */}
                     {Object.values(rules.filter(r => {
-                      return selectedVendors.length === 0 || selectedVendors.includes(r.vendor_name);
+                      // 1. Vendor Filter
+                      const matchesVendor = selectedVendors.length === 0 || selectedVendors.includes(r.vendor_name);
+                      // 2. Base Inclusion Tags
+                      const labTags = ['component:hub','component:rim','component:spoke','component:nipple','component:valvestem','component:freehub','addon','accessory'];
+                      const itemTags = Array.isArray(r.tags) ? r.tags : [];
+                      const isLabItem = itemTags.some(t => labTags.includes(t.toLowerCase()));
+                      // 3. Category Filter
+                      const matchesCategory = labCategory === 'all' || itemTags.some(t => t.toLowerCase() === labCategory);
+
+                      return matchesVendor && isLabItem && matchesCategory;
                     }).reduce((acc, r) => {
                       if (!acc[r.shopify_product_id]) acc[r.shopify_product_id] = { ...r, variantCount: 0 };
                       acc[r.shopify_product_id].variantCount++;
                       return acc;
-                    }, {})).map(product => (
+                    }, {}))
+                    .sort((a,b) => a.title.localeCompare(b.title))
+                    .map(product => (
                       <tr key={product.shopify_product_id} className="hover:bg-zinc-50 transition-colors">
                         <td className="p-6 font-black text-sm">{product.title.split('(')[0].trim()}</td>
                         <td className="p-6 text-zinc-400 font-bold uppercase text-[10px] tracking-widest">{product.vendor_name}</td>
