@@ -32,14 +32,66 @@ export default function OpsDashboard() {
   const [showMetaEditModal, setShowMetaEditModal] = useState(false);
   const [metaEditFields, setMetaEditFields] = useState({});
   const [metafieldRegistry, setMetafieldRegistry] = useState([
-    { key: 'wheel_spec_rim_internal_width', label: 'Internal Width', categories: ['RIM'], active: true },
-    { key: 'wheel_spec_rim_erd', label: 'ERD', categories: ['RIM'], active: true },
-    { key: 'wheel_spec_rim_hole_count', label: 'Hole Count', categories: ['RIM', 'HUB'], active: true },
-    { key: 'wheel_spec_hub_spacing', label: 'Hub Spacing', categories: ['HUB'], active: true },
-    { key: 'wheel_spec_hub_drive_side', label: 'Drive Side', categories: ['HUB'], active: true },
-    { key: 'wheel_spec_hub_brake_mount', label: 'Brake Interface', categories: ['HUB'], active: true },
-    { key: 'wheel_spec_nipple_length', label: 'Nipple Length', categories: ['NIPPLE'], active: true },
-    { key: 'wheel_spec_valvestem_length', label: 'Stem Length', categories: ['VALVESTEM'], active: true }
+    // VARIANT METAFIELDS
+    { key: 'inventory_alert_threshold', label: 'Inventory Alert Threshold', categories: ['RIM', 'HUB', 'SPOKE', 'NIPPLE', 'VALVESTEM', 'ACCESSORY'], target: 'variant', type: 'integer' },
+    { key: 'hub_manual_cross_value', label: 'Hub Manual Cross Value', categories: ['HUB'], target: 'variant', type: 'decimal' },
+    { key: 'weight_g', label: 'Weight g', categories: ['RIM', 'HUB', 'SPOKE', 'NIPPLE', 'VALVESTEM', 'ACCESSORY'], target: 'variant', type: 'decimal' },
+    { key: 'length_adjust_mm', label: 'Length Adjust mm', categories: ['SPOKE'], target: 'variant', type: 'decimal' },
+    { key: 'position', label: 'Position', categories: ['HUB'], target: 'variant', type: 'single_line_text_field' },
+    { key: 'brake_interface', label: 'Brake Interface', categories: ['HUB'], target: 'variant', type: 'single_line_text_field' },
+    { key: 'hub_spacing', label: 'Hub Spacing', categories: ['HUB'], target: 'variant', type: 'single_line_text_field' },
+    { key: 'rim_size', label: 'Rim Size', categories: ['RIM'], target: 'variant', type: 'single_line_text_field' },
+    { key: 'rim_erd', label: 'Rim ERD', categories: ['RIM'], target: 'variant', type: 'decimal' },
+    { key: 'valve_min_rim_depth_mm', label: 'Valve Min Rim Depth mm', categories: ['VALVESTEM'], target: 'variant', type: 'integer' },
+    { key: 'valve_max_rim_depth_mm', label: 'Valve Max Rim Depth mm', categories: ['VALVESTEM'], target: 'variant', type: 'integer' },
+    { key: 'internal_width_mm', label: 'Internal Width mm', categories: ['RIM'], target: 'variant', type: 'integer' },
+    { key: 'acc_rim_width_min', label: 'Accessory Compatible Rim Width MIN (mm)', categories: ['ACCESSORY'], target: 'variant', type: 'integer' },
+    { key: 'acc_rim_width_max', label: 'Accessory Compatible Rim Width MAX (mm)', categories: ['ACCESSORY'], target: 'variant', type: 'integer' },
+    { key: 'hub_sp_offset_left', label: 'Hub SP Offset Spoke Hole Left', categories: ['HUB'], target: 'variant', type: 'decimal' },
+    { key: 'hub_sp_offset_right', label: 'Hub SP Offset Spoke Hole Right', categories: ['HUB'], target: 'variant', type: 'decimal' },
+    { key: 'historical_order_count', label: 'Historical Order Count', categories: ['RIM', 'HUB', 'SPOKE', 'NIPPLE', 'VALVESTEM', 'ACCESSORY'], target: 'variant', type: 'integer' },
+    { key: 'bti_part_number', label: 'BTI Part Number', categories: ['RIM', 'HUB', 'SPOKE', 'NIPPLE', 'VALVESTEM', 'ACCESSORY'], target: 'variant', type: 'single_line_text_field' },
+    { key: 'inventory_sync_key', label: 'Inventory Sync Key', categories: ['RIM', 'HUB', 'SPOKE', 'NIPPLE', 'VALVESTEM', 'ACCESSORY'], target: 'variant', type: 'single_line_text_field' },
+
+    // PRODUCT METAFIELDS
+    { key: 'included_valve_variant_id', label: 'Included Valve Variant ID', categories: ['VALVESTEM'], target: 'product', type: 'single_line_text_field' },
+    { key: 'integrated_hub_name', label: 'Integrated Hub Name', categories: ['HUB'], target: 'product', type: 'single_line_text_field' },
+    { key: 'google_shopping_link', label: 'Google Shopping Canonical Link', categories: ['RIM', 'HUB', 'SPOKE', 'NIPPLE', 'VALVESTEM', 'ACCESSORY'], target: 'product', type: 'url' },
+    { key: 'preconfigured_wheel_rules', label: 'Pre-configured Wheel Rules', categories: ['RIM', 'HUB'], target: 'product', type: 'json' },
+    { key: 'spoke_hub_interface', label: 'Spoke Hub Interface', categories: ['HUB', 'SPOKE'], target: 'product', type: 'single_line_text_field' },
+    { key: 'price_adjustment_percentage', label: 'Price Adjustment Percentage', categories: ['RIM', 'HUB', 'SPOKE', 'NIPPLE', 'VALVESTEM', 'ACCESSORY'], target: 'product', type: 'integer' },
+    { key: 'model', label: 'Model', categories: ['RIM', 'HUB', 'SPOKE', 'NIPPLE', 'VALVESTEM', 'ACCESSORY'], target: 'product', type: 'single_line_text_field' },
+    { key: 'pairing_key', label: 'Pairing Key', categories: ['RIM', 'HUB'], target: 'product', type: 'single_line_text_field' },
+    { key: 'rim_depth_mm', label: 'Rim Depth mm', categories: ['RIM'], target: 'product', type: 'decimal' },
+    { key: 'optional_addon_gids', label: 'Optional Addon GIDs', categories: ['RIM', 'HUB', 'SPOKE', 'NIPPLE', 'VALVESTEM', 'ACCESSORY'], target: 'product', type: 'single_line_text_field' },
+    { key: 'lead_time_days', label: 'Lead Time Days', categories: ['RIM', 'HUB', 'SPOKE', 'NIPPLE', 'VALVESTEM', 'ACCESSORY'], target: 'product', type: 'integer' },
+    { key: 'accessory_category', label: 'Accessory Category', categories: ['ACCESSORY'], target: 'product', type: 'single_line_text_field' },
+    { key: 'acc_display_columns', label: 'Accessory Display F/R Columns', categories: ['ACCESSORY'], target: 'product', type: 'boolean' },
+    { key: 'acc_unit_desc', label: 'Accessory Unit Description', categories: ['ACCESSORY'], target: 'product', type: 'single_line_text_field' },
+    { key: 'acc_requires_gid', label: 'Accessory Requires GID', categories: ['ACCESSORY'], target: 'product', type: 'single_line_text_field' },
+    { key: 'acc_excludes_if_gid', label: 'Accessory Excludes if GID Present', categories: ['ACCESSORY'], target: 'product', type: 'single_line_text_field' },
+    { key: 'freehub_type', label: 'Freehub', categories: ['HUB'], target: 'product', type: 'single_line_text_field' },
+    { key: 'freehub_variant_map', label: 'Freehub Variant Map', categories: ['HUB'], target: 'product', type: 'json' },
+    { key: 'hidden_from_seo', label: 'Hidden from SEO', categories: ['RIM', 'HUB', 'SPOKE', 'NIPPLE', 'VALVESTEM', 'ACCESSORY'], target: 'product', type: 'integer' },
+    { key: 'spoke_diameter_spec', label: 'Spoke Diameter Spec', categories: ['SPOKE'], target: 'product', type: 'single_line_text_field' },
+    { key: 'out_of_stock_action', label: 'Out of Stock Action', categories: ['RIM', 'HUB', 'SPOKE', 'NIPPLE', 'VALVESTEM', 'ACCESSORY'], target: 'product', type: 'single_line_text_field' },
+    { key: 'inventory_monitoring', label: 'Inventory Monitoring Enabled', categories: ['RIM', 'HUB', 'SPOKE', 'NIPPLE', 'VALVESTEM', 'ACCESSORY'], target: 'product', type: 'boolean' },
+    { key: 'rim_compatible_nipples', label: 'Rim Compatible Nipple Types', categories: ['RIM'], target: 'product', type: 'single_line_text_field' },
+    { key: 'spoke_model_group', label: 'Spoke Model Group', categories: ['SPOKE'], target: 'product', type: 'single_line_text_field' },
+    { key: 'spoke_cross_section_mm2', label: 'Spoke Cross Section Area mm2', categories: ['SPOKE'], target: 'product', type: 'decimal' },
+    { key: 'rim_target_tension_kgf', label: 'Rim Target Tension (kgf)', categories: ['RIM'], target: 'product', type: 'integer' },
+    { key: 'hub_type', label: 'Hub Type', categories: ['HUB'], target: 'product', type: 'single_line_text_field' },
+    { key: 'hub_lacing_policy', label: 'Hub Lacing Policy', categories: ['HUB'], target: 'product', type: 'single_line_text_field' },
+    { key: 'rim_washer_policy', label: 'Rim Washer Policy', categories: ['RIM'], target: 'product', type: 'single_line_text_field' },
+    { key: 'rim_spoke_hole_offset', label: 'Rim Spoke Hole Offset', categories: ['RIM'], target: 'product', type: 'decimal' },
+    { key: 'nipple_washer_thickness', label: 'Nipple Washer Thickness', categories: ['NIPPLE'], target: 'product', type: 'decimal' },
+    { key: 'spoke_type', label: 'Spoke Type', categories: ['SPOKE'], target: 'product', type: 'single_line_text_field' },
+    { key: 'hub_hole_diameter', label: 'Hub Spoke Hole Diameter', categories: ['HUB'], target: 'product', type: 'decimal' },
+    { key: 'hub_flange_offset_right', label: 'Hub Flange Offset Right', categories: ['HUB'], target: 'product', type: 'decimal' },
+    { key: 'hub_flange_offset_left', label: 'Hub Flange Offset Left', categories: ['HUB'], target: 'product', type: 'decimal' },
+    { key: 'hub_flange_diameter_right', label: 'Hub Flange Diameter Right', categories: ['HUB'], target: 'product', type: 'decimal' },
+    { key: 'hub_flange_diameter_left', label: 'Hub Flange Diameter Left', categories: ['HUB'], target: 'product', type: 'decimal' },
+    { key: 'vendor_logo', label: 'Vendor Logo', categories: ['RIM', 'HUB', 'SPOKE', 'NIPPLE', 'VALVESTEM', 'ACCESSORY'], target: 'product', type: 'file_reference_field' }
   ]);
   const [expandedGroups, setExpandedGroups] = useState([]);
   const [showLogsModal, setShowLogsModal] = useState(false);
@@ -331,7 +383,13 @@ export default function OpsDashboard() {
     const fieldsToSync = Object.entries(metaEditFields)
       .filter(([_, val]) => val !== undefined && val !== '')
       .map(([key, val]) => {
-         return { namespace: 'custom', key, value: val, type: 'single_line_text_field' };
+         const registryDef = metafieldRegistry.find(m => m.key === key);
+         return { 
+           namespace: 'custom', 
+           key, 
+           value: val, 
+           type: registryDef?.type || 'single_line_text_field' 
+         };
       });
     
     if (fieldsToSync.length === 0) return;
@@ -385,6 +443,30 @@ export default function OpsDashboard() {
       alert("Bulk ignore error.");
     }
     setLoading(false);
+  };
+
+  const addNewMetafield = (initialCategory) => {
+    const label = prompt(`Enter Label for new Metafield (e.g. 'Rim Width'):`);
+    if (!label) return;
+    const key = prompt(`Enter technical key (e.g. 'rim_width'):`, label.toLowerCase().replace(/\s+/g, '_'));
+    if (!key) return;
+    const target = confirm(`Is this a Variant metafield? (Cancel for Product metafield)`) ? 'variant' : 'product';
+    
+    setMetafieldRegistry(prev => [
+      ...prev,
+      { 
+        key: key.replace('custom.',''), 
+        label, 
+        categories: [initialCategory], 
+        target, 
+        type: 'single_line_text_field' 
+      }
+    ]);
+  };
+
+  const removeMetafield = (key) => {
+    if (!confirm(`⚠️ Delete '${key}' from registry permanently?`)) return;
+    setMetafieldRegistry(prev => prev.filter(m => m.key !== key));
   };
   
   const toggleVendor = (name) => {
@@ -1067,17 +1149,26 @@ export default function OpsDashboard() {
                                  <td colSpan="6" className="p-0 bg-white shadow-inner">
                                    <div className="divide-y divide-zinc-50 border-x border-zinc-100 mx-6 mb-6 rounded-2xl overflow-hidden border border-zinc-200 bg-zinc-50">
                                      {(() => {
-                                        // Group variants by first two attributes (e.g. 28h / Black)
+                                        // Refined Grouping: Strip parent product title if redundant
+                                        const parentTitle = product.title.split('(')[0].trim().toLowerCase();
+                                        
                                         const groups = productVariants.reduce((acc, v) => {
-                                           const parts = v.title.split(' - ');
-                                           const groupKey = parts.length > 2 ? parts.slice(0, 2).join(' / ') : (parts[0] || 'Base');
+                                           let variantLabel = v.title;
+                                           if (variantLabel.toLowerCase().startsWith(parentTitle)) {
+                                              variantLabel = variantLabel.substring(parentTitle.length).replace(/^[-\s/]+/, '').trim();
+                                           }
+                                           
+                                           const parts = variantLabel.split(/[/-]/).map(p => p.trim());
+                                           // Focus on the defining attribute (usually hole count or first distinct option)
+                                           const groupKey = parts.length > 1 ? parts[0] : (parts[0] || 'Base Config');
+                                           
                                            if (!acc[groupKey]) acc[groupKey] = [];
                                            acc[groupKey].push(v);
                                            return acc;
                                         }, {});
 
                                         return Object.entries(groups)
-                                          .sort(([ka], [kb]) => ka.localeCompare(kb))
+                                          .sort(([ka], [kb]) => ka.localeCompare(kb, undefined, { numeric: true }))
                                           .map(([groupName, variants]) => {
                                              const groupId = `${product.shopify_product_id}-${groupName}`;
                                              const isGroupExpanded = expandedGroups.includes(groupId);
@@ -1086,12 +1177,12 @@ export default function OpsDashboard() {
                                                <div key={groupId} className="border-b border-zinc-100 last:border-0">
                                                   <div 
                                                     onClick={() => setExpandedGroups(prev => isGroupExpanded ? prev.filter(id => id !== groupId) : [...prev, groupId])}
-                                                    className="flex items-center justify-between p-4 bg-zinc-100/50 hover:bg-zinc-200/50 cursor-pointer transition-colors group"
+                                                    className="flex items-center justify-between p-4 bg-zinc-100/30 hover:bg-zinc-200/50 cursor-pointer transition-colors group"
                                                   >
                                                      <div className="flex items-center gap-4">
                                                         <ChevronDown size={14} className={`text-zinc-400 transition-transform ${isGroupExpanded ? '' : '-rotate-90'}`} />
                                                         <div className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-600">{groupName}</div>
-                                                        <span className="text-[8px] font-black bg-white px-2 py-0.5 rounded-full border border-zinc-200 text-zinc-400">{variants.length} SKU(s)</span>
+                                                        <span className="text-[8px] font-black bg-white px-2 py-0.5 rounded-full border border-zinc-200 text-zinc-400">{variants.length} Variant(s)</span>
                                                      </div>
                                                   </div>
                                                   {isGroupExpanded && (
@@ -1102,12 +1193,12 @@ export default function OpsDashboard() {
                                                                <input 
                                                                  type="checkbox" 
                                                                  className="w-4 h-4 rounded border-2 border-zinc-200 text-black focus:ring-black"
-                                                                 checked={selectedLabVariants.includes(variant.id)}
+                                                                 checked={selectedLabVariants.includes(variant.shopify_variant_id)}
                                                                  onChange={() => {
                                                                    setSelectedLabVariants(prev => 
-                                                                     prev.includes(variant.id) 
-                                                                       ? prev.filter(id => id !== variant.id) 
-                                                                       : [...prev, variant.id]
+                                                                     prev.includes(variant.shopify_variant_id) 
+                                                                       ? prev.filter(id => id !== variant.shopify_variant_id) 
+                                                                       : [...prev, variant.shopify_variant_id]
                                                                    );
                                                                  }}
                                                                />
@@ -1162,28 +1253,34 @@ export default function OpsDashboard() {
                         </div>
                         <div className="space-y-2">
                            {metafieldRegistry.map(m => (
-                             <label key={m.key} className="flex items-center justify-between p-4 bg-zinc-50 rounded-2xl hover:bg-zinc-100 transition-all cursor-pointer group">
-                                <span className={m.categories.includes(cat) ? "text-xs font-black uppercase tracking-tight text-black" : "text-xs font-bold uppercase tracking-tight text-zinc-300 group-hover:text-zinc-400"}>{m.label}</span>
-                                <input 
-                                  type="checkbox" 
-                                  className="w-5 h-5 rounded-lg border-2 border-zinc-200 text-black focus:ring-black"
-                                  checked={m.categories.includes(cat)}
-                                  onChange={() => {
-                                    setMetafieldRegistry(prev => prev.map(field => {
-                                        if (field.key !== m.key) return field;
-                                        const newCats = field.categories.includes(cat) 
-                                            ? field.categories.filter(c => c !== cat) 
-                                            : [...field.categories, cat];
-                                        return { ...field, categories: newCats };
-                                    }));
-                                  }}
-                                />
-                             </label>
-                           ))}
-                        </div>
-                        <button className="w-full py-4 border-2 border-dashed border-zinc-200 rounded-2xl text-[10px] font-black uppercase text-zinc-400 hover:border-black hover:text-black transition-all flex items-center justify-center gap-2">
-                           <Plus size={14}/> Add New {cat} Metafield
-                        </button>
+                             <div key={m.key} className="flex items-center gap-2 group/row">
+                                <label className="flex-grow flex items-center justify-between p-4 bg-zinc-50 rounded-2xl hover:bg-zinc-100 transition-all cursor-pointer group">
+                                   <div className="flex flex-col">
+                                      <span className={m.categories.includes(cat) ? "text-[11px] font-black uppercase tracking-tight text-black" : "text-[11px] font-bold uppercase tracking-tight text-zinc-300 group-hover:text-zinc-400"}>{m.label}</span>
+                                      <span className="text-[8px] font-black uppercase text-zinc-400 opacity-50">{m.target}</span>
+                                   </div>
+                                   <input 
+                                     type="checkbox" 
+                                     className="w-5 h-5 rounded-lg border-2 border-zinc-200 text-black focus:ring-black"
+                                     checked={m.categories.includes(cat)}
+                                     onChange={() => {
+                                       setMetafieldRegistry(prev => prev.map(field => {
+                                           if (field.key !== m.key) return field;
+                                           const newCats = field.categories.includes(cat) 
+                                               ? field.categories.filter(c => c !== cat) 
+                                               : [...field.categories, cat];
+                                           return { ...field, categories: newCats };
+                                       }));
+                                     }}
+                                   />
+                                </label>
+                                <button onClick={() => removeMetafield(m.key)} className="opacity-0 group-hover/row:opacity-100 p-2 text-zinc-300 hover:text-red-500 transition-all"><Trash2 size={14}/></button>
+                              </div>
+                            ))}
+                         </div>
+                         <button onClick={() => addNewMetafield(cat)} className="w-full py-4 border-2 border-dashed border-zinc-200 rounded-2xl text-[10px] font-black uppercase text-zinc-400 hover:border-black hover:text-black transition-all flex items-center justify-center gap-2">
+                            <Plus size={14}/> Add New {cat} Metafield
+                         </button>
                      </div>
                    ))}
                 </div>
