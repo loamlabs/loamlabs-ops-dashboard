@@ -1149,18 +1149,32 @@ export default function OpsDashboard() {
                                  <td colSpan="6" className="p-0 bg-white shadow-inner">
                                    <div className="divide-y divide-zinc-50 border-x border-zinc-100 mx-6 mb-6 rounded-2xl overflow-hidden border border-zinc-200 bg-zinc-50">
                                      {(() => {
-                                        // Refined Grouping: Strip parent product title if redundant
+                                        // Refined Grouping: Strip parent product title & clean parentheses
                                         const parentTitle = product.title.split('(')[0].trim().toLowerCase();
                                         
                                         const groups = productVariants.reduce((acc, v) => {
                                            let variantLabel = v.title;
                                            if (variantLabel.toLowerCase().startsWith(parentTitle)) {
-                                              variantLabel = variantLabel.substring(parentTitle.length).replace(/^[-\s/]+/, '').trim();
+                                              variantLabel = variantLabel.substring(parentTitle.length).trim();
                                            }
                                            
-                                           const parts = variantLabel.split(/[/-]/).map(p => p.trim());
-                                           // Focus on the defining attribute (usually hole count or first distinct option)
-                                           const groupKey = parts.length > 1 ? parts[0] : (parts[0] || 'Base Config');
+                                           // Strip leading/trailing formatting characters like ( or -
+                                           const cleanLabel = variantLabel.replace(/^[(\s/-]+|[)\s/-]+$/g, '').trim();
+                                           const parts = cleanLabel.split(/[/-]/).map(p => p.trim());
+                                           
+                                           // Determine the "Master Group" based on component type
+                                           const tags = Array.isArray(product.tags) ? product.tags.map(t => t.toLowerCase()) : [];
+                                           let groupKey = 'Base Config';
+                                           
+                                           if (parts.length > 0) {
+                                              if (tags.includes('component:hub') || tags.includes('hub')) {
+                                                 groupKey = parts[0]; // Hole Count
+                                              } else if (tags.includes('component:valvestem') || tags.includes('valvestem') || tags.includes('component:spoke') || tags.includes('spoke') || tags.includes('component:nipple') || tags.includes('nipple')) {
+                                                 groupKey = parts[0]; // Color
+                                              } else {
+                                                 groupKey = parts[0]; // Default to first differentiation
+                                              }
+                                           }
                                            
                                            if (!acc[groupKey]) acc[groupKey] = [];
                                            acc[groupKey].push(v);
