@@ -875,6 +875,9 @@ export default function OpsDashboard() {
                  <button className="bg-black text-white p-3 px-6 rounded-xl font-black uppercase italic text-[10px] hover:bg-zinc-800 transition-all shadow-xl flex items-center gap-2 ml-2">
                    <Plus size={14} /> Create New Product
                  </button>
+                 <button onClick={() => setActiveTab('admin')} className="bg-zinc-100 text-zinc-400 p-3 px-4 rounded-xl hover:text-black transition-all border border-transparent hover:border-zinc-200">
+                   <Settings size={14} />
+                 </button>
                </div>
              </div>
              
