@@ -478,14 +478,24 @@ export default function OpsDashboard() {
   // 1. Unified variable name to prevent the crash
   const visibleVendorNames = [...new Set(rules.map(r => r.vendor_name).filter(Boolean))].sort();
 
+  // Global Deduplication: Ensure each variant only appears once
+  const uniqueRulesMap = new Map();
+  rules.forEach(r => {
+     if (!uniqueRulesMap.has(r.shopify_variant_id)) uniqueRulesMap.set(r.shopify_variant_id, r);
+  });
+  const allUniqueRules = Array.from(uniqueRulesMap.values());
+
   // 2. Sorting: Alphabetical by Vendor, then by Product Title
-  const filteredRules = rules.filter(r => {
+  const filteredRules = allUniqueRules.filter(r => {
     if (!r) return false;
     const normalize = (str) => String(str || "").toLowerCase().replace(/×/g, 'x').replace(/\s+/g, ' ').trim();
     
     // Search is universal
     const searchString = normalize(registrySearch);
-    const searchMatch = !searchString || normalize(r.title).includes(searchString) || normalize(r.vendor_name).includes(searchString);
+    const searchTokens = searchString ? searchString.split(' ').filter(Boolean) : [];
+    const searchMatch = searchTokens.length === 0 || searchTokens.every(token => 
+       normalize(r.title).includes(token) || normalize(r.vendor_name).includes(token)
+    );
 
     const vendorMatch = selectedVendors.length === 0 || 
       selectedVendors.some(v => normalize(v) === normalize(r.vendor_name));
@@ -522,15 +532,7 @@ export default function OpsDashboard() {
     return String(a.title || "").localeCompare(String(b.title || ""));
   });
 
-  // 3. UI-Level Deduplication (Safety measure against DB duplicates)
-  const seenIds = new Set();
-  const dedupedRules = filteredRules.filter(r => {
-    if (seenIds.has(r.shopify_variant_id)) return false;
-    seenIds.add(r.shopify_variant_id);
-    return true;
-  });
-
-  const paginatedRules = dedupedRules.slice(0, visibleCount);
+  const paginatedRules = filteredRules.slice(0, visibleCount);
 
   if (!isAuthorized) {
     return (
@@ -1057,11 +1059,14 @@ export default function OpsDashboard() {
                   <tbody className="divide-y divide-zinc-50">
                     {/* Grouping variants into Product rows (Respecting Vendor Filter + Tag Filter + Sorting) */}
                     {(() => {
-                      const filtered = Object.values(rules.filter(r => {
+                      const filtered = Object.values(allUniqueRules.filter(r => {
                         const matchesVendor = selectedVendors.length === 0 || selectedVendors.includes(r.vendor_name);
                         const normalize = (str) => String(str || "").toLowerCase().replace(/×/g, 'x').replace(/\s+/g, ' ').trim();
                         const searchString = normalize(labSearch);
-                        const searchMatch = !searchString || normalize(r.title).includes(searchString) || normalize(r.vendor_name).includes(searchString);
+                        const searchTokens = searchString ? searchString.split(' ').filter(Boolean) : [];
+                        const searchMatch = searchTokens.length === 0 || searchTokens.every(token => 
+                           normalize(r.title).includes(token) || normalize(r.vendor_name).includes(token)
+                        );
 
                         const labTags = ['component:hub','component:rim','component:spoke','component:nipple','component:valvestem','component:freehub', 'addon','accessory','spoke','nipple','valvestem','hub','rim','freehub', 'handbuilt'];
                         const itemTags = Array.isArray(r.tags) ? r.tags.map(t => t.toLowerCase()) : [];
@@ -1096,7 +1101,7 @@ export default function OpsDashboard() {
 
                       return filtered.map(product => {
                         const isExpanded = expandedProducts.includes(product.shopify_product_id);
-                        const productVariants = rules.filter(r => r.shopify_product_id === product.shopify_product_id);
+                        const productVariants = allUniqueRules.filter(r => r.shopify_product_id === product.shopify_product_id);
 
                         return (
                           <React.Fragment key={product.shopify_product_id}>
@@ -1201,7 +1206,14 @@ export default function OpsDashboard() {
                                                   </div>
                                                   {isGroupExpanded && (
                                                     <div className="bg-white divide-y divide-zinc-50">
-                                                       {variants.sort((a,b) => a.title.localeCompare(b.title)).map(variant => (
+                                                       {variants.sort((a,b) => a.title.localeCompare(b.title)).map(variant => {
+                                                          const pSplit = product.title.split('(')[0].trim().toLowerCase();
+                                                          let clean = variant.title;
+                                                          if (clean.toLowerCase().startsWith(pSplit)) { clean = clean.substring(pSplit.length).trim(); }
+                                                          clean = clean.replace(/^[(\s/-]+|[)\s/-]+$/g, '').trim();
+                                                          const subLabel = clean.split(/[/-]/).map(p => p.trim()).slice(1).join(' / ') || clean.split(/[/-]/)[0];
+
+                                                          return (
                                                           <div key={variant.id} className="flex items-center justify-between p-4 pl-12 hover:bg-zinc-50 transition-colors group">
                                                              <div className="flex items-center gap-4">
                                                                <input 
@@ -1219,7 +1231,8 @@ export default function OpsDashboard() {
                                                                <div className="w-8 h-8 rounded-lg bg-zinc-50 border border-zinc-100 flex items-center justify-center font-black text-[8px] text-zinc-300">SKU</div>
                                                                <div>
                                                                   <div className="text-[9px] font-black uppercase text-zinc-400 tracking-widest leading-none mb-1">{variant.sku || 'No SKU'}</div>
-                                                                  <div className="text-xs font-bold text-zinc-700">{variant.title}</div>
+                                                                  <div className="text-xs font-bold text-zinc-700">{subLabel}</div>
+                                                                  <div className="text-[9px] text-zinc-400 mt-0.5">{variant.title}</div>
                                                                </div>
                                                              </div>
                                                              <div className="flex items-center gap-8 text-right">
@@ -1229,7 +1242,8 @@ export default function OpsDashboard() {
                                                                 </div>
                                                              </div>
                                                           </div>
-                                                       ))}
+                                                          );
+                                                       })}
                                                     </div>
                                                   )}
                                                </div>
@@ -1378,13 +1392,34 @@ export default function OpsDashboard() {
                                 {fields.map(m => (
                                   <div key={m.key}>
                                      <label className="text-[11px] font-black uppercase text-zinc-500 mb-1.5 block tracking-widest">{m.label}</label>
-                                     <input 
-                                       type="text" 
-                                       placeholder="Set Value..."
-                                       className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-xl px-4 py-3 outline-none focus:border-black transition-all font-bold text-sm placeholder:text-zinc-300 placeholder:italic"
-                                       value={metaEditFields[m.key] || ''}
-                                       onChange={(e) => setMetaEditFields({...metaEditFields, [m.key]: e.target.value})}
-                                     />
+                                     {m.type === 'boolean' ? (
+                                        <select
+                                          value={metaEditFields[m.key] !== undefined ? metaEditFields[m.key] : ''}
+                                          onChange={e => setMetaEditFields({...metaEditFields, [m.key]: e.target.value === '' ? undefined : e.target.value === 'true'})}
+                                          className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-xl px-4 py-3 outline-none focus:border-black transition-all font-bold text-sm"
+                                        >
+                                          <option value="">-- No Change --</option>
+                                          <option value="true">True (Yes)</option>
+                                          <option value="false">False (No)</option>
+                                        </select>
+                                     ) : m.options && m.options.length > 0 ? (
+                                        <select
+                                          value={metaEditFields[m.key] || ''}
+                                          onChange={e => setMetaEditFields({...metaEditFields, [m.key]: e.target.value})}
+                                          className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-xl px-4 py-3 outline-none focus:border-black transition-all font-bold text-sm"
+                                        >
+                                          <option value="">-- No Change --</option>
+                                          {m.options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                        </select>
+                                     ) : (
+                                        <input 
+                                          type="text" 
+                                          placeholder="Leave blank to keep existing..."
+                                          className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-xl px-4 py-3 outline-none focus:border-black transition-all font-bold text-sm placeholder:text-zinc-300 placeholder:italic"
+                                          value={metaEditFields[m.key] || ''}
+                                          onChange={(e) => setMetaEditFields({...metaEditFields, [m.key]: e.target.value})}
+                                        />
+                                     )}
                                   </div>
                                 ))}
                              </div>
