@@ -40,10 +40,10 @@ export default function OpsDashboard() {
     { key: 'hub_manual_cross_value', label: 'Hub Manual Cross Value', categories: ['HUB'], target: 'variant', type: 'decimal' },
     { key: 'weight_g', label: 'Weight (Variant)', categories: ['RIM', 'HUB', 'SPOKE', 'NIPPLE', 'VALVESTEM', 'ACCESSORY'], target: 'variant', type: 'decimal' },
     { key: 'length_adjust_mm', label: 'Length Adjust mm', categories: ['SPOKE'], target: 'variant', type: 'decimal' },
-    { key: 'position', label: 'Position', categories: ['HUB'], target: 'variant', type: 'single_line_text_field' },
-    { key: 'brake_interface', label: 'Brake Interface', categories: ['HUB'], target: 'variant', type: 'single_line_text_field' },
-    { key: 'hub_spacing', label: 'Hub Spacing', categories: ['HUB'], target: 'variant', type: 'single_line_text_field' },
-    { key: 'rim_size', label: 'Rim Size', categories: ['RIM'], target: 'variant', type: 'single_line_text_field' },
+    { key: 'wheel_spec_position', label: 'Position', categories: ['HUB'], target: 'variant', type: 'single_line_text_field' },
+    { key: 'wheel_spec_brake_interface', label: 'Brake Interface', categories: ['HUB'], target: 'variant', type: 'single_line_text_field' },
+    { key: 'wheel_spec_hub_spacing', label: 'Hub Spacing', categories: ['HUB'], target: 'variant', type: 'single_line_text_field' },
+    { key: 'wheel_spec_rim_size', label: 'Rim Size', categories: ['RIM'], target: 'variant', type: 'single_line_text_field' },
     { key: 'rim_erd', label: 'Rim ERD', categories: ['RIM'], target: 'variant', type: 'decimal' },
     { key: 'valve_min_rim_depth_mm', label: 'Valve Min Rim Depth mm', categories: ['VALVESTEM'], target: 'variant', type: 'integer' },
     { key: 'valve_max_rim_depth_mm', label: 'Valve Max Rim Depth mm', categories: ['VALVESTEM'], target: 'variant', type: 'integer' },
@@ -390,7 +390,7 @@ export default function OpsDashboard() {
   };
 
   const saveBulkMetafields = async () => {
-    const validEntries = Object.entries(metaEditFields).filter(([_, val]) => val !== undefined && val !== '');
+    const validEntries = Object.entries(metaEditFields).filter(([_, val]) => val !== undefined && val !== '' && val !== '_CONFLICT_');
     
     const productFields = validEntries.map(([key, val]) => ({ key, val, reg: metafieldRegistry.find(m => m.key === key) }))
       .filter(f => f.reg && f.reg.target === 'product')
@@ -431,64 +431,118 @@ export default function OpsDashboard() {
   };
 
   const openMetafieldEditor = async () => {
+    setMetaEditFields({});
     setShowMetaEditModal(true);
     
-    // Pre-populate if precisely one product (or equivalent variants) selected
-    let targetProductId = null;
+    // Multi-fetch prepopulator
+    const targetProductIds = new Set(selectedLabProducts);
+    selectedLabVariants.forEach(vId => {
+      const p = allUniqueRules.find(r => r.shopify_variant_id === vId);
+      if (p) targetProductIds.add(p.shopify_product_id);
+    });
     
-    if (selectedLabProducts.length === 1 && selectedLabVariants.length === 0) {
-      targetProductId = selectedLabProducts[0];
-    } else if (selectedLabVariants.length > 0 && selectedLabProducts.length === 0) {
-      // Find the parent product of the first selected variant
-      const parentProduct = allUniqueRules.find(r => r.shopify_variant_id === selectedLabVariants[0]);
-      if (parentProduct) targetProductId = parentProduct.shopify_product_id;
-    }
-    
-    if (targetProductId) {
+    if (targetProductIds.size > 0) {
       setLoading(true);
       try {
-        const res = await fetch('/api/get-live-metafields', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ productId: targetProductId })
-        });
-        const data = await res.json();
+        const promises = Array.from(targetProductIds).map(id => 
+          fetch('/api/get-live-metafields', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ productId: id })
+          }).then(r => r.json())
+        );
+        const results = await Promise.all(promises);
         
-        if (data.success) {
-          const newFields = {};
-          
-          // Pre-fill Product Metafields
-          if (data.productMetafields) {
+        const valueMap = {};
+        const trackValue = (key, val) => {
+          if (!valueMap[key]) valueMap[key] = new Set();
+          if (val !== null && val !== undefined && val !== '') {
+            valueMap[key].add(val === 'true' ? true : val === 'false' ? false : val);
+          }
+        };
+
+        results.forEach(data => {
+          if (!data.success) return;
+          if (data.productMetafields && selectedLabProducts.length > 0) {
             data.productMetafields.forEach(m => {
               const reg = metafieldRegistry.find(r => r.key === `product_${m.key}` || r.key === m.key);
-              if (reg && m.value !== null) {
-                newFields[reg.key] = m.value === 'true' ? true : m.value === 'false' ? false : m.value;
-              }
+              if (reg) trackValue(reg.key, m.value);
             });
           }
-          
-          // Pre-fill Variant Metafields (baseline based on first variant in the tree)
-          const variantKeys = Object.keys(data.variantsMetafields || {});
-          
-          let targetVariantId = null;
-          if (selectedLabVariants.length === 1) targetVariantId = selectedLabVariants[0];
-          else if (variantKeys.length > 0) targetVariantId = variantKeys[0];
-          
-          if (targetVariantId && data.variantsMetafields[targetVariantId]) {
-            data.variantsMetafields[targetVariantId].forEach(m => {
-              const reg = metafieldRegistry.find(r => r.key === `variant_${m.key}` || r.key === m.key);
-              if (reg && m.value !== null) {
-                newFields[reg.key] = m.value === 'true' ? true : m.value === 'false' ? false : m.value;
-              }
-            });
+          if (data.variantsMetafields) {
+             const vKeys = selectedLabVariants.length > 0 
+                ? Object.keys(data.variantsMetafields).filter(vId => selectedLabVariants.includes(vId)) 
+                : Object.keys(data.variantsMetafields);
+             vKeys.forEach(vId => {
+               const vData = data.variantsMetafields[vId];
+               if (vData) {
+                 vData.forEach(m => {
+                   const reg = metafieldRegistry.find(r => r.key === `variant_${m.key}` || r.key === m.key);
+                   if (reg) trackValue(reg.key, m.value);
+                 });
+               }
+             });
           }
-          
-          setMetaEditFields(newFields);
-        }
-      } catch(e) {
-        console.error('Failed to pre-fill metafields', e);
-      }
+        });
+
+        const newFields = {};
+        Object.entries(valueMap).forEach(([key, valSet]) => {
+          if (valSet.size === 1) newFields[key] = Array.from(valSet)[0];
+          else if (valSet.size > 1) newFields[key] = '_CONFLICT_';
+        });
+        
+        setMetaEditFields(newFields);
+      } catch(e) { console.error('Failed to pre-fill metafields', e); }
       setLoading(false);
+    }
+  };
+
+  const getPrimaryCategory = (tags = []) => {
+    const t = tags.map(tx => tx.toLowerCase());
+    if (t.includes('rim') || t.includes('component:rim')) return 'RIM';
+    if (t.includes('hub') || t.includes('component:hub')) return 'HUB';
+    if (t.includes('spoke') || t.includes('component:spoke')) return 'SPOKE';
+    if (t.includes('nipple') || t.includes('component:nipple')) return 'NIPPLE';
+    if (t.includes('valvestem') || t.includes('component:valvestem')) return 'VALVESTEM';
+    if (t.includes('accessory')) return 'ACCESSORY';
+    return null;
+  };
+
+  const getActiveLabCategory = () => {
+    if (selectedLabProducts.length > 0) {
+      const p = allUniqueRules.find(r => r.shopify_product_id === selectedLabProducts[0]);
+      return p ? getPrimaryCategory(p.tags) : null;
+    }
+    if (selectedLabVariants.length > 0) {
+      const p = allUniqueRules.find(r => r.shopify_variant_id === selectedLabVariants[0]);
+      return p ? getPrimaryCategory(p.tags) : null;
+    }
+    return null;
+  };
+
+  const toggleLabProduct = (productId) => {
+    const product = allUniqueRules.find(r => r.shopify_product_id === productId);
+    if (!product) return;
+    const cat = getPrimaryCategory(product.tags);
+    const activeCat = getActiveLabCategory();
+    if (activeCat && cat !== activeCat && !selectedLabProducts.includes(productId)) {
+       setSelectedLabVariants([]);
+       setSelectedLabProducts([productId]);
+    } else {
+       setSelectedLabProducts(prev => prev.includes(productId) ? prev.filter(id => id !== productId) : [...prev, productId]);
+    }
+  };
+
+  const toggleLabVariant = (variantId) => {
+    const variant = allUniqueRules.find(r => r.shopify_variant_id === variantId);
+    if (!variant) return;
+    const cat = getPrimaryCategory(variant.tags);
+    const activeCat = getActiveLabCategory();
+    if (activeCat && cat !== activeCat && !selectedLabVariants.includes(variantId)) {
+       setSelectedLabProducts([]);
+       setSelectedLabVariants([variantId]);
+    } else {
+       setSelectedLabVariants(prev => prev.includes(variantId) ? prev.filter(id => id !== variantId) : [...prev, variantId]);
     }
   };
 
@@ -1200,13 +1254,7 @@ export default function OpsDashboard() {
                                   type="checkbox" 
                                   className="w-5 h-5 rounded-lg border-2 border-zinc-200 text-black focus:ring-black"
                                   checked={selectedLabProducts.includes(product.shopify_product_id)}
-                                  onChange={() => {
-                                    setSelectedLabProducts(prev => 
-                                      prev.includes(product.shopify_product_id) 
-                                        ? prev.filter(id => id !== product.shopify_product_id) 
-                                        : [...prev, product.shopify_product_id]
-                                    );
-                                  }}
+                                  onChange={() => toggleLabProduct(product.shopify_product_id)}
                                 />
                               </td>
                               <td className="p-0">
@@ -1309,13 +1357,7 @@ export default function OpsDashboard() {
                                                                  type="checkbox" 
                                                                  className="w-4 h-4 rounded border-2 border-zinc-200 text-black focus:ring-black"
                                                                  checked={selectedLabVariants.includes(variant.shopify_variant_id)}
-                                                                 onChange={() => {
-                                                                   setSelectedLabVariants(prev => 
-                                                                     prev.includes(variant.shopify_variant_id) 
-                                                                       ? prev.filter(id => id !== variant.shopify_variant_id) 
-                                                                       : [...prev, variant.shopify_variant_id]
-                                                                   );
-                                                                 }}
+                                                                 onChange={() => toggleLabVariant(variant.shopify_variant_id)}
                                                                />
                                                                <div className="w-8 h-8 rounded-lg bg-zinc-50 border border-zinc-100 flex items-center justify-center font-black text-[8px] text-zinc-300">SKU</div>
                                                                <div>
@@ -1524,35 +1566,47 @@ export default function OpsDashboard() {
 
                                   return (
                                   <div key={m.key}>
-                                     <label className="text-[11px] font-black uppercase text-zinc-500 mb-1.5 block tracking-widest">{m.label}</label>
-                                     {isBool ? (
-                                        <select
-                                          value={metaEditFields[m.key] !== undefined ? metaEditFields[m.key] : ''}
-                                          onChange={e => setMetaEditFields({...metaEditFields, [m.key]: e.target.value === '' ? undefined : e.target.value === 'true'})}
-                                          className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-xl px-4 py-3 outline-none focus:border-black transition-all font-bold text-sm"
-                                        >
-                                          <option value="">-- No Change --</option>
-                                          <option value="true">True (Yes)</option>
-                                          <option value="false">False (No)</option>
-                                        </select>
-                                     ) : hasOptions ? (
-                                        <select
-                                          value={metaEditFields[m.key] || ''}
-                                          onChange={e => setMetaEditFields({...metaEditFields, [m.key]: e.target.value})}
-                                          className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-xl px-4 py-3 outline-none focus:border-black transition-all font-bold text-sm"
-                                        >
-                                          <option value="">-- No Change --</option>
-                                          {mappedOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                                        </select>
-                                     ) : (
-                                        <input 
-                                          type="text" 
-                                          placeholder="Leave blank to keep existing..."
-                                          className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-xl px-4 py-3 outline-none focus:border-black transition-all font-bold text-sm placeholder:text-zinc-300 placeholder:italic"
-                                          value={metaEditFields[m.key] || ''}
-                                          onChange={(e) => setMetaEditFields({...metaEditFields, [m.key]: e.target.value})}
-                                        />
-                                     )}
+                                     <div className="flex items-center gap-2 mb-1.5">
+                                        <label className="text-[11px] font-black uppercase text-zinc-500 tracking-widest">{m.label}</label>
+                                        {metaEditFields[m.key] === '_CONFLICT_' && <span className="text-[9px] font-black uppercase tracking-widest bg-amber-100 text-amber-700 px-2 py-0.5 rounded-md shadow-sm border border-amber-200">Mixed</span>}
+                                     </div>
+                                     <div className="relative">
+                                         {metaEditFields[m.key] === '_CONFLICT_' && (
+                                            <div className="absolute inset-[2px] z-10 flex items-center justify-center bg-zinc-100/90 backdrop-blur-[1px] rounded-[10px] border border-dashed border-zinc-300 group">
+                                               <button className="bg-white px-3 py-1.5 rounded-lg text-[10px] font-black uppercase shadow-sm border border-zinc-200 hover:border-black transition-all flex items-center gap-2 text-zinc-500 hover:text-black hover:bg-zinc-100 group-hover:scale-105" onClick={() => setMetaEditFields({...metaEditFields, [m.key]: ''})}>
+                                                  🔒 Unlock to Override
+                                               </button>
+                                            </div>
+                                         )}
+                                         {isBool ? (
+                                            <select
+                                              value={metaEditFields[m.key] !== undefined && metaEditFields[m.key] !== '_CONFLICT_' ? metaEditFields[m.key] : ''}
+                                              onChange={e => setMetaEditFields({...metaEditFields, [m.key]: e.target.value === '' ? undefined : e.target.value === 'true'})}
+                                              className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-xl px-4 py-3 outline-none focus:border-black transition-all font-bold text-sm"
+                                            >
+                                              <option value="">-- No Change --</option>
+                                              <option value="true">True (Yes)</option>
+                                              <option value="false">False (No)</option>
+                                            </select>
+                                         ) : hasOptions ? (
+                                            <select
+                                              value={(metaEditFields[m.key] !== '_CONFLICT_' ? metaEditFields[m.key] : '') || ''}
+                                              onChange={e => setMetaEditFields({...metaEditFields, [m.key]: e.target.value})}
+                                              className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-xl px-4 py-3 outline-none focus:border-black transition-all font-bold text-sm"
+                                            >
+                                              <option value="">-- No Change --</option>
+                                              {mappedOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                            </select>
+                                         ) : (
+                                            <input 
+                                              type="text" 
+                                              placeholder="Leave blank to keep existing..."
+                                              className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-xl px-4 py-3 outline-none focus:border-black transition-all font-bold text-sm placeholder:text-zinc-300 placeholder:italic"
+                                              value={(metaEditFields[m.key] !== '_CONFLICT_' ? metaEditFields[m.key] : '') || ''}
+                                              onChange={(e) => setMetaEditFields({...metaEditFields, [m.key]: e.target.value})}
+                                            />
+                                         )}
+                                     </div>
                                   </div>
                                   );
                                 })}
