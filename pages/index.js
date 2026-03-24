@@ -9,6 +9,9 @@ export default function OpsDashboard() {
   const [password, setPassword] = useState('');
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [metafieldOptionsMap, setMetafieldOptionsMap] = useState({});
+  const [adminTab, setAdminTab] = useState('control_module');
+  const [savingLogo, setSavingLogo] = useState(null);
   const [selectedVendors, setSelectedVendors] = useState([]); 
   const [registrySearch, setRegistrySearch] = useState(''); 
   const [syncFilter, setSyncFilter] = useState('all'); 
@@ -35,7 +38,7 @@ export default function OpsDashboard() {
     // VARIANT METAFIELDS
     { key: 'inventory_alert_threshold', label: 'Inventory Alert Threshold', categories: ['RIM', 'HUB', 'SPOKE', 'NIPPLE', 'VALVESTEM', 'ACCESSORY'], target: 'variant', type: 'integer' },
     { key: 'hub_manual_cross_value', label: 'Hub Manual Cross Value', categories: ['HUB'], target: 'variant', type: 'decimal' },
-    { key: 'weight_g', label: 'Weight g', categories: ['RIM', 'HUB', 'SPOKE', 'NIPPLE', 'VALVESTEM', 'ACCESSORY'], target: 'variant', type: 'decimal' },
+    { key: 'weight_g', label: 'Weight (Variant)', categories: ['RIM', 'HUB', 'SPOKE', 'NIPPLE', 'VALVESTEM', 'ACCESSORY'], target: 'variant', type: 'decimal' },
     { key: 'length_adjust_mm', label: 'Length Adjust mm', categories: ['SPOKE'], target: 'variant', type: 'decimal' },
     { key: 'position', label: 'Position', categories: ['HUB'], target: 'variant', type: 'single_line_text_field' },
     { key: 'brake_interface', label: 'Brake Interface', categories: ['HUB'], target: 'variant', type: 'single_line_text_field' },
@@ -54,6 +57,7 @@ export default function OpsDashboard() {
     { key: 'inventory_sync_key', label: 'Inventory Sync Key', categories: ['RIM', 'HUB', 'SPOKE', 'NIPPLE', 'VALVESTEM', 'ACCESSORY'], target: 'variant', type: 'single_line_text_field' },
 
     // PRODUCT METAFIELDS
+    { key: 'product_weight_g', label: 'Weight (Product)', categories: ['RIM', 'HUB', 'SPOKE', 'NIPPLE', 'VALVESTEM', 'ACCESSORY'], target: 'product', type: 'decimal' },
     { key: 'included_valve_variant_id', label: 'Included Valve Variant ID', categories: ['VALVESTEM'], target: 'product', type: 'single_line_text_field' },
     { key: 'integrated_hub_name', label: 'Integrated Hub Name', categories: ['HUB'], target: 'product', type: 'single_line_text_field' },
     { key: 'google_shopping_link', label: 'Google Shopping Canonical Link', categories: ['RIM', 'HUB', 'SPOKE', 'NIPPLE', 'VALVESTEM', 'ACCESSORY'], target: 'product', type: 'url' },
@@ -134,6 +138,12 @@ export default function OpsDashboard() {
         const logoData = await logoRes.json();
         setVendorLogos(logoData.savedLogos || []);
         setIsAuthorized(true); 
+
+        // Sync metadata choices silently
+        fetch('/api/get-metafield-definitions').then(r => r.json()).then(d => {
+           if (d.success && d.optionsDict) setMetafieldOptionsMap(d.optionsDict);
+        }).catch(e => console.error("Meta def sync err", e));
+        
       } else {
         const err = await res.json();
         alert("❌ Dashboard Error: " + (err.error || "Login Failed"));
@@ -380,34 +390,32 @@ export default function OpsDashboard() {
   };
 
   const saveBulkMetafields = async () => {
-    const fieldsToSync = Object.entries(metaEditFields)
-      .filter(([_, val]) => val !== undefined && val !== '')
-      .map(([key, val]) => {
-         const registryDef = metafieldRegistry.find(m => m.key === key);
-         return { 
-           namespace: 'custom', 
-           key, 
-           value: val, 
-           type: registryDef?.type || 'single_line_text_field' 
-         };
-      });
+    const validEntries = Object.entries(metaEditFields).filter(([_, val]) => val !== undefined && val !== '');
     
-    if (fieldsToSync.length === 0) return;
+    const productFields = validEntries.map(([key, val]) => ({ key, val, reg: metafieldRegistry.find(m => m.key === key) }))
+      .filter(f => f.reg && f.reg.target === 'product')
+      .map(f => ({ namespace: 'custom', key: f.key.replace('product_', ''), value: f.val, type: f.reg.type }));
+
+    const variantFields = validEntries.map(([key, val]) => ({ key, val, reg: metafieldRegistry.find(m => m.key === key) }))
+      .filter(f => f.reg && f.reg.target === 'variant')
+      .map(f => ({ namespace: 'custom', key: f.key.replace('variant_', ''), value: f.val, type: f.reg.type }));
+    
+    if (productFields.length === 0 && variantFields.length === 0) return;
     setLoading(true);
     try {
       const auth = localStorage.getItem('loam_ops_auth');
-      if (selectedLabProducts.length > 0) {
+      if (selectedLabProducts.length > 0 && productFields.length > 0) {
         await fetch('/api/bulk-update-metafields', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'x-dashboard-auth': auth },
-          body: JSON.stringify({ ids: selectedLabProducts, metafields: fieldsToSync, targetType: 'Product' })
+          body: JSON.stringify({ ids: selectedLabProducts, metafields: productFields, targetType: 'Product' })
         });
       }
-      if (selectedLabVariants.length > 0) {
+      if (selectedLabVariants.length > 0 && variantFields.length > 0) {
         await fetch('/api/bulk-update-metafields', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'x-dashboard-auth': auth },
-          body: JSON.stringify({ ids: selectedLabVariants, metafields: fieldsToSync, targetType: 'ProductVariant' })
+          body: JSON.stringify({ ids: selectedLabVariants, metafields: variantFields, targetType: 'ProductVariant' })
         });
       }
       setShowMetaEditModal(false);
@@ -467,6 +475,26 @@ export default function OpsDashboard() {
   const removeMetafield = (key) => {
     if (!confirm(`⚠️ Delete '${key}' from registry permanently?`)) return;
     setMetafieldRegistry(prev => prev.filter(m => m.key !== key));
+  };
+
+  const handleLogoUpdate = async (vendorName, url) => {
+    const auth = localStorage.getItem('loam_ops_auth');
+    setSavingLogo(vendorName);
+    try {
+      const res = await fetch('/api/update-logo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-dashboard-auth': auth },
+        body: JSON.stringify({ name: vendorName, logo_url: url })
+      });
+      if (res.ok) {
+        setVendorLogos(prev => {
+          const existing = prev.find(l => l.name === vendorName);
+          if (existing) return prev.map(l => l.name === vendorName ? { ...l, logo_url: url } : l);
+          return [...prev, { name: vendorName, logo_url: url }];
+        });
+      }
+    } catch (e) { console.error(e); }
+    setTimeout(() => setSavingLogo(null), 1000);
   };
   
   const toggleVendor = (name) => {
@@ -560,13 +588,12 @@ export default function OpsDashboard() {
           <SidebarLink icon={<RefreshCcw size={18}/>} label="BTI Sync" active={activeTab === 'bti_sync'} onClick={() => setActiveTab('bti_sync')} />
           <SidebarLink icon={<Beaker size={18}/>} label="Product Lab" active={activeTab === 'product_lab'} onClick={() => setActiveTab('product_lab')} />
           <SidebarLink icon={<ShieldCheck size={18}/>} label="Shop Health" active={activeTab === 'audit'} onClick={() => setActiveTab('audit')} />
-          <SidebarLink icon={<ImageIcon size={18}/>} label="Branding" active={false} onClick={() => window.location.href = '/logos'} />
+          <SidebarLink icon={<Settings size={18}/>} label="Admin Settings" active={activeTab === 'admin'} onClick={() => setActiveTab('admin')} />
         </nav>
         <div className="relative mt-auto border-t border-zinc-800 pt-6">
            {showUserMenu && (
              <div className="absolute bottom-full left-0 w-full mb-2 bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden">
                 <button onClick={() => { fetchLogs(); setShowLogsModal(true); setShowUserMenu(false); }} className="w-full p-4 flex items-center gap-3 text-zinc-400 hover:bg-zinc-800 hover:text-white font-bold text-xs uppercase transition-all border-b border-zinc-800"><History size={16}/> View Sync Logs</button>
-                <button onClick={() => { setActiveTab('admin'); setShowUserMenu(false); }} className="w-full p-4 flex items-center gap-3 text-zinc-400 hover:bg-zinc-800 hover:text-white font-bold text-xs uppercase transition-all border-b border-zinc-800"><Settings size={16}/> Settings</button>
                 <button onClick={() => { localStorage.removeItem('loam_ops_auth'); window.location.reload(); }} className="w-full p-4 flex items-center gap-3 text-red-500 hover:bg-red-500/10 font-bold text-xs uppercase transition-all"><LogOut size={16}/> End Session</button>
              </div>
            )}
@@ -590,15 +617,15 @@ export default function OpsDashboard() {
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <button onClick={handleAutoImport} disabled={loading} className="bg-zinc-200 text-zinc-800 p-3 px-6 rounded-xl font-black uppercase italic text-[10px] flex items-center gap-2 hover:bg-zinc-300 transition-all disabled:opacity-50 shadow-sm">
+                <button onClick={handleAutoImport} disabled={loading} title="Finds unmonitored vendor products on Shopify and pulls them into the system" className="bg-zinc-200 text-zinc-800 p-3 px-6 rounded-xl font-black uppercase italic text-[10px] flex items-center gap-2 hover:bg-zinc-300 transition-all disabled:opacity-50 shadow-sm">
                   {loading ? <Loader2 className="animate-spin" size={14} /> : <Package size={14} />} Auto Import
                 </button>
 
-                <button onClick={runManualSync} disabled={loading} className="bg-orange-500 text-white p-3 px-6 rounded-xl font-black uppercase italic text-[10px] flex items-center gap-2 hover:bg-orange-600 transition-all shadow-lg">
+                <button onClick={runManualSync} disabled={loading} title="Forces an immediate scrape to synchronize all prices and inventory with Distributor sites" className="bg-orange-500 text-white p-3 px-6 rounded-xl font-black uppercase italic text-[10px] flex items-center gap-2 hover:bg-orange-600 transition-all shadow-lg">
                   <RefreshCcw size={14} className={loading ? "animate-spin" : ""} /> Run Live Sync
                 </button>
 
-                <button onClick={() => fetchRules()} className="bg-white border-2 border-zinc-200 p-3 px-4 rounded-xl hover:border-black transition-all shadow-sm text-zinc-400">
+                <button onClick={() => fetchRules()} title="Downloads the latest state from your central Supabase dashboard" className="bg-white border-2 border-zinc-200 p-3 px-4 rounded-xl hover:border-black transition-all shadow-sm text-zinc-400">
                   <RefreshCcw size={14} className={loading ? "animate-spin" : ""} />
                 </button>
               </div>
@@ -952,10 +979,10 @@ export default function OpsDashboard() {
                   <p className="text-zinc-400 text-[10px] font-black uppercase tracking-widest mt-1">Catalog Architect & Batch Metafield Editor</p>
                </div>
                <div className="flex items-center gap-3">
-                 <button onClick={() => fetchRules()} className={`bg-blue-50 text-blue-700 p-3 px-6 rounded-xl font-black uppercase italic text-[10px] flex items-center gap-2 border border-blue-100 shadow-sm hover:bg-blue-100 transition-all ${loading ? 'opacity-50' : ''}`} disabled={loading}>
+                 <button onClick={() => fetchRules()} title="Downloads the latest synced product data from our Supabase Database" className={`bg-blue-50 text-blue-700 p-3 px-6 rounded-xl font-black uppercase italic text-[10px] flex items-center gap-2 border border-blue-100 shadow-sm hover:bg-blue-100 transition-all ${loading ? 'opacity-50' : ''}`} disabled={loading}>
                    <RefreshCcw size={14} className={loading ? 'animate-spin' : ''} /> Distributor Feed Active
                  </button>
-                 <button onClick={syncTags} className={`bg-amber-50 text-amber-700 p-3 px-6 rounded-xl font-black uppercase italic text-[10px] flex items-center gap-2 border border-amber-100 shadow-sm hover:bg-amber-100 transition-all ${loading ? 'opacity-50' : ''}`} disabled={loading}>
+                 <button onClick={syncTags} title="Scans raw product titles and automatically attaches organizational tags (e.g. component:hub)" className={`bg-amber-50 text-amber-700 p-3 px-6 rounded-xl font-black uppercase italic text-[10px] flex items-center gap-2 border border-amber-100 shadow-sm hover:bg-amber-100 transition-all ${loading ? 'opacity-50' : ''}`} disabled={loading}>
                    <Zap size={14} /> Sync Catalog Tags
                  </button>
                  <button className="bg-black text-white p-3 px-6 rounded-xl font-black uppercase italic text-[10px] hover:bg-zinc-800 transition-all shadow-xl flex items-center gap-2 ml-2">
@@ -1266,59 +1293,96 @@ export default function OpsDashboard() {
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
              <div className="flex items-center justify-between mb-8">
                <div>
-                  <h1 className="text-4xl font-black tracking-tight text-zinc-900 uppercase italic">Control Module</h1>
-                  <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mt-1 italic tracking-[0.2em]">Configuring Metafield Visibility & Component Schemas</p>
+                  <h1 className="text-4xl font-black tracking-tight text-zinc-900 uppercase italic">Admin Settings</h1>
+                  <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mt-1 italic tracking-[0.2em]">Dashboard Configuration</p>
                </div>
              </div>
 
-             <div className="bg-white rounded-[2.5rem] border border-zinc-200 shadow-xl overflow-hidden p-12">
-                <div className="grid grid-cols-3 gap-12">
-                   {['RIM', 'HUB', 'SPOKE', 'NIPPLE', 'VALVESTEM', 'ACCESSORY'].map(cat => (
-                     <div key={cat} className="space-y-6">
-                        <div className="flex items-center justify-between border-b-4 border-black pb-4">
-                           <h3 className="text-xl font-black italic tracking-tighter truncate pr-2">{cat.replace('VALVESTEM','VALVE STEM')}</h3>
-                           <div className="w-8 h-8 rounded-full bg-zinc-100 flex-shrink-0 flex items-center justify-center"><Activity size={14}/></div>
+             <div className="flex gap-4 mb-8 border-b-2 border-zinc-100 pb-2">
+                <button onClick={() => setAdminTab('control_module')} className={`px-6 py-3 font-black text-[10px] uppercase tracking-widest transition-all ${adminTab === 'control_module' ? 'text-black border-b-2 border-black -mb-[10px] bg-zinc-100 rounded-t-xl' : 'text-zinc-400 hover:text-zinc-600'}`}>Control Module</button>
+                <button onClick={() => setAdminTab('branding')} className={`px-6 py-3 font-black text-[10px] uppercase tracking-widest transition-all ${adminTab === 'branding' ? 'text-black border-b-2 border-black -mb-[10px] bg-zinc-100 rounded-t-xl' : 'text-zinc-400 hover:text-zinc-600'}`}>Branding Center</button>
+             </div>
+
+             {adminTab === 'control_module' && (
+                <div className="bg-white rounded-[2.5rem] border border-zinc-200 shadow-xl overflow-hidden p-12 animate-in fade-in">
+                   <div className="grid grid-cols-3 gap-12">
+                      {['RIM', 'HUB', 'SPOKE', 'NIPPLE', 'VALVESTEM', 'ACCESSORY'].map(cat => (
+                        <div key={cat} className="space-y-6">
+                           <div className="flex items-center justify-between border-b-4 border-black pb-4">
+                              <h3 className="text-xl font-black italic tracking-tighter truncate pr-2">{cat.replace('VALVESTEM','VALVE STEM')}</h3>
+                              <div className="w-8 h-8 rounded-full bg-zinc-100 flex-shrink-0 flex items-center justify-center"><Activity size={14}/></div>
+                           </div>
+                           <div className="space-y-2">
+                              {metafieldRegistry.map(m => (
+                                <div key={m.key} className="flex items-center gap-2 group/row">
+                                   <label className="flex-grow flex items-center justify-between p-4 bg-zinc-50 rounded-2xl hover:bg-zinc-100 transition-all cursor-pointer group">
+                                      <div className="flex flex-col">
+                                         <span className={m.categories.includes(cat) ? "text-[11px] font-black uppercase tracking-tight text-black" : "text-[11px] font-bold uppercase tracking-tight text-zinc-300 group-hover:text-zinc-400"}>{m.label}</span>
+                                         <span className="text-[8px] font-black uppercase text-zinc-400 opacity-50">{m.target}</span>
+                                      </div>
+                                      <input 
+                                        type="checkbox" 
+                                        className="w-5 h-5 rounded-lg border-2 border-zinc-200 text-black focus:ring-black"
+                                        checked={m.categories.includes(cat)}
+                                        onChange={() => {
+                                          setMetafieldRegistry(prev => prev.map(field => {
+                                              if (field.key !== m.key) return field;
+                                              const newCats = field.categories.includes(cat) 
+                                                  ? field.categories.filter(c => c !== cat) 
+                                                  : [...field.categories, cat];
+                                              return { ...field, categories: newCats };
+                                          }));
+                                        }}
+                                      />
+                                   </label>
+                                   <button onClick={() => removeMetafield(m.key)} className="opacity-0 group-hover/row:opacity-100 p-2 text-zinc-300 hover:text-red-500 transition-all"><Trash2 size={14}/></button>
+                                 </div>
+                               ))}
+                            </div>
+                            <button onClick={() => addNewMetafield(cat)} className="w-full py-4 border-2 border-dashed border-zinc-200 rounded-2xl text-[10px] font-black uppercase text-zinc-400 hover:border-black hover:text-black transition-all flex items-center justify-center gap-2">
+                               <Plus size={14}/> Add New {cat} Metafield
+                            </button>
                         </div>
-                        <div className="space-y-2">
-                           {metafieldRegistry.map(m => (
-                             <div key={m.key} className="flex items-center gap-2 group/row">
-                                <label className="flex-grow flex items-center justify-between p-4 bg-zinc-50 rounded-2xl hover:bg-zinc-100 transition-all cursor-pointer group">
-                                   <div className="flex flex-col">
-                                      <span className={m.categories.includes(cat) ? "text-[11px] font-black uppercase tracking-tight text-black" : "text-[11px] font-bold uppercase tracking-tight text-zinc-300 group-hover:text-zinc-400"}>{m.label}</span>
-                                      <span className="text-[8px] font-black uppercase text-zinc-400 opacity-50">{m.target}</span>
-                                   </div>
-                                   <input 
-                                     type="checkbox" 
-                                     className="w-5 h-5 rounded-lg border-2 border-zinc-200 text-black focus:ring-black"
-                                     checked={m.categories.includes(cat)}
-                                     onChange={() => {
-                                       setMetafieldRegistry(prev => prev.map(field => {
-                                           if (field.key !== m.key) return field;
-                                           const newCats = field.categories.includes(cat) 
-                                               ? field.categories.filter(c => c !== cat) 
-                                               : [...field.categories, cat];
-                                           return { ...field, categories: newCats };
-                                       }));
-                                     }}
-                                   />
-                                </label>
-                                <button onClick={() => removeMetafield(m.key)} className="opacity-0 group-hover/row:opacity-100 p-2 text-zinc-300 hover:text-red-500 transition-all"><Trash2 size={14}/></button>
-                              </div>
-                            ))}
-                         </div>
-                         <button onClick={() => addNewMetafield(cat)} className="w-full py-4 border-2 border-dashed border-zinc-200 rounded-2xl text-[10px] font-black uppercase text-zinc-400 hover:border-black hover:text-black transition-all flex items-center justify-center gap-2">
-                            <Plus size={14}/> Add New {cat} Metafield
-                         </button>
-                     </div>
-                   ))}
-                </div>
-                <div className="mt-12 pt-12 border-t border-zinc-100 bg-zinc-50 -mx-12 -mb-12 p-12">
-                   <div className="flex items-center gap-4 text-zinc-400">
-                      <ShieldCheck size={20}/>
-                      <p className="text-[10px] font-black uppercase tracking-[0.2em]">Settings are currently session-scoped. Multi-user persistence coming in update 4.12.</p>
+                      ))}
+                   </div>
+                   <div className="mt-12 pt-12 border-t border-zinc-100 bg-zinc-50 -mx-12 -mb-12 p-12">
+                      <div className="flex items-center gap-4 text-zinc-400">
+                         <ShieldCheck size={20}/>
+                         <p className="text-[10px] font-black uppercase tracking-[0.2em]">Settings are currently session-scoped. Multi-user persistence coming in update 4.12.</p>
+                      </div>
                    </div>
                 </div>
-             </div>
+             )}
+
+             {adminTab === 'branding' && (
+                <div className="grid gap-4 max-w-4xl animate-in fade-in">
+                   {visibleVendorNames.map(vendor => {
+                     const logo = vendorLogos.find(l => l.name === vendor);
+                     return (
+                       <div key={vendor} className="bg-white p-6 rounded-[2rem] border border-zinc-200 flex items-center gap-8 group hover:shadow-xl transition-all">
+                         <div className="w-20 h-20 bg-zinc-50 rounded-[1.5rem] flex items-center justify-center overflow-hidden border border-zinc-100">
+                           {logo?.logo_url ? <img src={logo.logo_url} className="w-full h-full object-contain p-2" alt="" /> : <ImageIcon className="text-zinc-200" />}
+                         </div>
+                         <div className="flex-grow">
+                           <label className="text-[10px] font-black uppercase text-zinc-400 mb-2 block tracking-widest italic">{vendor}</label>
+                           <div className="relative">
+                             <input 
+                               type="text" 
+                               placeholder="Paste Shopify Logo URL..." 
+                               className="w-full p-4 bg-zinc-50 rounded-xl outline-none border-2 border-transparent focus:border-black transition-all font-mono text-xs"
+                               defaultValue={logo?.logo_url || ''}
+                               onBlur={(e) => handleLogoUpdate(vendor, e.target.value)}
+                             />
+                             <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                               {savingLogo === vendor ? <Loader2 className="animate-spin text-zinc-400" size={16} /> : logo?.logo_url ? <ShieldCheck className="text-green-500" size={16} /> : null}
+                             </div>
+                           </div>
+                         </div>
+                       </div>
+                     );
+                   })}
+                </div>
+             )}
           </div>
         ) : (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -1389,10 +1453,17 @@ export default function OpsDashboard() {
                            return (
                              <div key={cat} className="space-y-4">
                                 <div className="text-[10px] font-black uppercase text-zinc-400 tracking-[0.2em] border-b border-zinc-100 pb-2 italic">{cat.replace('VALVESTEM','VALVE STEM')} SPECS</div>
-                                {fields.map(m => (
+                                {fields.map(m => {
+                                  const realKey = m.key.replace(/^(product_|variant_)/, '');
+                                  const dynamicOptions = metafieldOptionsMap[realKey];
+                                  const isBool = m.type === 'boolean' || dynamicOptions === 'boolean';
+                                  const hasOptions = (m.options && m.options.length > 0) || (Array.isArray(dynamicOptions) && dynamicOptions.length > 0);
+                                  const mappedOptions = hasOptions ? (dynamicOptions || m.options) : [];
+
+                                  return (
                                   <div key={m.key}>
                                      <label className="text-[11px] font-black uppercase text-zinc-500 mb-1.5 block tracking-widest">{m.label}</label>
-                                     {m.type === 'boolean' ? (
+                                     {isBool ? (
                                         <select
                                           value={metaEditFields[m.key] !== undefined ? metaEditFields[m.key] : ''}
                                           onChange={e => setMetaEditFields({...metaEditFields, [m.key]: e.target.value === '' ? undefined : e.target.value === 'true'})}
@@ -1402,14 +1473,14 @@ export default function OpsDashboard() {
                                           <option value="true">True (Yes)</option>
                                           <option value="false">False (No)</option>
                                         </select>
-                                     ) : m.options && m.options.length > 0 ? (
+                                     ) : hasOptions ? (
                                         <select
                                           value={metaEditFields[m.key] || ''}
                                           onChange={e => setMetaEditFields({...metaEditFields, [m.key]: e.target.value})}
                                           className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-xl px-4 py-3 outline-none focus:border-black transition-all font-bold text-sm"
                                         >
                                           <option value="">-- No Change --</option>
-                                          {m.options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                          {mappedOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                                         </select>
                                      ) : (
                                         <input 
@@ -1421,7 +1492,8 @@ export default function OpsDashboard() {
                                         />
                                      )}
                                   </div>
-                                ))}
+                                  );
+                                })}
                              </div>
                            );
                         });
