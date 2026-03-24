@@ -98,7 +98,7 @@ export default async function handler(req, res) {
       }
       
       // Also map booleans
-      if (def.type === 'boolean') {
+      if (def.type?.name === 'boolean') {
          optionsDict[def.key] = 'boolean';
       }
     }

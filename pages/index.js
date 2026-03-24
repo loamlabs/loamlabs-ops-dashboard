@@ -430,6 +430,68 @@ export default function OpsDashboard() {
     setLoading(false);
   };
 
+  const openMetafieldEditor = async () => {
+    setShowMetaEditModal(true);
+    
+    // Pre-populate if precisely one product (or equivalent variants) selected
+    let targetProductId = null;
+    
+    if (selectedLabProducts.length === 1 && selectedLabVariants.length === 0) {
+      targetProductId = selectedLabProducts[0];
+    } else if (selectedLabVariants.length > 0 && selectedLabProducts.length === 0) {
+      // Find the parent product of the first selected variant
+      const parentProduct = allUniqueRules.find(r => r.shopify_variant_id === selectedLabVariants[0]);
+      if (parentProduct) targetProductId = parentProduct.shopify_product_id;
+    }
+    
+    if (targetProductId) {
+      setLoading(true);
+      try {
+        const res = await fetch('/api/get-live-metafields', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ productId: targetProductId })
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+          const newFields = {};
+          
+          // Pre-fill Product Metafields
+          if (data.productMetafields) {
+            data.productMetafields.forEach(m => {
+              const reg = metafieldRegistry.find(r => r.key === `product_${m.key}` || r.key === m.key);
+              if (reg && m.value !== null) {
+                newFields[reg.key] = m.value === 'true' ? true : m.value === 'false' ? false : m.value;
+              }
+            });
+          }
+          
+          // Pre-fill Variant Metafields (baseline based on first variant in the tree)
+          const variantKeys = Object.keys(data.variantsMetafields || {});
+          
+          let targetVariantId = null;
+          if (selectedLabVariants.length === 1) targetVariantId = selectedLabVariants[0];
+          else if (variantKeys.length > 0) targetVariantId = variantKeys[0];
+          
+          if (targetVariantId && data.variantsMetafields[targetVariantId]) {
+            data.variantsMetafields[targetVariantId].forEach(m => {
+              const reg = metafieldRegistry.find(r => r.key === `variant_${m.key}` || r.key === m.key);
+              if (reg && m.value !== null) {
+                newFields[reg.key] = m.value === 'true' ? true : m.value === 'false' ? false : m.value;
+              }
+            });
+          }
+          
+          setMetaEditFields(newFields);
+        }
+      } catch(e) {
+        console.error('Failed to pre-fill metafields', e);
+      }
+      setLoading(false);
+    }
+  };
+
   const bulkIgnoreLab = async () => {
     if (selectedLabProducts.length === 0) return;
     if (!confirm(`⚠️ Are you sure you want to hide ${selectedLabProducts.length} items from the Product Lab?`)) return;
@@ -1411,7 +1473,7 @@ export default function OpsDashboard() {
                 </div>
               </div>
               <div className="flex items-center gap-4 flex-wrap">
-                <button onClick={() => setShowMetaEditModal(true)} className="flex items-center gap-2 text-[10px] font-black uppercase text-blue-400 hover:text-blue-300 transition-colors bg-blue-950/30 px-4 py-2.5 rounded-xl"><Edit size={14} /> Edit Metafields</button>
+                <button onClick={openMetafieldEditor} className="flex items-center gap-2 text-[10px] font-black uppercase text-blue-400 hover:text-blue-300 transition-colors bg-blue-950/30 px-4 py-2.5 rounded-xl"><Edit size={14} /> Edit Metafields</button>
                 <div className="w-px h-6 bg-zinc-800"></div>
                 <button onClick={bulkIgnoreLab} className="flex items-center gap-2 text-[10px] font-black uppercase text-white hover:text-red-400 transition-colors bg-red-600 px-5 py-2.5 rounded-xl shadow-lg shadow-red-500/20"><ShieldAlert size={14} /> Ignore & Purge Family</button>
               </div>
@@ -1455,7 +1517,7 @@ export default function OpsDashboard() {
                                 <div className="text-[10px] font-black uppercase text-zinc-400 tracking-[0.2em] border-b border-zinc-100 pb-2 italic">{cat.replace('VALVESTEM','VALVE STEM')} SPECS</div>
                                 {fields.map(m => {
                                   const realKey = m.key.replace(/^(product_|variant_)/, '');
-                                  const dynamicOptions = metafieldOptionsMap[realKey];
+                                  const dynamicOptions = metafieldOptionsMap[realKey] || metafieldOptionsMap[m.key];
                                   const isBool = m.type === 'boolean' || dynamicOptions === 'boolean';
                                   const hasOptions = (m.options && m.options.length > 0) || (Array.isArray(dynamicOptions) && dynamicOptions.length > 0);
                                   const mappedOptions = hasOptions ? (dynamicOptions || m.options) : [];
