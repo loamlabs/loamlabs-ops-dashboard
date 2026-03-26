@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 const cleanNum = (str) => str ? str.toString().replace(/\D/g, '') : '';
@@ -34,7 +34,6 @@ export default async function handler(req, res) {
     while (hasMore) {
       let query = supabase.from('watcher_rules').select('*');
       
-      // Support selective sync for one or many items
       if (req.body?.ruleIds && Array.isArray(req.body.ruleIds)) {
         query = query.in('id', req.body.ruleIds);
       } else if (req.query?.id) {
@@ -55,6 +54,14 @@ export default async function handler(req, res) {
     const adminToken = await getShopifyToken();
     let updated = [], attention = [], inSync = [];
     let stockChanges = [], oosReminders = [];
+    
+    const USER_AGENTS = [
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+      'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:123.0) Gecko/20100101 Firefox/123.0',
+      'Mozilla/5.0 (AppleChromebook; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    ];
 
     for (const rule of rules) {
       try {
@@ -62,54 +69,52 @@ export default async function handler(req, res) {
         if (itemTags.includes('watcher-ignore')) continue;
         if (!rule.vendor_url) continue;
 
+        const url = `${rule.vendor_url}.js`;
+        const randomUA = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
+        
+        let vResponse;
+        try {
+          vResponse = await fetch(url, { headers: { 'User-Agent': randomUA } });
+          if (!vResponse.ok) throw new Error(`Fetch failed (${vResponse.status})`);
+        } catch (fetchErr) {
+          const errLog = `Fetch failed for ${url}: ${fetchErr.message}`;
+          console.error(`[SYNC ERROR] ${errLog}`);
+          await supabase.from('watcher_rules').update({
+              last_log: errLog,
+              last_run_at: new Date().toISOString()
+          }).eq('id', rule.id);
+          continue;
+        }
 
-      let vendorPrice;
-      const url = `${rule.vendor_url}.js`;
-      const vResponse = await fetch(url);
-      if (!vResponse.ok) {
-        const errLog = `Fetch failed (${vResponse.status}): ${url}`;
-        console.error(`[SYNC ERROR] ${errLog}`);
-        await supabase.from('watcher_rules').update({
-            last_log: errLog,
-            last_run_at: new Date().toISOString()
-        }).eq('id', rule.id);
-        continue;
-      }
-      const textObj = await vResponse.text();
-      let vData;
-      try {
-        vData = JSON.parse(textObj);
-      } catch(e) {
-        const errLog = `JSON Parse failed: ${url}`;
-        console.error(`[SYNC ERROR] ${errLog}`);
-        await supabase.from('watcher_rules').update({
-            last_log: errLog,
-            last_run_at: new Date().toISOString()
-        }).eq('id', rule.id);
-        continue;
-      }
+        const textObj = await vResponse.text();
+        let vData;
+        try {
+          vData = JSON.parse(textObj);
+        } catch(e) {
+          const errLog = `JSON Parse failed: ${url}`;
+          console.error(`[SYNC ERROR] ${errLog}`);
+          await supabase.from('watcher_rules').update({
+              last_log: errLog,
+              last_run_at: new Date().toISOString()
+          }).eq('id', rule.id);
+          continue;
+        }
 
         let parsedOptions = rule.option_values || {};
-
         if (typeof parsedOptions === 'string') {
           try { parsedOptions = JSON.parse(parsedOptions); } catch (e) {}
         }
-        const spokeGoal = cleanNum(parsedOptions["Spoke Count"]);
-        const isFrontRule = rule.title.toLowerCase().includes('front');
         const normalize = (t) => String(t || "").toLowerCase().replace(/×/g, 'x').replace(/\s+/g, ' ').trim();
 
-        // 1. DYNAMIC MATCHING ENGINE (TOKENIZED)
+        // 1. DYNAMIC MATCHING ENGINE
         let winner = null;
-        let isDeepSale = false;
         let vStatus = 'No specific match logic applied';
-
         const ruleTitle = normalize(rule.title);
         const isHub = ruleTitle.includes('hub');
         const isRim = ruleTitle.includes('rim');
         const isE13Wheelset = rule.vendor_name === 'e*thirteen' && ruleTitle.includes('wheels');
+
         if (isE13Wheelset) {
-            // e*thirteen wheelset URLs only list Rear wheel variants.
-            // Front wheels are sold on separate product pages — mapped below.
             const FRONT_WHEEL_URL_MAP = {
               'https://www.ethirteen.com/products/grappler-sidekick-flux-carbon-downhill-wheels': 'https://www.ethirteen.com/products/grappler-sidekick-flux-carbon-downhill-wheels-front',
               'https://www.ethirteen.com/products/grappler-sidekick-flux-carbon-enduro-wheels': 'https://www.ethirteen.com/products/grappler-sidekick-flux-carbon-enduro-wheels-front',
@@ -117,10 +122,7 @@ export default async function handler(req, res) {
               'https://www.ethirteen.com/products/sylvan-sidekick-race-carbon-all-mountain-wheels': 'https://www.ethirteen.com/products/sylvan-sidekick-race-carbon-all-mountain-wheels-front',
             };
 
-            // Determine rear and front option values
-            let rearSizeValue = null;
-            let frontWheelValue = null;
-            let driverValue = null;
+            let rearSizeValue = null, frontWheelValue = null, driverValue = null;
             for (const [optName, optValue] of Object.entries(parsedOptions)) {
                 if (!optValue) continue;
                 if (optName.toLowerCase().includes('rear')) rearSizeValue = optValue.toLowerCase().replace(/["']/g, '').trim();
@@ -148,36 +150,27 @@ export default async function handler(req, res) {
                     let finalPrice = bestRear.price;
                     let finalAvail = bestRear.available;
 
-                    // If front wheel is requested (and not "No Front Wheel"), add its price
                     const hasFront = frontWheelValue && frontWheelValue !== 'no front wheel' && frontWheelValue !== 'none';
                     if (hasFront) {
                         let frontUrl = FRONT_WHEEL_URL_MAP[rule.vendor_url?.replace(/\/$/, '')];
                         if (!frontUrl && rule.vendor_url) frontUrl = rule.vendor_url.replace(/\/$/, '') + '-front';
-                        
                         if (frontUrl) {
                             try {
-                                const frontResp = await fetch(frontUrl + '.js');
+                                const frontResp = await fetch(frontUrl + '.js', { headers: { 'User-Agent': randomUA } });
                                 const frontData = await frontResp.json();
                                 if (frontData?.variants?.length > 0) {
-                                    // All front wheel options on these pages are single-variant; just take the first available one
                                     const bestFront = frontData.variants.reduce((a, b) => (a.price > b.price ? a : b));
                                     finalPrice += bestFront.price;
                                     finalAvail = finalAvail && bestFront.available;
                                 }
-                            } catch (fe) {
-                                console.error(`Front wheel fetch failed for ${frontUrl}: ${fe.message}`);
-                            }
+                            } catch (fe) { console.error(`Front wheel fetch failed for ${frontUrl}: ${fe.message}`); }
                         }
                     }
 
-                    
-                    // Add Driver & Axle Kit surcharge (from e*thirteen's APO option pricing)
-                    // DH wheels: 7spd cassette = $329.95, Mini HG = $179.95
-                    // AM/Enduro: XD/HG/Microspline(MS) = $179.95
                     if (driverValue) {
-                        let driverSurcharge = 17995; // default: $179.95 for XD/HG/MS
+                        let driverSurcharge = 17995; 
                         if (driverValue.includes('7p') || driverValue.includes('7sp') || driverValue.includes('cassette')) {
-                            driverSurcharge = 42995; // Updated to $429.95 for 7spd Integrated Cassette
+                            driverSurcharge = 42995; 
                         }
                         finalPrice += driverSurcharge;
                     }
@@ -189,62 +182,43 @@ export default async function handler(req, res) {
                     };
                 }
             }
-
         } else {
           let candidates = vData.variants.filter(v => {
             const vTitle = normalize(v.public_title);
-            
             if (rule.vendor_name === 'Berd') {
               let reqTokens = [];
-
-              // I9 Hydra / Solix: Berd has one generic "Industry Nine Hubs" variant for all I9 builds
               let isI9Hub = false;
               for (const [optName, optValue] of Object.entries(parsedOptions)) {
                   if (optName.toLowerCase().includes('hub') && optValue && optValue.toLowerCase().includes('i9')) { isI9Hub = true; break; }
               }
               if (isI9Hub) return vTitle.includes('industry nine');
-
               for (const [optName, optValue] of Object.entries(parsedOptions)) {
                  if (!optValue || optValue.toLowerCase() === 'default title') continue;
-                 
-                 // Berd skips "Color" in hub titles
                  if (isHub && optName.toLowerCase().includes('color')) continue;
                  if (isHub && optName.toLowerCase().includes('spoke')) continue;
-  
                  let tokens = optValue.toLowerCase().replace(/×/g, 'x').replace(/[\"\']/g, '').split(/[\s/+\-]+/).filter(t => t.length > 0);
                  reqTokens.push(...tokens);
               }
-  
               const normalizedTitleForTokens = vTitle.replace(/[\"\']/g, '');
-              for (let token of reqTokens) {
-                  if (!normalizedTitleForTokens.includes(token)) return false;
-              }
-  
+              for (let token of reqTokens) { if (!normalizedTitleForTokens.includes(token)) return false; }
               if (isHub) {
                   const isFrontRule = ruleTitle.includes('front');
                   if (isFrontRule && !vTitle.includes('front')) return false;
                   if (!isFrontRule && !(vTitle.includes('rear') || vTitle.includes('xd') || vTitle.includes('hg') || vTitle.includes('ms'))) return false;
-  
                   const axleMatch = ['100', '110', '142', '148', '157'].find(size => ruleTitle.includes(size));
                   if (axleMatch && !vTitle.includes(axleMatch)) return false;
-  
-                  let hasSpokeOption = false;
-                  let spokeMatch = false;
+                  let hasSpokeOption = false, spokeMatch = false;
                   for (const [optName, optValue] of Object.entries(parsedOptions)) {
                       if (optName.toLowerCase().includes('spoke')) {
                           hasSpokeOption = true;
-                          const numOnly = cleanNum(optValue);
-                          if (numOnly && (vTitle.includes(`${numOnly} spoke`) || vTitle.includes(`${numOnly}h`) || vTitle.includes(`${numOnly} hole`))) {
-                              spokeMatch = true;
-                          }
+                          const numOnly = optValue.toString().replace(/\D/g, '');
+                          if (numOnly && (vTitle.includes(`${numOnly} spoke`) || vTitle.includes(`${numOnly}h`) || vTitle.includes(`${numOnly} hole`))) spokeMatch = true;
                       }
                   }
                   if (hasSpokeOption && !spokeMatch) return false;
               }
               return true;
-            } 
-            else if (rule.vendor_name === 'e*thirteen') {
-               // RIM LOGIC
+            } else if (rule.vendor_name === 'e*thirteen') {
                if (isRim) {
                   let expectedSize = parsedOptions["Size"] ? parsedOptions["Size"].toLowerCase() : null;
                   if (expectedSize) {
@@ -254,45 +228,28 @@ export default async function handler(req, res) {
                       const sizeString = cleanExpected.replace(/[^\d.c]/g, ''); 
                       if (!cleanVTitle.includes(sizeString)) return false;
                   }
-  
                   const spokeCount = parsedOptions["Spoke Count"] ? parsedOptions["Spoke Count"].toLowerCase() : null;
                   if (spokeCount && !vTitle.includes(spokeCount)) return false;
-  
                   const ruleTokens = ruleTitle.split(' ');
                   const vTokens = vTitle.replace(/[^a-z0-9\s]/g, ' ').split(/\s+/);
-                  
                   if (ruleTokens.includes('dh') && !vTokens.includes('dh') && (vTokens.includes('en') || vTokens.includes('gr'))) return false;
                   if (ruleTokens.includes('en') && !vTokens.includes('en') && (vTokens.includes('dh') || vTokens.includes('gr'))) return false;
                   if (ruleTokens.includes('gr') && !vTokens.includes('gr') && (vTokens.includes('dh') || vTokens.includes('en'))) return false;
                }
-  
-               // HUB LOGIC
                if (isHub) {
                   const isFrontRule = ruleTitle.includes('front');
                   if (isFrontRule && !vTitle.includes('front') && !vTitle.includes('15x') && !vTitle.includes('15mm') && !vTitle.includes('110x')) return false;
                   if (!isFrontRule && !vTitle.includes('rear') && !vTitle.includes('148') && !vTitle.includes('157')) return false;
-  
                   let expectedHoles = null;
-                  if (parsedOptions["Spoke Count"]) {
-                     expectedHoles = cleanNum(parsedOptions["Spoke Count"]);
-                  } else if (ruleTitle.includes('28h')) expectedHoles = '28';
-                  else if (ruleTitle.includes('32h')) expectedHoles = '32';
-  
-                  if (expectedHoles && !vTitle.includes(`${expectedHoles} hole`) && !vTitle.includes(`${expectedHoles}h`) && !vTitle.includes(`${expectedHoles} h`)) {
-                      return false;
-                  }
-  
+                  if (parsedOptions["Spoke Count"]) expectedHoles = parsedOptions["Spoke Count"].toString().replace(/\D/g, '');
+                  if (expectedHoles && !vTitle.includes(`${expectedHoles} hole`) && !vTitle.includes(`${expectedHoles}h`) && !vTitle.includes(`${expectedHoles} h`)) return false;
                   if (ruleTitle.includes('superboost') && !vTitle.includes('157')) return false;
                   if (!ruleTitle.includes('superboost') && ruleTitle.includes('rear') && !vTitle.includes('148')) return false;
-
-                  // Sidekick SL specific: SL hubs are ONLY 110x15mm Boost. Standard are 110x15/20mm.
                   if (ruleTitle.includes('sidekick sl')) {
                      if (!vTitle.includes('110x15mm')) return false;
                   } else if (ruleTitle.includes('sidekick') && !ruleTitle.includes('sl') && isHub && isFrontRule) {
-                     // Standard Sidekick Front Hub: Use 110x15/20mm
                      if (vTitle.includes('110x15mm') && !vTitle.includes('15/20')) return false;
                   }
-                  
                   if (!ruleTitle.includes('7spd') && !ruleTitle.includes('7 spd') && (vTitle.includes('7spd') || vTitle.includes('7 spd'))) return false;
                   if (!ruleTitle.includes('mini') && vTitle.includes('mini')) return false;
                }
@@ -303,34 +260,21 @@ export default async function handler(req, res) {
 
           if (candidates.length > 0) {
             winner = candidates.reduce((prev, curr) => (prev.price > curr.price) ? prev : curr);
-          }
-
-            // Fallback: If no custom logic matched, try a token-based best match using rule.option_values
-            if (!winner && candidates.length > 0) {
-              const ruleOptions = rule.option_values ? (typeof rule.option_values === 'string' ? JSON.parse(rule.option_values) : rule.option_values) : {};
-              const ruleTokens = Object.values(ruleOptions).flatMap(v => String(v).toLowerCase().split(/[\s/]+/).filter(t => t.length > 1));
-              
-              if (ruleTokens.length > 0) {
-                 const bestMatch = candidates.map(c => {
-                    const cTitle = c.public_title.toLowerCase(); // Changed from c.title to c.public_title
-                    const score = ruleTokens.filter(t => cTitle.includes(t)).length;
-                    return { variant: c, score };
-                 }).sort((a, b) => b.score - a.score)[0];
-                 
-                 if (bestMatch && bestMatch.score > 0) {
-                    winner = bestMatch.variant;
-                    vStatus = `Matched by tokens (${ruleTokens.join(', ')}).`;
-                 }
-              }
-              
-              if (!winner) {
-                 winner = candidates.reduce((prev, curr) => (prev.price > curr.price) ? prev : curr);
-                 vStatus = `Fallback: Highest price (No specific match).`;
-              }
+            if (!winner || winner.price === 0) {
+               const ruleTokens = Object.values(parsedOptions).flatMap(v => String(v).toLowerCase().split(/[\s/]+/).filter(t => t.length > 1));
+               const bestMatch = candidates.map(c => {
+                  const score = ruleTokens.filter(t => c.public_title.toLowerCase().includes(t)).length;
+                  return { variant: c, score };
+               }).sort((a, b) => b.score - a.score)[0];
+               if (bestMatch && bestMatch.score > 0) {
+                  winner = bestMatch.variant;
+                  vStatus = `Matched by tokens (${ruleTokens.join(', ')}).`;
+               }
             }
+          }
         }
 
-        console.log(`[RULE: ${rule.id}] Processing "${rule.title}" | Winner: "${winner?.public_title || 'None'}" (InStock: ${winner?.available}) | Status: ${vStatus}`);
+        console.log(`[RULE: ${rule.id}] Processing "${rule.title}" | Winner: "${winner?.public_title || 'None'}" | Status: ${vStatus}`);
         if (winner) {
           const variantGid = `gid://shopify/ProductVariant/${rule.shopify_variant_id}`;
           const sResponse = await fetch(`https://${process.env.SHOPIFY_SHOP_NAME}.myshopify.com/admin/api/2024-04/graphql.json`, {
@@ -347,18 +291,13 @@ export default async function handler(req, res) {
           const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true') : null;
           const productHandle = variant.product?.handle || '';
           const vendorPrice = winner.price / 100;
-
-          // 1. CALCULATE GOAL PRICE (Based on Vendor MSRP/MSRP-MAP)
           const stdFactor = rule.price_adjustment_factor || 1.0;
           let goalPriceNum = vendorPrice * stdFactor;
           let isDeepSale = false;
 
           if (rule.original_msrp && rule.original_msrp > 0) {
             const discountRatio = (rule.original_msrp - vendorPrice) / rule.original_msrp;
-            if (discountRatio >= 0.10) {
-              goalPriceNum = vendorPrice / 0.90;
-              isDeepSale = true;
-            }
+            if (discountRatio >= 0.10) { goalPriceNum = vendorPrice / 0.90; isDeepSale = true; }
           }
           const goalPrice = parseFloat(goalPriceNum).toFixed(2);
           const myPrice = parseFloat(variant.price).toFixed(2);
@@ -366,21 +305,15 @@ export default async function handler(req, res) {
           const isDiff = Number(goalPrice) !== Number(myPrice);
           const needsPriceUpdate = isDiff || (myCompare && Number(myCompare) < Number(goalPrice));
 
-          // 2. 45-DAY MSRP TIMER LOGIC
           let newPriceLastChangedAt = rule.price_last_changed_at || null;
           if (rule.last_price !== winner.price) {
             newPriceLastChangedAt = new Date().toISOString();
-            if (isDeepSale) {
-               attention.push({ title: rule.title, reason: `Drastic Sale Detected: Vendor Price dropped to $${vendorPrice.toFixed(2)}!` });
-            }
+            if (isDeepSale) attention.push({ title: rule.title, reason: `Drastic Sale Detected: Vendor Price dropped to $${vendorPrice.toFixed(2)}!` });
           } else if (newPriceLastChangedAt && isDeepSale) {
             const daysPersistent = (new Date() - new Date(newPriceLastChangedAt)) / (1000 * 60 * 60 * 24);
-            if (Math.floor(daysPersistent) === 45) {
-               attention.push({ title: rule.title, reason: `Sale Price persistent for 45 days: Confirm as New MSRP?` });
-            }
+            if (Math.floor(daysPersistent) === 45) attention.push({ title: rule.title, reason: `Sale Price persistent for 45 days: Confirm as New MSRP?` });
           }
 
-          // 3. APPLY UPDATES (Price & Metafield Hand-off)
           let finalShopifyPriceNum = Number(myPrice);
           let updatePayloadForPrice = { id: rule.shopify_variant_id };
           let shouldPutPrice = false;
@@ -390,14 +323,11 @@ export default async function handler(req, res) {
              if (myCompare && Number(myCompare) > Number(myPrice)) {
                 const gap = Number(myCompare) - Number(myPrice);
                 updatePayloadForPrice.compare_at_price = (Number(goalPrice) + gap).toFixed(2);
-             } else {
-                updatePayloadForPrice.compare_at_price = goalPrice;
-             }
+             } else { updatePayloadForPrice.compare_at_price = goalPrice; }
              shouldPutPrice = true;
              finalShopifyPriceNum = Number(goalPrice);
           }
 
-          // Metafield Hand-off (Inventory Arbitration)
           let currentEffectiveBtiFlag = currentBtiFlag;
           if (rule.auto_update === true && !rule.needs_review) {
              if (winner.available && currentBtiFlag === true) {
@@ -418,12 +348,9 @@ export default async function handler(req, res) {
                 method: 'PUT', headers: { 'X-Shopify-Access-Token': adminToken, 'Content-Type': 'application/json' },
                 body: JSON.stringify({ variant: updatePayloadForPrice })
              }).catch(e => console.error(e));
-             if (needsPriceUpdate && rule.auto_update === true && !rule.needs_review) {
-                updated.push({ title: rule.title, reason: `Price Adjusted ($${myPrice} -> $${goalPrice})` });
-             }
+             if (needsPriceUpdate && rule.auto_update === true && !rule.needs_review) updated.push({ title: rule.title, reason: `Price Adjusted ($${myPrice} -> $${goalPrice})` });
           }
 
-          // 4. INVENTORY POLICY SYNC (non-BTI controlled items only)
           let effectivePolicy = variant.inventoryPolicy;
           if (rule.auto_update === true && currentEffectiveBtiFlag !== true) {
             const shopifyQty = variant.inventoryQuantity || 0;
@@ -447,34 +374,23 @@ export default async function handler(req, res) {
             }
           }
 
-          // 5. OOS STOPWATCH & REMINDERS
           let newOutOfStockSince = rule.out_of_stock_since || null;
           if (effectivePolicy === 'DENY') {
-            if (!newOutOfStockSince) {
-              newOutOfStockSince = new Date().toISOString();
-            } else {
+            if (!newOutOfStockSince) newOutOfStockSince = new Date().toISOString();
+            else {
               const daysOOS = (new Date() - new Date(newOutOfStockSince)) / (1000 * 60 * 60 * 24);
-              if (Math.floor(daysOOS) === 90 || Math.floor(daysOOS) === 91 || Math.floor(daysOOS) === 92) {
-                attention.push({ title: rule.title, reason: `Out of Stock for 3 Months. Discontinued?` });
-              }
+              if (Math.floor(daysOOS) === 90) attention.push({ title: rule.title, reason: `Out of Stock for 3 Months. Discontinued?` });
             }
-          } else {
-            newOutOfStockSince = null;
-          }
+          } else newOutOfStockSince = null;
 
           if (rule.oos_reminder_enabled !== false && newOutOfStockSince) {
             const daysSinceOOS = Math.floor((new Date() - new Date(newOutOfStockSince)) / (1000 * 60 * 60 * 24));
             const reminderInterval = rule.oos_reminder_days || 20;
-            if (daysSinceOOS > 0 && daysSinceOOS % reminderInterval === 0) {
-              oosReminders.push({ title: rule.title, days: daysSinceOOS });
-            }
+            if (daysSinceOOS > 0 && daysSinceOOS % reminderInterval === 0) oosReminders.push({ title: rule.title, days: daysSinceOOS });
           }
 
-          // 6. FINAL DATABASE UPDATE
           let newLog = `Synced (${winner.available ? 'In Stock' : 'OOS'}). Link: https://loamlabs.com/products/${productHandle}`;
-          if (!winner.available && currentEffectiveBtiFlag === true) {
-             newLog = `Vendor OOS (Matched: "${winner.public_title}"). Deferring INVENTORY to BTI. Link: https://loamlabs.com/products/${productHandle}`;
-          }
+          if (!winner.available && currentEffectiveBtiFlag === true) newLog = `Vendor OOS (Matched: "${winner.public_title}"). Deferring INVENTORY to BTI. Link: https://loamlabs.com/products/${productHandle}`;
 
           await supabase.from('watcher_rules').update({ 
             last_price: Math.round(vendorPrice * 100), 
@@ -484,7 +400,8 @@ export default async function handler(req, res) {
             price_last_changed_at: newPriceLastChangedAt,
             out_of_stock_since: newOutOfStockSince,
             current_shopify_price: Math.round(finalShopifyPriceNum * 100),
-            current_compare_at_price: updatePayloadForPrice.compare_at_price ? Math.round(Number(updatePayloadForPrice.compare_at_price) * 100) : (myCompare ? Math.round(Number(myCompare) * 100) : null)
+            current_compare_at_price: updatePayloadForPrice.compare_at_price ? Math.round(Number(updatePayloadForPrice.compare_at_price) * 100) : (myCompare ? Math.round(Number(myCompare) * 100) : null),
+            bti_inventory_active: !!currentEffectiveBtiFlag
           }).eq('id', rule.id);
 
         } else {
@@ -504,7 +421,6 @@ export default async function handler(req, res) {
       }
     }
 
-    // --- 30-Day Log Cleanup ---
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
     await supabase.from('sync_logs').delete().lt('created_at', thirtyDaysAgo);
 
@@ -512,19 +428,8 @@ export default async function handler(req, res) {
     if (hasReport) {
       const updatedHtml = updated.map(i => `<li style="color:green;">🚀 <b>UPDATED:</b> ${i.title}<br><small>${i.reason}</small></li>`).join('');
       const attentionHtml = attention.map(i => `<li style="color:red;">⚠️ <b>ALERT:</b> ${i.title}<br><small>${i.reason}</small></li>`).join('');
-
-      let stockHtml = '';
-      if (stockChanges.length > 0) {
-        stockHtml = `<h3 style="margin-top:20px;">📦 Stock Status Changes (${stockChanges.length})</h3><ul>` +
-          stockChanges.map(s => `<li>${s.action}: <b>${s.title}</b></li>`).join('') + '</ul>';
-      }
-
-      let oosHtml = '';
-      if (oosReminders.length > 0) {
-        oosHtml = `<h3 style="margin-top:20px;">⏰ Items Still Out of Stock</h3><ul>` +
-          oosReminders.map(r => `<li><b>${r.title}</b> — out of stock for <b>${r.days} days</b></li>`).join('') + '</ul>';
-      }
-
+      let stockHtml = stockChanges.length > 0 ? `<h3 style="margin-top:20px;">📦 Stock Status Changes (${stockChanges.length})</h3><ul>` + stockChanges.map(s => `<li>${s.action}: <b>${s.title}</b></li>`).join('') + '</ul>' : '';
+      let oosHtml = oosReminders.length > 0 ? `<h3 style="margin-top:20px;">⏰ Items Still Out of Stock</h3><ul>` + oosReminders.map(r => `<li><b>${r.title}</b> — out of stock for <b>${r.days} days</b></li>`).join('') + '</ul>' : '';
       const totalAlerts = updated.length + attention.length + stockChanges.length;
       await resend.emails.send({
         from: 'Watcher <system@loamlabsusa.com>', to: process.env.REPORT_EMAIL,
@@ -533,28 +438,13 @@ export default async function handler(req, res) {
       });
     }
 
-    // --- Record Sync Log (The Heartbeat) ---
     const logStatus = hasReport ? 'success' : 'no_changes';
-    const logMessage = hasReport 
-      ? `Sync completed with ${updated.length} price updates and ${stockChanges.length} stock status changes.`
-      : 'Sync completed. No changes detected across the registry.';
-
-    await supabase.from('sync_logs').insert([{
-      status: logStatus,
-      updated_count: updated.length,
-      attention_count: attention.length,
-      stock_changes_count: stockChanges.length,
-      oos_reminders_count: oosReminders.length,
-      message: logMessage
-    }]);
+    const logMessage = hasReport ? `Sync completed with ${updated.length} price updates and ${stockChanges.length} stock status changes.` : 'Sync completed. No changes detected.';
+    await supabase.from('sync_logs').insert([{ status: logStatus, updated_count: updated.length, attention_count: attention.length, stock_changes_count: stockChanges.length, oos_reminders_count: oosReminders.length, message: logMessage }]);
 
     res.status(200).json({ updated: updated.length, attention: attention.length, stock_changes: stockChanges.length });
   } catch (err) { 
-    // Log error to DB if possible
-    await supabase.from('sync_logs').insert([{
-      status: 'error',
-      message: `CRITICAL ERROR: ${err.message}`
-    }]);
+    await supabase.from('sync_logs').insert([{ status: 'error', message: `CRITICAL ERROR: ${err.message}` }]);
     res.status(500).json({ error: err.message }); 
   }
 }

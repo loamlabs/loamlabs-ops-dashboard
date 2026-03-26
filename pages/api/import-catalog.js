@@ -54,7 +54,8 @@ export default async function handler(req, res) {
                         id 
                         title 
                         selectedOptions { name value } 
-                        metafield(namespace: "custom", key: "bti_part_number") { value }
+                        btiPart: metafield(namespace: "custom", key: "bti_part_number") { value }
+                        btiMonitor: metafield(namespace: "custom", key: "inventory_monitoring_enabled") { value }
                       } 
                     } 
                   } 
@@ -138,7 +139,8 @@ export default async function handler(req, res) {
                 vendor_name: p.node.vendor,
                 site_type: 'SHOPIFY',
                 option_values: mappedOptions,
-                bti_part_number: v.node.metafield?.value || null,
+                bti_part_number: v.node.btiPart?.value || null,
+                bti_inventory_active: v.node.btiMonitor?.value === 'true',
                 tags: p.node.tags || []
               });
             }

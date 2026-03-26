@@ -19,21 +19,29 @@ Control product visibility per-tab using Shopify tags:
 - **Wheel Sets**: Uses the `handbuilt` tag to surface finished wheelsets.
 - **Bulk Actions**: supports "Ignore & Purge" which applies the `lab-ignore` tag via `/api/bulk-update-tags`.
 
-## 🔄 Sync & Import Logic
-- **Sync (`/api/sync`)**: Compares vendor prices with Shopify. It **does not** overwrite manual settings.
-- **Import (`/api/import-catalog`)**: Pulls metadata (tags, BTI numbers) from Shopify.
-  - **CRITICAL**: The import script is explicitly blocked from overwriting `auto_update` (Auto-Sync status) and `price_adjustment_factor`.
-  - **Deduplication**: Uses `upsert` on `shopify_variant_id`. *Note: Ensure your database has a UNIQUE constraint on this column to prevent identical rows.*
+## 🔄 Sync Engine & Arbitration (Stabilized Mar 2026)
+- **Arbitration Logic**: Vendor Watcher handles **Price Authority** even when items are Out-of-Stock (OOS) at the vendor. **Inventory Authority** is deferred to BTI ONLY when vendor is OOS.
+- **Authority Reclamation**: Sync engine automatically toggles the `inventory_monitoring_enabled` Shopify metafield. It reclaims authority (sets to `false`) immediately when an item returns to stock at the vendor.
+- **OOS Pricing**: Prices are updated for OOS items to ensure MSRP/MAP compliance even during backorders.
+- **Selective Sync**: API supports `ruleIds` for targeted refreshes of individual or bulk-selected items.
+- **Transparency**: Granular rule-level logging is surfaced in Vercel logs (`[RULE: ID]`) and scraping errors (403/404) are stored in the `last_log` field in Supabase.
 
-## 🐛 Resolved Critical Issues
-- **Settings Resets**: Fixed an issue where syncing the catalog reverted "Auto-Sync" to OFF.
-- **Duplication Crash**: Fixed a ❌ error during duplication caused by undefined `newProduct` objects in the response.
-- **Ghosting/Duplicates**: Implemented UI-level deduplication in `index.js` to ensure each variant ID only appears once, even if the DB contains duplicates.
+## 🛡️ Security & Integrity (Implemented Mar 2026)
+- **Row Level Security (RLS)**: Enabled on `watcher_rules` and `vendor_logos` to prevent unauthorized access.
+- **Table Cleanup**: Resolved mismatched table references (confirmed logo table is `vendor_logos`, not `vendor_watcher_logos`).
 
 ## 🚀 Future Roadmap
-1. **Negative Inventory Reporting**: Identify products with oversell conditions.
-2. **Deep Audit**: Automated checks for missing metafields or engineering data in Shopify.
-3. **Database Cleanup**: Run `ALTER TABLE watcher_rules ADD CONSTRAINT unique_variant_id UNIQUE (shopify_variant_id);` to ensure DB-level data integrity.
+### **Phase 1: Visibility & Cleanup**
+1. **BTI Status Column**: Add `inventory_monitoring_enabled` visibility to the Registry UI.
+2. **Scraper Resilience**: Implement rotating `User-Agent` headers or proxy support to bypass OneUp 403 blocks.
+3. **Database unique Constraint**: Execute `ALTER TABLE watcher_rules ADD CONSTRAINT unique_variant_id UNIQUE (shopify_variant_id);`.
+
+### **Phase 2: Product Lab Intelligence**
+1. **Variant Metafield Consistency Check**: Automated audit for "constant" fields (Position, Brake, Spacing) across product families. Highlight discrepancies and add a "Discrepancy Filter".
+
+### **Phase 3: Component API Integration**
+1. **Component Management Tab**: Create a dashboard interface to manage `loamlabs-component-api` data (GitHub-backed JSON) directly.
+2. **Shopify-Database Sync**: Link Shopify product IDs to component specs and implement an audit/sync tool to ensure Hub/Rim dimensions match between the store and the calculator database.
 
 ---
 *Created on 2026-03-21 to preserve context for future development.*

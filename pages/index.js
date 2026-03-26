@@ -950,7 +950,7 @@ export default function OpsDashboard() {
                             <div className="space-y-1.5">
                               <div className="flex items-center gap-2"><div className="w-3 h-3 rounded bg-red-500/30 border border-red-400"></div> Review Required — margin safety triggered</div>
                               <div className="flex items-center gap-2"><div className="w-3 h-3 rounded bg-amber-200 border border-amber-400"></div> Drastic Sale — vendor price 10%+ below MSRP</div>
-                              <div className="flex items-center gap-2"><div className="w-3 h-3 rounded bg-blue-100 border border-blue-300"></div> BTI Linked — has a BTI part number</div>
+                              <div className="flex items-center gap-2"><div className="w-3 h-3 rounded bg-blue-600 border border-blue-700"></div> BTI Active — inventory deferred to BTI</div>
                               <div className="flex items-center gap-2"><div className="w-3 h-3 rounded bg-red-50 border border-red-200"></div> Missing URL — no vendor URL mapped</div>
                               <div className="flex items-center gap-2"><div className="w-3 h-3 rounded bg-zinc-200 border border-zinc-300"></div> Selected — currently checked</div>
                               <div className="border-t border-zinc-700 my-2"></div>
@@ -966,7 +966,8 @@ export default function OpsDashboard() {
                         </div>
                       </div>
                     </th>
-                    <th className="p-6 text-center">Status</th>
+                    <th className="p-6 text-center whitespace-nowrap">Dist. Status</th>
+                    <th className="p-6 text-center">BTI</th>
                     <th className="p-6">Memory (Base)</th>
                     <th className="p-6">Adjusted Price</th>
                     <th className="p-6">Current (Shopify)</th>
@@ -999,6 +1000,16 @@ export default function OpsDashboard() {
                         </td>
                         <td className="p-6 text-center">
                           {rule.needs_review ? <span className="bg-red-600 text-white text-[9px] font-black px-3 py-1 rounded-full animate-pulse uppercase tracking-tighter whitespace-nowrap">Review Required</span> : rule.last_availability ? <span className="bg-green-100 text-green-700 text-[9px] font-black px-3 py-1 rounded-full uppercase italic whitespace-nowrap">Active</span> : <span className="bg-red-100 text-red-600 text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-tighter whitespace-nowrap">Out of Stock</span>}
+                        </td>
+                        <td className="p-6 text-center">
+                          {rule.bti_inventory_active ? (
+                            <div className="flex flex-col items-center gap-1">
+                              <span className="bg-blue-600 text-white text-[8px] font-black px-2 py-0.5 rounded-full uppercase italic shadow-sm">BTI Active</span>
+                              {rule.bti_part_number && <span className="text-[7px] font-mono text-blue-400 font-bold">{rule.bti_part_number}</span>}
+                            </div>
+                          ) : (
+                            <span className="text-zinc-200 text-[10px] font-bold">—</span>
+                          )}
                         </td>
                         <td className="p-6 font-mono font-bold text-lg text-zinc-700">
                           {rule.last_price ? `$${(rule.last_price / 100).toFixed(2)}` : '--'}
