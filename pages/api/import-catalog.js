@@ -55,7 +55,7 @@ export default async function handler(req, res) {
                         title 
                         selectedOptions { name value } 
                         btiPart: metafield(namespace: "custom", key: "bti_part_number") { value }
-                        btiMonitor: metafield(namespace: "custom", key: "inventory_monitoring_enabled") { value }
+                        btiMonitor: metafield(namespace: "custom", key: "bti_sync_authority") { value }
                       } 
                     } 
                   } 

@@ -36,7 +36,7 @@ export default async function handler(req, res) {
        const metafields = [];
        if (updates.bti_part_number !== undefined) metafields.push({ namespace: "custom", key: "bti_part_number", value: String(updates.bti_part_number || ""), type: "single_line_text_field" });
        if (updates.bti_oos_action !== undefined) metafields.push({ namespace: "custom", key: "out_of_stock_action", value: String(updates.bti_oos_action || "continue"), type: "single_line_text_field" });
-       if (updates.bti_monitoring_enabled !== undefined) metafields.push({ namespace: "custom", key: "inventory_monitoring_enabled", value: String(!!updates.bti_monitoring_enabled), type: "boolean" });
+       if (updates.bti_monitoring_enabled !== undefined) metafields.push({ namespace: "custom", key: "bti_sync_authority", value: String(!!updates.bti_monitoring_enabled), type: "boolean" });
 
        if (metafields.length > 0) {
           const query = `mutation metafieldsSet($metafields: [MetafieldsSetInput!]!) { metafieldsSet(metafields: $metafields) { userErrors { field message } } }`;

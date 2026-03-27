@@ -307,7 +307,7 @@ export default async function handler(req, res) {
           const sResponse = await fetch(`https://${process.env.SHOPIFY_SHOP_NAME}.myshopify.com/admin/api/2024-04/graphql.json`, {
             method: 'POST', headers: { 'X-Shopify-Access-Token': adminToken, 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              query: `query($id: ID!) { productVariant(id: $id) { price compareAtPrice inventoryQuantity inventoryPolicy product { id handle } btiMonitor: metafield(namespace: "custom", key: "inventory_monitoring_enabled") { value } } }`,
+              query: `query($id: ID!) { productVariant(id: $id) { price compareAtPrice inventoryQuantity inventoryPolicy product { id handle } btiMonitor: metafield(namespace: "custom", key: "bti_sync_authority") { value } } }`,
               variables: { id: variantGid }
             })
           });
@@ -348,12 +348,12 @@ export default async function handler(req, res) {
           if (rule.auto_update === true && !rule.needs_review) {
              if (winner.available && currentBtiFlag === true) {
                 console.log(`[SYNC] Vendor BACK-IN-STOCK for ${rule.title}. Reclaiming authority from BTI.`);
-                updatePayloadForPrice.metafields = [{ namespace: "custom", key: "inventory_monitoring_enabled", value: false, type: "boolean" }];
+                 updatePayloadForPrice.metafields = [{ namespace: "custom", key: "bti_sync_authority", value: false, type: "boolean" }];
                 shouldPutPrice = true;
                 currentEffectiveBtiFlag = false;
              } else if (!winner.available && (rule.bti_monitoring_enabled === true || rule.bti_monitoring_enabled === 'true' || rule.tags?.includes('bti-sync')) && currentBtiFlag !== true) {
                 console.log(`[SYNC] Vendor OOS for ${rule.title}. Deferring authority to BTI.`);
-                updatePayloadForPrice.metafields = [{ namespace: "custom", key: "inventory_monitoring_enabled", value: true, type: "boolean" }];
+                 updatePayloadForPrice.metafields = [{ namespace: "custom", key: "bti_sync_authority", value: true, type: "boolean" }];
                 shouldPutPrice = true;
                 currentEffectiveBtiFlag = true;
              }
