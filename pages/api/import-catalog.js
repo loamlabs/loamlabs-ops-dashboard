@@ -53,9 +53,17 @@ export default async function handler(req, res) {
                       node { 
                         id 
                         title 
+                        barcode
+                        sku
                         selectedOptions { name value } 
-                        btiPart: metafield(namespace: "custom", key: "bti_part_number") { value }
-                        btiMonitor: metafield(namespace: "custom", key: "bti_sync_authority") { value }
+                        metafields(first: 10, namespace: "custom") {
+                          edges {
+                            node {
+                              key
+                              value
+                            }
+                          }
+                        }
                       } 
                     } 
                   } 
@@ -132,6 +140,11 @@ export default async function handler(req, res) {
             if (!seenTechnicalSpecs.has(technicalKey)) {
               seenTechnicalSpecs.add(technicalKey);
 
+              const mFields = {};
+              v.node.metafields.edges.forEach(edge => {
+                mFields[edge.node.key] = edge.node.value;
+              });
+
               variantBatch.push({
                 shopify_product_id: p.node.id.split('/').pop(),
                 shopify_variant_id: v.node.id.split('/').pop(),
@@ -139,9 +152,18 @@ export default async function handler(req, res) {
                 vendor_name: p.node.vendor,
                 site_type: 'SHOPIFY',
                 option_values: mappedOptions,
-                bti_part_number: v.node.btiPart?.value || null,
-                bti_inventory_active: v.node.btiMonitor?.value === 'true',
-                tags: p.node.tags || []
+                bti_part_number: v.node.btiPart?.value || mFields.bti_part_number || null,
+                bti_inventory_active: v.node.btiMonitor?.value === 'true' || mFields.bti_sync_authority === 'true',
+                tags: p.node.tags || [],
+                // Audit Metafields
+                wheel_spec_position: mFields.wheel_spec_position || mFields.position || null,
+                wheel_spec_brake_interface: mFields.wheel_spec_brake_interface || mFields.brake_interface || null,
+                wheel_spec_hub_spacing: mFields.wheel_spec_hub_spacing || mFields.hub_spacing || null,
+                wheel_spec_rim_size: mFields.wheel_spec_rim_size || mFields.rim_size || null,
+                rim_erd: mFields.rim_erd || null,
+                internal_width_mm: mFields.internal_width_mm || null,
+                inventory_alert_threshold: mFields.inventory_alert_threshold || null,
+                hub_manual_cross_value: mFields.hub_manual_cross_value || null
               });
             }
           }

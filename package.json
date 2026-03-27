@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
+    "@upstash/redis": "^1.37.0",
     "autoprefixer": "10.4.19",
     "axios": "^1.13.6",
     "clsx": "^2.1.0",

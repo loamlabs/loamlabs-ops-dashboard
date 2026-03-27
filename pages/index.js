@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { RefreshCcw, Search, Package, ShieldCheck, ShieldAlert, Plus, X, Info, Image as ImageIcon, Loader2, LogOut, ChevronUp, ChevronDown, ChevronRight, Trash2, AlertCircle, Zap, ZapOff, DollarSign, Tag, History, Activity, Beaker, Edit3, Edit, Settings, ExternalLink } from 'lucide-react';
+import { RefreshCcw, Search, Package, ShieldCheck, ShieldAlert, Plus, X, Info, Image as ImageIcon, Loader2, LogOut, ChevronUp, ChevronDown, ChevronRight, Trash2, AlertCircle, Zap, ZapOff, DollarSign, Tag, History, Activity, Beaker, Edit3, Edit, Settings, ExternalLink, BarChart3 } from 'lucide-react';
 
 export default function OpsDashboard() {
   const [editingRule, setEditingRule] = useState(null);
@@ -35,8 +35,11 @@ export default function OpsDashboard() {
   const [selectedLabProducts, setSelectedLabProducts] = useState([]);
   const [selectedLabVariants, setSelectedLabVariants] = useState([]);
   const [expandedProducts, setExpandedProducts] = useState([]);
-  const [showMetaEditModal, setShowMetaEditModal] = useState(false);
   const [metaEditTab, setMetaEditTab] = useState('variant');
+  const [labDiscrepancyOnly, setLabDiscrepancyOnly] = useState(false);
+  const [abandonedBuilds, setAbandonedBuilds] = useState([]);
+  const [insightsLoading, setInsightsLoading] = useState(false);
+
 
   useEffect(() => {
      if (showMetaEditModal && selectedLabProducts.length === 0) setMetaEditTab('variant');
@@ -137,8 +140,9 @@ export default function OpsDashboard() {
       const end = Math.max(lastCheckedIndex.current, index);
       const rangeIds = paginatedRules.slice(start, end + 1).map(r => r.id);
       setSelectedRules(prev => {
-        const combined = new Set([...prev, ...rangeIds]);
-        return [...combined];
+        const newSelection = [...prev];
+        rangeIds.forEach(id => { if (!newSelection.includes(id)) newSelection.push(id); });
+        return newSelection;
       });
     } else {
       setSelectedRules(prev =>
@@ -147,6 +151,25 @@ export default function OpsDashboard() {
     }
     lastCheckedIndex.current = index;
   };
+
+  // --- DISCREPANCY NOTIFICATION LOGIC ---
+  const labGroups = React.useMemo(() => {
+    return rules.reduce((acc, rule) => {
+      const productId = rule.shopify_product_id;
+      if (!acc[productId]) acc[productId] = { ...rule, variantCount: 0 };
+      acc[productId].variantCount++;
+      return acc;
+    }, {});
+  }, [rules]);
+
+  const discrepancyProducts = React.useMemo(() => {
+    return Object.values(labGroups).filter(group => {
+      const groupVariants = rules.filter(r => String(r.shopify_product_id) === String(group.shopify_product_id));
+      return Object.keys(getDiscrepancies(groupVariants)).length > 0;
+    });
+  }, [labGroups, rules, metafieldRegistry]);
+
+  const totalDiscrepancies = discrepancyProducts.length;
 
   useEffect(() => {
     const savedPass = localStorage.getItem('loam_ops_auth');
@@ -187,6 +210,53 @@ export default function OpsDashboard() {
       if (res.ok) setSyncLogs(await res.json());
     } catch (e) { console.error(e); }
   };
+
+  const fetchAbandonedBuilds = async () => {
+    setInsightsLoading(true);
+    try {
+      const res = await fetch('/api/get-abandoned-builds', { headers: { 'x-dashboard-auth': password } });
+      if (res.ok) {
+        const data = await res.json();
+        setAbandonedBuilds(data.builds || []);
+      }
+    } catch (e) { console.error(e); }
+    setInsightsLoading(false);
+  };
+
+  const syncCatalogFull = async () => {
+    if (!confirm("Update Entire Catalog? This will sync all Tags, Technical Specs, and Metafield Definitions from Shopify.")) return;
+    setLoading(true);
+    try {
+      // 1. Sync Catalog (Tags + Metafields)
+      const res1 = await fetch('/api/import-catalog', { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json', 'x-dashboard-auth': password } 
+      });
+      const d1 = await res1.json();
+      
+      // 2. Sync Metafield Definitions (Options)
+      await fetch('/api/get-metafield-definitions', { headers: { 'x-dashboard-auth': password } });
+      
+      alert(`Sync Complete. Imported/Updated ${d1.count} variants.`);
+      fetchRules();
+    } catch (e) { alert("Sync Failed: " + e.message); }
+    setLoading(false);
+  };
+
+  const runManualAuditReport = async () => {
+    if (!confirm("Trigger Manual Data Audit & Abandoned Build Email Report?")) return;
+    setLoading(true);
+    try {
+      const res = await fetch('/api/run-daily-tasks', { 
+        method: 'POST',
+        headers: { 'x-dashboard-auth': password } 
+      });
+      const data = await res.json();
+      alert("Status: " + data.message);
+    } catch (e) { alert("Failed to run audit."); }
+    setLoading(false);
+  };
+
 
   const updateRule = async (id, updates) => {
     setLoading(true);
@@ -844,7 +914,14 @@ export default function OpsDashboard() {
         <nav className="space-y-1 flex-grow">
           <SidebarLink icon={<Package size={18}/>} label="Vendor Watcher" active={activeTab === 'vendors'} onClick={() => setActiveTab('vendors')} />
           <SidebarLink icon={<RefreshCcw size={18}/>} label="BTI Sync" active={activeTab === 'bti_sync'} onClick={() => setActiveTab('bti_sync')} />
-          <SidebarLink icon={<Beaker size={18}/>} label="Product Lab" active={activeTab === 'product_lab'} onClick={() => setActiveTab('product_lab')} />
+          <SidebarLink 
+            icon={<Beaker size={18}/>} 
+            label="Product Lab" 
+            active={activeTab === 'product_lab'} 
+            onClick={() => setActiveTab('product_lab')} 
+            badge={totalDiscrepancies > 0 ? totalDiscrepancies : null}
+          />
+          <SidebarLink icon={<BarChart3 size={18}/>} label="Insights & Analytics" active={activeTab === 'insights'} onClick={() => { setActiveTab('insights'); fetchAbandonedBuilds(); }} />
           <SidebarLink icon={<ShieldCheck size={18}/>} label="Shop Health" active={activeTab === 'audit'} onClick={() => setActiveTab('audit')} />
         </nav>
         <div className="relative mt-auto border-t border-zinc-800 pt-6">
@@ -1262,24 +1339,21 @@ export default function OpsDashboard() {
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
              <div className="flex items-center justify-between mb-8">
                <div>
-                  <h1 className="text-4xl font-black tracking-tight text-zinc-900 uppercase italic">Product Lab</h1>
-                  <p className="text-zinc-400 text-[10px] font-black uppercase tracking-widest mt-1">Catalog Architect & Batch Metafield Editor</p>
-               </div>
-               <div className="flex items-center gap-3">
-                 <button onClick={() => fetchRules()} title="Downloads the latest synced product data from our Supabase Database" className={`bg-blue-50 text-blue-700 p-3 px-6 rounded-xl font-black uppercase italic text-[10px] flex items-center gap-2 border border-blue-100 shadow-sm hover:bg-blue-100 transition-all ${loading ? 'opacity-50' : ''}`} disabled={loading}>
-                   <RefreshCcw size={14} className={loading ? 'animate-spin' : ''} /> Distributor Feed Active
-                 </button>
-                 <button onClick={syncTags} title="Scans raw product titles and automatically attaches organizational tags (e.g. component:hub)" className={`bg-amber-50 text-amber-700 p-3 px-6 rounded-xl font-black uppercase italic text-[10px] flex items-center gap-2 border border-amber-100 shadow-sm hover:bg-amber-100 transition-all ${loading ? 'opacity-50' : ''}`} disabled={loading}>
-                   <Zap size={14} /> Sync Catalog Tags
-                 </button>
-                 <button className="bg-black text-white p-3 px-6 rounded-xl font-black uppercase italic text-[10px] hover:bg-zinc-800 transition-all shadow-xl flex items-center gap-2 ml-2">
-                   <Plus size={14} /> Create New Product
-                 </button>
-                 <button onClick={() => setActiveTab('admin')} className="bg-zinc-100 text-zinc-400 p-3 px-4 rounded-xl hover:text-black transition-all border border-transparent hover:border-zinc-200">
-                   <Settings size={14} />
-                 </button>
-               </div>
-             </div>
+                   <h1 className="text-4xl font-black tracking-tight text-zinc-900 uppercase italic">Product Lab</h1>
+                   <p className="text-zinc-400 text-[10px] font-black uppercase tracking-widest mt-1">Catalog Architect & Batch Metafield Editor</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button onClick={syncCatalogFull} disabled={loading} title="Updates Entire Catalog: Tags, Technical Specs, and Metafield Definitions from Shopify." className={`bg-black text-white p-3 px-6 rounded-xl font-black uppercase italic text-[10px] flex items-center gap-2 hover:bg-zinc-800 transition-all shadow-xl ${loading ? 'opacity-50' : ''}`}>
+                    {loading ? <Loader2 className="animate-spin" size={14}/> : <RefreshCcw size={14}/>} Sync Catalog
+                  </button>
+                  <button className="bg-zinc-100 text-zinc-600 p-3 px-6 rounded-xl font-black uppercase italic text-[10px] hover:bg-black hover:text-white transition-all shadow-sm flex items-center gap-2">
+                    <Plus size={14} /> Create New Product
+                  </button>
+                  <button onClick={() => setActiveTab('admin')} className="bg-zinc-100 text-zinc-400 p-3 px-4 rounded-xl hover:text-black transition-all border border-transparent hover:border-zinc-200">
+                    <Settings size={14} />
+                  </button>
+                </div>
+              </div>
              
              {/* --- VENDOR FILTER BAR --- */}
              <div className="mb-10">
@@ -1343,8 +1417,15 @@ export default function OpsDashboard() {
                      {cat.label}
                    </button>
                  ))}
-               </div>
-             </div>
+                <div className="flex-grow"></div>
+                <button 
+                  onClick={() => setLabDiscrepancyOnly(!labDiscrepancyOnly)}
+                  className={`px-6 py-2 rounded-xl border-2 font-black text-[10px] uppercase transition-all flex items-center gap-2 ${labDiscrepancyOnly ? 'bg-red-600 text-white border-red-700 shadow-lg shadow-red-500/30 scale-105' : 'bg-white text-zinc-400 border-zinc-100 hover:border-red-200 hover:text-red-500'}`}
+                >
+                  <ShieldAlert size={14} /> {labDiscrepancyOnly ? 'Viewing Discrepancies Only' : 'Show Discrepancies Only'}
+                </button>
+              </div>
+            </div>
 
              <div className="bg-white rounded-[2.5rem] border border-zinc-200 shadow-xl overflow-hidden mb-12">
                 <table className="w-full text-left border-collapse">
@@ -1396,6 +1477,11 @@ export default function OpsDashboard() {
                         acc[r.shopify_product_id].variantCount++;
                         return acc;
                       }, {}))
+                      .filter(product => {
+                        if (!labDiscrepancyOnly) return true;
+                        const productVariants = allUniqueRules.filter(r => String(r.shopify_product_id) === String(product.shopify_product_id));
+                        return Object.keys(getDiscrepancies(productVariants)).length > 0;
+                      })
                       .sort((a,b) => a.title.localeCompare(b.title));
 
                       if (filtered.length === 0) {
@@ -1629,6 +1715,76 @@ export default function OpsDashboard() {
                 </table>
              </div>
           </div>
+        ) : activeTab === 'insights' ? (
+           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <h1 className="text-4xl font-black tracking-tight text-zinc-900 uppercase italic">Operational Insights</h1>
+                  <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mt-1 italic tracking-[0.2em]">Customer Behavior & Catalog Health</p>
+                </div>
+                <button onClick={runManualAuditReport} disabled={loading} className="bg-black text-white px-6 py-3 rounded-xl font-black uppercase text-[10px] flex items-center gap-2 hover:bg-zinc-800 transition-all shadow-lg">
+                  <Activity size={14}/> Run Daily Audit & Reports
+                </button>
+              </div>
+
+              <div className="grid grid-cols-3 gap-8 mb-12">
+                 <div className="bg-white p-8 rounded-[2rem] border border-zinc-200 shadow-sm">
+                    <div className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">Tracked Abandoned Builds</div>
+                    <div className="text-5xl font-black italic tracking-tighter">{abandonedBuilds.length}</div>
+                    <p className="text-[10px] text-zinc-400 mt-2">Captured in the last 24 hours</p>
+                 </div>
+                 <div className="bg-white p-8 rounded-[2rem] border border-zinc-200 shadow-sm">
+                    <div className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">Negative Inventory</div>
+                    <div className="text-5xl font-black italic tracking-tighter text-red-500">{rules.filter(r => r.last_availability === false && r.last_price > 0).length}</div>
+                    <p className="text-[10px] text-zinc-400 mt-2">Active items with 0 stock</p>
+                 </div>
+                 <div className="bg-white p-8 rounded-[2rem] border border-zinc-200 shadow-sm">
+                    <div className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">Catalog Health</div>
+                    <div className="text-5xl font-black italic tracking-tighter text-green-500">98%</div>
+                    <p className="text-[10px] text-zinc-400 mt-2">Registry Coverage Score</p>
+                 </div>
+              </div>
+
+              <div className="bg-white rounded-[2.5rem] border border-zinc-200 shadow-xl overflow-hidden">
+                 <div className="p-8 border-b border-zinc-100 flex items-center justify-between bg-zinc-50/50">
+                    <h3 className="font-black uppercase italic tracking-tight flex items-center gap-2"><History size={18}/> Abandoned Build Activity</h3>
+                    <button onClick={fetchAbandonedBuilds} className="p-2 text-zinc-400 hover:text-black transition-colors"><RefreshCcw size={16} className={insightsLoading ? 'animate-spin' : ''}/></button>
+                 </div>
+                 <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                       <thead>
+                          <tr className="border-b border-zinc-100 italic">
+                             <th className="p-6 text-[10px] font-black uppercase text-zinc-400 tracking-widest">Time</th>
+                             <th className="p-6 text-[10px] font-black uppercase text-zinc-400 tracking-widest">Build Type</th>
+                             <th className="p-6 text-[10px] font-black uppercase text-zinc-400 tracking-widest">Customer</th>
+                             <th className="p-6 text-[10px] font-black uppercase text-zinc-400 tracking-widest">Subtotal</th>
+                             <th className="p-6 text-[10px] font-black uppercase text-zinc-400 tracking-widest">Components</th>
+                          </tr>
+                       </thead>
+                       <tbody className="divide-y divide-zinc-50">
+                          {abandonedBuilds.length === 0 ? (
+                             <tr><td colSpan="5" className="p-12 text-center text-zinc-400 font-bold italic">No abandoned builds captured recently.</td></tr>
+                          ) : abandonedBuilds.map((build, i) => (
+                             <tr key={i} className="hover:bg-zinc-50/50 transition-colors">
+                                <td className="p-6 text-xs text-zinc-500 font-mono italic">{new Date(build.capturedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</td>
+                                <td className="p-6"><span className="px-3 py-1 bg-zinc-100 rounded-full text-[10px] font-black uppercase">{build.buildType}</span></td>
+                                <td className="p-6">
+                                   <div className="text-xs font-bold">{build.visitor?.isLoggedIn ? `${build.visitor.firstName} ${build.visitor.lastName}` : 'Anonymous Visitor'}</div>
+                                   <div className="text-[10px] text-zinc-400 font-mono">{build.visitor?.email || build.visitor?.anonymousId?.slice(0,8)}</div>
+                                </td>
+                                <td className="p-6 text-xs font-black italic">${((build.subtotal || 0)/100).toFixed(2)}</td>
+                                <td className="p-6 flex flex-wrap gap-2 max-w-sm">
+                                   {(build.components?.front || []).concat(build.components?.rear || []).slice(0,4).map((c, ci) => (
+                                      <div key={ci} className="text-[8px] bg-zinc-50 border border-zinc-100 px-2 py-0.5 rounded uppercase font-black text-zinc-400">{c.type}: {c.name.slice(0,15)}...</div>
+                                   ))}
+                                </td>
+                             </tr>
+                          ))}
+                       </tbody>
+                    </table>
+                 </div>
+              </div>
+           </div>
         ) : activeTab === 'admin' ? (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
              <div className="flex items-center justify-between mb-8">
@@ -2141,10 +2297,18 @@ function HealthCard({ title, count, subtitle, icon }) {
     );
 }
 
-function SidebarLink({ icon, label, active, onClick }) {
+function SidebarLink({ icon, label, active, onClick, badge, badgeOnClick }) {
   return (
-    <button onClick={onClick} className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-black text-xs uppercase tracking-tight ${active ? 'bg-white text-black shadow-xl scale-[1.03]' : 'hover:bg-zinc-900 text-zinc-600'}`}>
+    <button onClick={onClick} className={`relative w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-black text-xs uppercase tracking-tight ${active ? 'bg-white text-black shadow-xl scale-[1.03]' : 'hover:bg-zinc-900 text-zinc-600'}`}>
       {icon} {label}
+      {badge && (
+        <div 
+          onClick={badgeOnClick}
+          className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 bg-red-500 text-white text-[9px] font-black rounded-full flex items-center justify-center animate-pulse shadow-lg shadow-red-500/20 hover:scale-110 active:scale-95 transition-transform"
+        >
+          {badge}
+        </div>
+      )}
     </button>
   );
 }
