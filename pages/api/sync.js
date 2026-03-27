@@ -255,6 +255,33 @@ export default async function handler(req, res) {
                }
                return true;
             }
+
+            // Generic Hub/Rim filtering for all other vendors (like OneUp)
+            if (isHub || isRim) {
+                // 1. Color matching
+                let targetColor = null;
+                for (const [on, ov] of Object.entries(parsedOptions)) {
+                    if (on.toLowerCase().includes('color')) targetColor = normalize(ov);
+                }
+                if (targetColor && !vTitle.includes(targetColor)) return false;
+
+                // 2. Spoke Count / Hole matching
+                let targetHoles = null;
+                for (const [on, ov] of Object.entries(parsedOptions)) {
+                    if (on.toLowerCase().includes('spoke') || on.toLowerCase().includes('count') || on.toLowerCase().includes('hole')) {
+                        const numOnly = ov.toString().replace(/\D/g, '');
+                        if (numOnly) targetHoles = numOnly;
+                    }
+                }
+                if (targetHoles && !vTitle.includes(targetHoles) && !vTitle.includes(targetHoles + 'h')) return false;
+
+                // 3. Axle/Spacing matching (generic)
+                const spacingMatch = ruleTitle.match(/(100|110|142|148|157)/);
+                if (spacingMatch && !vTitle.includes(spacingMatch[1])) return false;
+
+                vStatus = `Filtered by generic ${isHub ? 'Hub' : 'Rim'} logic`;
+            }
+
             return true;
           });
 
