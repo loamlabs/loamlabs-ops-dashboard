@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
 const SHOPIFY_DOMAIN = `${process.env.SHOPIFY_SHOP_NAME}.myshopify.com`;
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
 async function getShopifyToken() {
   const response = await fetch(`https://${SHOPIFY_DOMAIN}/admin/oauth/access_token`, {
@@ -63,10 +64,25 @@ export default async function handler(req, res) {
           body: JSON.stringify({ query: setMetaMutation, variables: { metafields: metafieldsToSet.slice(i, i + chunkSize) } })
         });
         const data = await res.json();
+        if (data.errors) throw new Error(data.errors[0].message);
         if (data.data?.metafieldsSet?.userErrors?.length > 0) {
-           console.error('[META_SYNC_ERROR]', data.data.metafieldsSet.userErrors);
+           return res.status(400).json({ error: data.data.metafieldsSet.userErrors[0].message });
         }
       }
+
+      // 2. Synchronize Supabase
+      const updateData = {};
+      metafields.forEach(meta => {
+        // Map back to our column names if necessary (e.g. if we used prefixes)
+        updateData[meta.key] = meta.value;
+      });
+
+      const { error: dbError } = await supabase
+        .from('watcher_rules')
+        .update(updateData)
+        .in('shopify_variant_id', ids.map(id => id.split('/').pop()));
+      
+      if (dbError) throw dbError;
     }
 
     res.status(200).json({ success: true, count: ids.length, fields: metafields.length });

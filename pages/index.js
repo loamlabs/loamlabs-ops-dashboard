@@ -135,6 +135,24 @@ export default function OpsDashboard() {
     return issues;
   };
 
+  const getVariantGroupKey = (variant, product) => {
+    const parentTitle = product.title.split('(')[0].trim().toLowerCase();
+    let variantLabel = variant.title;
+    if (variantLabel.toLowerCase().startsWith(parentTitle)) {
+      variantLabel = variantLabel.substring(parentTitle.length).trim();
+    }
+    const cleanLabel = variantLabel.replace(/^[(\s/-]+|[)\s/-]+$/g, '').trim();
+    const parts = cleanLabel.split(/[/-]/).map(p => p.trim());
+    const tags = Array.isArray(product.tags) ? product.tags.map(t => t.toLowerCase()) : [];
+    
+    if (parts.length > 0) {
+      if (tags.includes('component:hub') || tags.includes('hub')) return parts[0]; // Hole Count
+      if (tags.includes('component:valvestem') || tags.includes('valvestem') || tags.includes('component:spoke') || tags.includes('spoke') || tags.includes('component:nipple') || tags.includes('nipple')) return parts[0]; // Color
+      return parts[0]; // Size for rims, etc.
+    }
+    return 'Base Config';
+  };
+
   const handleCheckboxClick = (index, ruleId, e) => {
     if (e.shiftKey && lastCheckedIndex.current !== null && lastCheckedIndex.current !== index) {
       const start = Math.min(lastCheckedIndex.current, index);
@@ -166,7 +184,20 @@ export default function OpsDashboard() {
   const discrepancyProducts = React.useMemo(() => {
     return Object.values(labGroups).filter(group => {
       const groupVariants = rules.filter(r => String(r.shopify_product_id) === String(group.shopify_product_id));
-      return Object.keys(getDiscrepancies(groupVariants)).length > 0;
+      if (groupVariants.length <= 1) return false;
+
+      // Group variants by differentiator (e.g. Size for rims)
+      const subGroups = groupVariants.reduce((acc, v) => {
+        const gk = getVariantGroupKey(v, group);
+        if (!acc[gk]) acc[gk] = [];
+        acc[gk].push(v);
+        return acc;
+      }, {});
+
+      // A product has a discrepancy if ANY sub-group has internal mismatches
+      return Object.values(subGroups).some(variantsInGroup => {
+        return Object.keys(getDiscrepancies(variantsInGroup)).length > 0;
+      });
     });
   }, [labGroups, rules, metafieldRegistry]);
 
@@ -556,20 +587,26 @@ export default function OpsDashboard() {
     setLoading(true);
     try {
       const auth = localStorage.getItem('loam_ops_auth');
-      await fetch('/api/bulk-update-metafields', {
+      const res = await fetch('/api/bulk-update-metafields', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-dashboard-auth': auth },
         body: JSON.stringify({ 
           ids: variantIds, 
-          metafields: [{ namespace: 'custom', key: fieldKey.replace('variant_', ''), value, type: reg.type }], 
+          metafields: [{ namespace: 'custom', key: fieldKey, value, type: reg.type }], 
           targetType: 'ProductVariant' 
         })
       });
+      
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to sync fields");
+      }
+
       alert(`Synchronized ${reg.label} across product family.`);
       fetchRules();
     } catch (e) {
       console.error(e);
-      alert("Error syncing field to family.");
+      alert("Error: " + e.message);
     }
     setLoading(false);
   };
@@ -1628,6 +1665,8 @@ export default function OpsDashboard() {
                                                     <div className="bg-white divide-y divide-zinc-50">
                                                        {variants.sort((a,b) => a.title.localeCompare(b.title)).map(variant => {
                                                           const pSplit = product.title.split('(')[0].trim().toLowerCase();
+                                                          const discrepancies = getDiscrepancies(variants);
+                                                          
                                                           let clean = variant.title;
                                                           if (clean.toLowerCase().startsWith(pSplit)) { clean = clean.substring(pSplit.length).trim(); }
                                                           clean = clean.replace(/^[(\s/-]+|[)\s/-]+$/g, '').trim();
