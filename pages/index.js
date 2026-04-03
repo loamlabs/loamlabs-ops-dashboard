@@ -42,7 +42,8 @@ export default function OpsDashboard() {
   const [insightsLoading, setInsightsLoading] = useState(false);
   const [showDiscrepancyDropdown, setShowDiscrepancyDropdown] = useState(false);
   const [componentData, setComponentData] = useState({ hubs: [], rims: [], spokes: [], nipples: [] });
-  const [componentTab, setComponentTab] = useState('hubs');
+  const [componentTab, setComponentTab] = useState('rims');
+  const [componentVendorFilter, setComponentVendorFilter] = useState('All');
 
 
   useEffect(() => {
@@ -2098,24 +2099,109 @@ export default function OpsDashboard() {
                    </button>
                </div>
 
-               <div className="flex gap-4 mb-8 border-b-2 border-zinc-100 pb-2">
-                  {['hubs', 'rims', 'spokes', 'nipples'].map(tab => (
-                     <button 
-                        key={tab} 
-                        onClick={() => setComponentTab(tab)} 
-                        className={`px-6 py-3 font-black text-[10px] uppercase tracking-widest transition-all ${componentTab === tab ? 'text-black border-b-2 border-black -mb-[10px] bg-zinc-100 rounded-t-xl' : 'text-zinc-400 hover:text-zinc-600'}`}
-                     >
-                        {tab} ({componentData[tab]?.length || 0})
-                     </button>
-                  ))}
-               </div>
+               <div className="mb-10">
+                 <div className="flex gap-4 mb-8 border-b-2 border-zinc-100 pb-2">
+                    {['rims', 'hubs', 'spokes', 'nipples'].map(tab => (
+                       <button 
+                          key={tab} 
+                          onClick={() => { setComponentTab(tab); setComponentVendorFilter('All'); }} 
+                          className={`px-6 py-3 font-black text-[10px] uppercase tracking-widest transition-all ${componentTab === tab ? 'text-black border-b-2 border-black -mb-[10px] bg-zinc-100 rounded-t-xl' : 'text-zinc-400 hover:text-zinc-600'}`}
+                       >
+                          {tab} ({componentData[tab]?.length || 0})
+                       </button>
+                    ))}
+                 </div>
+                 
+                 {/* VENDOR FILTERS OVERRIDE FOR COMPONENTS */}
+                 {(() => {
+                    const activeList = componentData[componentTab] || [];
+                    if (activeList.length === 0) return null;
+                    const vends = activeList.map(item => item.Vendor || item.vendor || item.Brand || item.brand).filter(v => typeof v === 'string' && v.trim() !== '');
+                    const uniqueVendors = [...new Set(vends)].sort((a,b) => a.localeCompare(b));
+                    
+                    if (uniqueVendors.length === 0) return null;
 
-               <div className="bg-white p-12 rounded-[2.5rem] border border-zinc-200 shadow-sm mt-8 border-dashed flex flex-col items-center text-center">
-                  <Database size={48} className="text-zinc-200 mb-6 mx-auto" />
-                  <h3 className="text-2xl font-black uppercase text-zinc-400 italic mb-2">Sub-Tab Display Active</h3>
-                  <p className="text-xs font-bold uppercase tracking-widest text-zinc-400 max-w-sm mx-auto">
-                      Currently viewing the {componentTab} database list. Table coming next.
-                  </p>
+                    return (
+                      <div className="mb-8">
+                         <div className="flex items-center justify-between mb-4">
+                           <label className="text-[10px] font-black uppercase text-zinc-400 tracking-[0.2em] italic">Filter by Component Vendor</label>
+                         </div>
+                         <div className="flex flex-wrap gap-2">
+                           <button 
+                             onClick={() => setComponentVendorFilter('All')} 
+                             className={`px-4 py-2 rounded-xl border-2 font-black text-[10px] uppercase transition-all ${componentVendorFilter === 'All' ? 'bg-black text-white border-black shadow-lg scale-105' : 'bg-white text-zinc-400 border-zinc-100 hover:border-zinc-300'}`}
+                           >
+                             All Vendors
+                           </button>
+                           {uniqueVendors.map(v => (
+                              <button key={v} onClick={() => setComponentVendorFilter(v)} className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border-2 transition-all ${componentVendorFilter === v ? 'border-blue-500 bg-blue-50 text-blue-900 shadow-sm scale-[1.02]' : 'bg-white text-zinc-500 border-zinc-100 hover:border-zinc-300'}`}>
+                                <span className="text-[10px] font-bold uppercase tracking-tight">{v}</span>
+                              </button>
+                           ))}
+                         </div>
+                      </div>
+                    )
+                 })()}
+                 
+                 {/* DYNAMIC DATA GRID */}
+                 <div className="bg-white rounded-[2rem] border border-zinc-200 shadow-sm overflow-hidden">
+                    {(() => {
+                        const activeList = componentData[componentTab] || [];
+                        if (activeList.length === 0) return (
+                           <div className="p-12 text-center">
+                              <Loader2 className="animate-spin text-zinc-300 mx-auto mb-4" size={32}/>
+                              <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Fetching JSON Data</p>
+                           </div>
+                        );
+                        
+                        const filteredList = componentVendorFilter === 'All' 
+                           ? activeList 
+                           : activeList.filter(item => (item.Vendor || item.vendor || item.Brand || item.brand) === componentVendorFilter);
+                           
+                        // Build dynamic headers based on the first item
+                        const excludeKeys = ['Name', 'name', 'title', 'Title', 'Vendor', 'vendor', 'Brand', 'brand'];
+                        const columns = Object.keys(activeList[0] || {}).filter(k => !excludeKeys.includes(k));
+                        
+                        return (
+                           <div className="overflow-x-auto max-h-[600px] relative scrollbar-thin">
+                             <table className="w-full text-left text-sm whitespace-nowrap">
+                               <thead className="bg-zinc-50 sticky top-0 z-10 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+                                  <tr>
+                                     <th className="p-4 px-6 font-black text-[10px] uppercase text-zinc-400 tracking-widest bg-zinc-50 z-20 top-0 left-0 sticky">Name</th>
+                                     {columns.map(col => (
+                                        <th key={col} className="p-4 font-black text-[10px] uppercase text-zinc-400 tracking-widest">{col}</th>
+                                     ))}
+                                  </tr>
+                               </thead>
+                               <tbody className="divide-y divide-zinc-100">
+                                  {filteredList.map((row, i) => {
+                                     // To render arrays mapping component identifiers
+                                     return (
+                                     <tr key={row.id || i} className="hover:bg-zinc-50/50 transition-colors group cursor-pointer">
+                                        <td className="p-4 px-6 text-xs border-r border-zinc-50 sticky left-0 bg-white group-hover:bg-zinc-50/50 min-w-[200px] truncate max-w-[300px]">
+                                           <div className="font-bold text-black">{row.Name || row.name || row.title || row.Title || 'Unknown'}</div>
+                                           <div className="text-[9px] font-black uppercase text-zinc-400 tracking-widest mt-0.5">{row.Vendor || row.vendor || row.Brand || row.brand || ''}</div>
+                                        </td>
+                                        {columns.map(col => {
+                                           const val = row[col];
+                                           return (
+                                              <td key={col} className="p-4 text-xs font-medium text-zinc-600">
+                                                 {typeof val === 'object' ? JSON.stringify(val) : String(val === null || val === undefined ? '' : val)}
+                                              </td>
+                                           );
+                                        })}
+                                     </tr>
+                                     )
+                                  })}
+                                  {filteredList.length === 0 && (
+                                     <tr><td colSpan={columns.length + 1} className="p-12 text-center text-zinc-400 font-bold italic">No components match this filter.</td></tr>
+                                  )}
+                               </tbody>
+                             </table>
+                           </div>
+                        );
+                    })()}
+                 </div>
                </div>
            </div>
         )}
