@@ -163,8 +163,8 @@ export default async function handler(req, res) {
                   });
 
                   if (rearCandidates.length > 0) {
-                      usedRear = rearCandidates.reduce((a, b) => (a.price > b.price ? a : b));
-                      finalPrice += usedRear.price;
+                      usedRear = rearCandidates.reduce((a, b) => (Math.max(a.price, a.compare_at_price || 0) > Math.max(b.price, b.compare_at_price || 0) ? a : b));
+                      finalPrice += Math.max(usedRear.price, usedRear.compare_at_price || 0);
                       finalAvail = finalAvail && usedRear.available;
                   }
                 }
@@ -178,8 +178,8 @@ export default async function handler(req, res) {
                                 const frontResp = await fetch(frontUrl + '.js', { headers: { 'User-Agent': randomUA } });
                                 const frontData = await frontResp.json();
                                 if (frontData?.variants?.length > 0) {
-                                    const bestFront = frontData.variants.reduce((a, b) => (a.price > b.price ? a : b));
-                                    finalPrice += bestFront.price;
+                                    const bestFront = frontData.variants.reduce((a, b) => (Math.max(a.price, a.compare_at_price || 0) > Math.max(b.price, b.compare_at_price || 0) ? a : b));
+                                    finalPrice += Math.max(bestFront.price, bestFront.compare_at_price || 0);
                                     finalAvail = finalAvail && bestFront.available;
                                 }
                             } catch (fe) { console.error(`Front wheel fetch failed for ${frontUrl}: ${fe.message}`); }
@@ -189,7 +189,7 @@ export default async function handler(req, res) {
                     if (driverValue && driverValue !== 'none' && driverValue !== 'no freehub') {
                         let driverSurcharge = 17995; 
                         if (driverValue.includes('7p') || driverValue.includes('7sp') || driverValue.includes('cassette')) {
-                            driverSurcharge = 42995; 
+                            driverSurcharge = 32995; 
                         }
                         finalPrice += driverSurcharge;
                     }
@@ -304,7 +304,7 @@ export default async function handler(req, res) {
           });
 
           if (candidates.length > 0) {
-            winner = candidates.reduce((prev, curr) => (prev.price > curr.price) ? prev : curr);
+            winner = candidates.reduce((prev, curr) => (Math.max(prev.price, prev.compare_at_price || 0) > Math.max(curr.price, curr.compare_at_price || 0)) ? prev : curr);
             if (!winner || winner.price === 0) {
                const ruleTokens = Object.values(parsedOptions).flatMap(v => String(v).toLowerCase().split(/[\s/]+/).filter(t => t.length > 1));
                const bestMatch = candidates.map(c => {
@@ -335,7 +335,7 @@ export default async function handler(req, res) {
 
           const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true') : null;
           const productHandle = variant.product?.handle || '';
-          const vendorPrice = winner.price / 100;
+          const vendorPrice = winner ? (Math.max(winner.price, winner.compare_at_price || 0) / 100) : 0;
           const stdFactor = rule.price_adjustment_factor || 1.0;
           let goalPriceNum = vendorPrice * stdFactor;
           let isDeepSale = false;
@@ -352,9 +352,14 @@ export default async function handler(req, res) {
           
           if (isDiff && Number(goalPrice) < Number(myPrice)) {
             // PRICE DROP SAFETY BLOCK
-            forceNeedsReview = true;
-            attention.push({ title: rule.title, reason: `🚨 PRICE DROP BLOCKED: Vendor attempting to lower price from $${myPrice} to $${goalPrice}. Ignored until manually approved.` });
-            await supabase.from('watcher_rules').update({ needs_review: true }).eq('id', rule.id);
+            if (!req.body.force_approve) {
+              forceNeedsReview = true;
+              attention.push({ title: rule.title, reason: `🚨 PRICE DROP BLOCKED: Vendor attempting to lower price from $${myPrice} to $${goalPrice}. Ignored until manually approved.` });
+              await supabase.from('watcher_rules').update({ needs_review: true }).eq('id', rule.id);
+            } else {
+              console.log(`[!] Force Overriding price drop for ${rule.title}`);
+              forceNeedsReview = false;
+            }
           }
           
           const needsPriceUpdate = isDiff || (myCompare && Number(myCompare) < Number(goalPrice));
@@ -457,7 +462,8 @@ export default async function handler(req, res) {
             out_of_stock_since: newOutOfStockSince,
             current_shopify_price: Math.round(finalShopifyPriceNum * 100),
             current_compare_at_price: updatePayloadForPrice.compare_at_price ? Math.round(Number(updatePayloadForPrice.compare_at_price) * 100) : (myCompare ? Math.round(Number(myCompare) * 100) : null),
-            bti_inventory_active: !!currentEffectiveBtiFlag
+            bti_inventory_active: !!currentEffectiveBtiFlag,
+            needs_review: forceNeedsReview
           }).eq('id', rule.id);
 
         } else {

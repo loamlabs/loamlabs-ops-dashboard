@@ -512,6 +512,7 @@ export default function OpsDashboard() {
         body: JSON.stringify({ id, updates: { needs_review: false } })
       })));
       await runSelectiveSync(selectedRules, true, true);
+      alert(`Prices Approved and Pushed to Shopify for ${selectedRules.length} items.`);
     } catch(e) { console.error(e); alert('Error approving prices.'); }
     setLoading(false);
   };
@@ -529,7 +530,8 @@ export default function OpsDashboard() {
         headers: { 'Content-Type': 'application/json', 'x-dashboard-auth': password },
         body: JSON.stringify({ id, updates: { price_adjustment_factor: factor } })
       })));
-      alert(`Price adjustment set to ${factor} for ${selectedRules.length} items.`);
+      alert(`Price adjustment set to ${factor} for ${selectedRules.length} items. Syncing changes...`);
+      await runSelectiveSync(selectedRules, true, false);
       fetchRules();
       setSelectedRules([]);
     } catch(e) { console.error(e); alert('Error updating price adjustment.'); }
