@@ -130,25 +130,34 @@ export default async function handler(req, res) {
                 if (optName.toLowerCase().includes('driver') || optName.toLowerCase().includes('axle') || optName.toLowerCase().includes('freehub') || optName.toLowerCase().includes('cassette')) driverValue = optValue.toLowerCase().replace(/["']/g, '').trim();
             }
 
-            if (rearSizeValue) {
-                const sizeMatch = rearSizeValue.match(/(27\.5|29)/);
-                const axleMatch = rearSizeValue.match(/(148|157)/);
-                const isSuperboost = rearSizeValue.includes('superboost') || rearSizeValue.includes('157');
+            if (true) {
+                const sizeMatch = rearSizeValue ? rearSizeValue.match(/(27\.5|29)/) : null;
+                const axleMatch = rearSizeValue ? rearSizeValue.match(/(148|157)/) : null;
+                const isSuperboost = rearSizeValue ? (rearSizeValue.includes('superboost') || rearSizeValue.includes('157')) : false;
 
-                const rearCandidates = vData.variants.filter(v => {
-                    const vt = normalize(v.public_title).replace(/["']/g, '');
-                    if (!vt.includes('rear')) return false;
-                    if (sizeMatch && !vt.includes(sizeMatch[1])) return false;
-                    if (axleMatch && !vt.includes(axleMatch[1])) return false;
-                    if (isSuperboost && !vt.includes('superboost') && !vt.includes('157')) return false;
-                    if (!isSuperboost && (vt.includes('superboost') || vt.includes('157'))) return false;
-                    return true;
-                });
+                const isRearNone = !rearSizeValue || rearSizeValue === 'none' || rearSizeValue === 'no rear wheel' || rearSizeValue.includes('no rear');
+                
+                let finalPrice = 0;
+                let finalAvail = true;
+                let usedRear = null;
 
-                if (rearCandidates.length > 0) {
-                    const bestRear = rearCandidates.reduce((a, b) => (a.price > b.price ? a : b));
-                    let finalPrice = bestRear.price;
-                    let finalAvail = bestRear.available;
+                if (!isRearNone) {
+                  const rearCandidates = vData.variants.filter(v => {
+                      const vt = normalize(v.public_title).replace(/["']/g, '');
+                      if (!vt.includes('rear')) return false;
+                      if (sizeMatch && !vt.includes(sizeMatch[1])) return false;
+                      if (axleMatch && !vt.includes(axleMatch[1])) return false;
+                      if (isSuperboost && !vt.includes('superboost') && !vt.includes('157')) return false;
+                      if (!isSuperboost && (vt.includes('superboost') || vt.includes('157'))) return false;
+                      return true;
+                  });
+
+                  if (rearCandidates.length > 0) {
+                      usedRear = rearCandidates.reduce((a, b) => (a.price > b.price ? a : b));
+                      finalPrice += usedRear.price;
+                      finalAvail = finalAvail && usedRear.available;
+                  }
+                }
 
                     const hasFront = frontWheelValue && frontWheelValue !== 'no front wheel' && frontWheelValue !== 'none';
                     if (hasFront) {
@@ -167,7 +176,7 @@ export default async function handler(req, res) {
                         }
                     }
 
-                    if (driverValue) {
+                    if (driverValue && driverValue !== 'none' && driverValue !== 'no freehub') {
                         let driverSurcharge = 17995; 
                         if (driverValue.includes('7p') || driverValue.includes('7sp') || driverValue.includes('cassette')) {
                             driverSurcharge = 42995; 
@@ -178,10 +187,9 @@ export default async function handler(req, res) {
                     winner = { 
                       price: finalPrice, 
                       available: finalAvail, 
-                      public_title: `${bestRear.public_title} + ${hasFront ? 'Front' : 'No Front'} + Driver Surcharge`
+                      public_title: `${usedRear ? usedRear.public_title : 'No Rear'} + ${hasFront ? 'Front' : 'No Front'} + Driver Surcharge`
                     };
                 }
-            }
         } else {
           let candidates = vData.variants.filter(v => {
             const vTitle = normalize(v.public_title);
@@ -330,12 +338,21 @@ export default async function handler(req, res) {
           const myPrice = parseFloat(variant.price).toFixed(2);
           const myCompare = variant.compareAtPrice ? parseFloat(variant.compareAtPrice).toFixed(2) : null;
           const isDiff = Number(goalPrice) !== Number(myPrice);
+          let forceNeedsReview = rule.needs_review;
+          
+          if (isDiff && Number(goalPrice) < Number(myPrice)) {
+            // PRICE DROP SAFETY BLOCK
+            forceNeedsReview = true;
+            attention.push({ title: rule.title, reason: `🚨 PRICE DROP BLOCKED: Vendor attempting to lower price from $${myPrice} to $${goalPrice}. Ignored until manually approved.` });
+            await supabase.from('watcher_rules').update({ needs_review: true }).eq('id', rule.id);
+          }
+          
           const needsPriceUpdate = isDiff || (myCompare && Number(myCompare) < Number(goalPrice));
 
           let newPriceLastChangedAt = rule.price_last_changed_at || null;
           if (rule.last_price !== winner.price) {
             newPriceLastChangedAt = new Date().toISOString();
-            if (isDeepSale) attention.push({ title: rule.title, reason: `Drastic Sale Detected: Vendor Price dropped to $${vendorPrice.toFixed(2)}!` });
+            if (isDeepSale && !forceNeedsReview) attention.push({ title: rule.title, reason: `Drastic Sale Detected: Vendor Price is $${vendorPrice.toFixed(2)}!` });
           } else if (newPriceLastChangedAt && isDeepSale) {
             const daysPersistent = (new Date() - new Date(newPriceLastChangedAt)) / (1000 * 60 * 60 * 24);
             if (Math.floor(daysPersistent) === 45) attention.push({ title: rule.title, reason: `Sale Price persistent for 45 days: Confirm as New MSRP?` });
@@ -345,21 +362,22 @@ export default async function handler(req, res) {
           let updatePayloadForPrice = { id: rule.shopify_variant_id };
           let shouldPutPrice = false;
           let currentEffectiveBtiFlag = currentBtiFlag;
-          if (rule.auto_update === true && !rule.needs_review) {
+          
+          if (rule.auto_update === true && !forceNeedsReview) {
              if (winner.available && currentBtiFlag === true) {
                 console.log(`[SYNC] Vendor BACK-IN-STOCK for ${rule.title}. Reclaiming authority from BTI.`);
-                 updatePayloadForPrice.metafields = [{ namespace: "custom", key: "bti_sync_authority", value: false, type: "boolean" }];
+                 updatePayloadForPrice.metafields = [{ namespace: "custom", key: "bti_sync_authority", value: "false", type: "boolean" }];
                 shouldPutPrice = true;
                 currentEffectiveBtiFlag = false;
              } else if (!winner.available && (rule.bti_monitoring_enabled === true || rule.bti_monitoring_enabled === 'true' || rule.tags?.includes('bti-sync')) && currentBtiFlag !== true) {
                 console.log(`[SYNC] Vendor OOS for ${rule.title}. Deferring authority to BTI.`);
-                 updatePayloadForPrice.metafields = [{ namespace: "custom", key: "bti_sync_authority", value: true, type: "boolean" }];
+                 updatePayloadForPrice.metafields = [{ namespace: "custom", key: "bti_sync_authority", value: "true", type: "boolean" }];
                 shouldPutPrice = true;
                 currentEffectiveBtiFlag = true;
              }
           }
 
-          if (needsPriceUpdate && rule.auto_update === true && !rule.needs_review && currentEffectiveBtiFlag !== true) {
+          if (needsPriceUpdate && rule.auto_update === true && !forceNeedsReview && currentEffectiveBtiFlag !== true) {
              updatePayloadForPrice.price = goalPrice;
              if (myCompare && Number(myCompare) > Number(myPrice)) {
                 const gap = Number(myCompare) - Number(myPrice);
@@ -374,7 +392,7 @@ export default async function handler(req, res) {
                 method: 'PUT', headers: { 'X-Shopify-Access-Token': adminToken, 'Content-Type': 'application/json' },
                 body: JSON.stringify({ variant: updatePayloadForPrice })
              }).catch(e => console.error(e));
-             if (needsPriceUpdate && rule.auto_update === true && !rule.needs_review) updated.push({ title: rule.title, reason: `Price Adjusted ($${myPrice} -> $${goalPrice})` });
+             if (needsPriceUpdate && rule.auto_update === true && !forceNeedsReview) updated.push({ title: rule.title, reason: `Price Adjusted ($${myPrice} -> $${goalPrice})` });
           }
 
           let effectivePolicy = variant.inventoryPolicy;
