@@ -2066,7 +2066,7 @@ export default function OpsDashboard() {
                 </div>
              )}
           </div>
-        ) : (
+        ) : activeTab === 'audit' ? (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
              <h1 className="text-4xl font-black tracking-tight text-zinc-900 uppercase italic mb-2">Shop Health</h1>
              <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest mb-12">Automated Data Audit & Integrity Engine</p>
@@ -2075,13 +2075,13 @@ export default function OpsDashboard() {
                 <HealthCard title="Missing Metafields" count="--" subtitle="Items lacking engineering data" icon={<Info className="text-blue-500"/>}/>
                 <HealthCard title="Sync Conflicts" count={rules.filter(r => r.needs_review).length} subtitle="Margin safety violations" icon={<RefreshCcw className="text-orange-500"/>}/>
              </div>
-             <div className="bg-white p-20 rounded-[3rem] border-2 border-dashed border-zinc-200 text-center">
+              <div className="bg-white p-20 rounded-[3rem] border-2 border-dashed border-zinc-200 text-center">
                 <ShieldCheck size={60} className="mx-auto text-zinc-200 mb-6"/>
                 <h3 className="text-xl font-black uppercase italic">Data Audit in Progress</h3>
                 <p className="text-zinc-400 text-sm max-w-xs mx-auto mt-2">Integrating Section 4.11 from Master Notes. Reporting on Negative Inventory coming next.</p>
              </div>
           </div>
-        )}
+        ) : null}
 
         {/* --- COMPONENT LIBRARY TAB --- */}
         {activeTab === 'component_library' && (
@@ -2098,11 +2098,23 @@ export default function OpsDashboard() {
                    </button>
                </div>
 
+               <div className="flex gap-4 mb-8 border-b-2 border-zinc-100 pb-2">
+                  {['hubs', 'rims', 'spokes', 'nipples'].map(tab => (
+                     <button 
+                        key={tab} 
+                        onClick={() => setComponentTab(tab)} 
+                        className={`px-6 py-3 font-black text-[10px] uppercase tracking-widest transition-all ${componentTab === tab ? 'text-black border-b-2 border-black -mb-[10px] bg-zinc-100 rounded-t-xl' : 'text-zinc-400 hover:text-zinc-600'}`}
+                     >
+                        {tab} ({componentData[tab]?.length || 0})
+                     </button>
+                  ))}
+               </div>
+
                <div className="bg-white p-12 rounded-[2.5rem] border border-zinc-200 shadow-sm mt-8 border-dashed flex flex-col items-center text-center">
                   <Database size={48} className="text-zinc-200 mb-6 mx-auto" />
-                  <h3 className="text-2xl font-black uppercase text-zinc-400 italic mb-2">GitHub Sync Established</h3>
+                  <h3 className="text-2xl font-black uppercase text-zinc-400 italic mb-2">Sub-Tab Display Active</h3>
                   <p className="text-xs font-bold uppercase tracking-widest text-zinc-400 max-w-sm mx-auto">
-                      Currently tracking {componentData.hubs?.length || 0} Hubs, {componentData.rims?.length || 0} Rims, and {componentData.spokes?.length || 0} Spokes.
+                      Currently viewing the {componentTab} database list. Table coming next.
                   </p>
                </div>
            </div>
