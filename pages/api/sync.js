@@ -127,7 +127,17 @@ export default async function handler(req, res) {
                 if (!optValue) continue;
                 if (optName.toLowerCase().includes('rear')) rearSizeValue = optValue.toLowerCase().replace(/["']/g, '').trim();
                 if (optName.toLowerCase().includes('front') || optValue.toLowerCase().includes('front')) frontWheelValue = optValue.toLowerCase().replace(/["']/g, '').trim();
-                if (optName.toLowerCase().includes('driver') || optName.toLowerCase().includes('axle') || optName.toLowerCase().includes('freehub') || optName.toLowerCase().includes('cassette')) driverValue = optValue.toLowerCase().replace(/["']/g, '').trim();
+                if (
+                    optName.toLowerCase().includes('driver') || 
+                    optName.toLowerCase().includes('axle') || 
+                    optName.toLowerCase().includes('freehub') || 
+                    optName.toLowerCase().includes('cassette') ||
+                    optValue.toLowerCase() === 'ms' ||
+                    optValue.toLowerCase() === 'xd' ||
+                    optValue.toLowerCase() === 'hg'
+                ) {
+                    driverValue = optValue.toLowerCase().replace(/["']/g, '').trim();
+                }
             }
 
             if (true) {
@@ -177,7 +187,7 @@ export default async function handler(req, res) {
                     }
 
                     if (driverValue && driverValue !== 'none' && driverValue !== 'no freehub') {
-                        let driverSurcharge = 17995; 
+                        let driverSurcharge = 19995; 
                         if (driverValue.includes('7p') || driverValue.includes('7sp') || driverValue.includes('cassette')) {
                             driverSurcharge = 42995; 
                         }
@@ -379,10 +389,12 @@ export default async function handler(req, res) {
 
           if (needsPriceUpdate && rule.auto_update === true && !forceNeedsReview && currentEffectiveBtiFlag !== true) {
              updatePayloadForPrice.price = goalPrice;
-             if (myCompare && Number(myCompare) > Number(myPrice)) {
-                const gap = Number(myCompare) - Number(myPrice);
-                updatePayloadForPrice.compare_at_price = (Number(goalPrice) + gap).toFixed(2);
-             } else { updatePayloadForPrice.compare_at_price = goalPrice; }
+             const baseCompare = myCompare ? Number(myCompare) : 0;
+             if (baseCompare > Number(goalPrice)) {
+                updatePayloadForPrice.compare_at_price = myCompare;
+             } else {
+                updatePayloadForPrice.compare_at_price = goalPrice; 
+             }
              shouldPutPrice = true;
              finalShopifyPriceNum = Number(goalPrice);
           }

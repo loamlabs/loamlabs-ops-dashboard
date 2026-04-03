@@ -2259,21 +2259,38 @@ export default function OpsDashboard() {
            </div>
         )}
 
-        {/* --- FLOATING LAB BAR --- */}
-        {activeTab === 'product_lab' && (selectedLabProducts.length > 0 || selectedLabVariants.length > 0) && (
+        {/* --- UNIVERSAL FLOATING BAR --- */}
+        {((activeTab === 'product_lab' && (selectedLabProducts.length > 0 || selectedLabVariants.length > 0)) || (activeTab === 'vendors' && selectedRules.length > 0)) && (
            <div className="fixed bottom-6 left-[calc(16rem+1.5rem)] right-6 z-50 bg-black text-white p-4 rounded-[1.5rem] flex items-center justify-between shadow-2xl border border-zinc-800 animate-in slide-in-from-bottom-4 duration-300">
               <div className="flex items-center gap-3 flex-shrink-0">
-                <button onClick={() => { setSelectedLabProducts([]); setSelectedLabVariants([]); }} className="text-zinc-500 hover:text-white transition-colors"><X size={16} /></button>
+                <button onClick={() => { 
+                   if (activeTab === 'vendors') setSelectedRules([]);
+                   else { setSelectedLabProducts([]); setSelectedLabVariants([]); }
+                }} className="text-zinc-500 hover:text-white transition-colors"><X size={16} /></button>
                 <div className="font-bold text-sm tracking-widest uppercase italic border-r border-zinc-800 pr-6 mr-1">
-                  {selectedLabProducts.length + selectedLabVariants.length} Selected
+                  {activeTab === 'vendors' ? selectedRules.length : (selectedLabProducts.length + selectedLabVariants.length)} Selected
                 </div>
               </div>
               <div className="flex items-center gap-4 flex-wrap">
-                <button onClick={openMetafieldEditor} className="flex items-center gap-2 text-[10px] font-black uppercase text-blue-400 hover:text-blue-300 transition-colors bg-blue-950/30 px-4 py-2.5 rounded-xl"><Edit size={14} /> Edit Metafields</button>
-                <div className="w-px h-6 bg-zinc-800"></div>
-                <button onClick={runLabSync} className="flex items-center gap-2 text-[10px] font-black uppercase text-white hover:text-green-400 transition-colors bg-zinc-900 px-4 py-2.5 rounded-xl border border-zinc-700 shadow-lg"><RefreshCcw size={14} className={loading ? 'animate-spin' : ''} /> Sync Selected Items</button>
-                <div className="w-px h-6 bg-zinc-800"></div>
-                <button onClick={bulkIgnoreLab} className="flex items-center gap-2 text-[10px] font-black uppercase text-white hover:text-red-400 transition-colors bg-red-600 px-5 py-2.5 rounded-xl shadow-lg shadow-red-500/20"><ShieldAlert size={14} /> Ignore & Purge Family</button>
+                {/* Product Lab Actions */}
+                {activeTab === 'product_lab' && <button onClick={openMetafieldEditor} className="flex items-center gap-2 text-[10px] font-black uppercase text-blue-400 hover:text-blue-300 transition-colors bg-blue-950/30 px-4 py-2.5 rounded-xl"><Edit size={14} /> Edit Metafields</button>}
+                {activeTab === 'product_lab' && <div className="w-px h-6 bg-zinc-800"></div>}
+
+                {/* Vendor Watcher Actions */}
+                {activeTab === 'vendors' && <button onClick={() => setShowBulkEditModal(true)} className="flex items-center gap-2 text-[10px] font-black uppercase text-blue-400 hover:text-blue-300 transition-colors bg-blue-950/30 px-4 py-2.5 rounded-xl"><Edit size={14} /> Set Vendor JSON</button>}
+                {activeTab === 'vendors' && <button onClick={bulkSetPriceAdjust} className="flex items-center gap-2 text-[10px] font-black uppercase text-amber-400 hover:text-amber-300 transition-colors bg-amber-950/30 px-4 py-2.5 rounded-xl">Price Factor</button>}
+                {activeTab === 'vendors' && <button onClick={bulkSetCompareAt} className="flex items-center gap-2 text-[10px] font-black uppercase text-amber-400 hover:text-amber-300 transition-colors bg-amber-950/30 px-4 py-2.5 rounded-xl">Compare-At = MSRP</button>}
+                {activeTab === 'vendors' && <div className="w-px h-6 bg-zinc-800"></div>}
+
+                {/* Sync selected */}
+                <button onClick={() => { activeTab === 'vendors' ? runSelectiveSync(selectedRules) : runLabSync(); }} className="flex items-center gap-2 text-[10px] font-black uppercase text-white hover:text-green-400 transition-colors bg-zinc-900 px-4 py-2.5 rounded-xl border border-zinc-700 shadow-lg"><RefreshCcw size={14} className={loading ? 'animate-spin' : ''} /> Sync Selected Items</button>
+                
+                {activeTab === 'product_lab' && <div className="w-px h-6 bg-zinc-800"></div>}
+                {activeTab === 'product_lab' && <button onClick={bulkIgnoreLab} className="flex items-center gap-2 text-[10px] font-black uppercase text-white hover:text-red-400 transition-colors bg-red-600 px-5 py-2.5 rounded-xl shadow-lg shadow-red-500/20"><ShieldAlert size={14} /> Ignore & Purge Family</button>}
+
+                {activeTab === 'vendors' && <div className="w-px h-6 bg-zinc-800"></div>}
+                {activeTab === 'vendors' && <button onClick={bulkIgnore} className="flex items-center gap-2 text-[10px] font-black uppercase text-white hover:text-red-400 transition-colors bg-red-600 px-5 py-2.5 rounded-xl bg-opacity-30"><ShieldAlert size={14} /> Disable Watch</button>}
+                {activeTab === 'vendors' && <button onClick={bulkDelete} className="flex items-center gap-2 text-[10px] font-black uppercase text-white hover:text-red-400 transition-colors bg-orange-700 px-5 py-2.5 rounded-xl">Destroy</button>}
               </div>
            </div>
         )}
