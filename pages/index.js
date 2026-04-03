@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { RefreshCcw, Search, Package, ShieldCheck, ShieldAlert, Plus, X, Info, Image as ImageIcon, Loader2, LogOut, ChevronUp, ChevronDown, ChevronRight, Trash2, AlertCircle, Zap, ZapOff, DollarSign, Tag, History, Activity, Beaker, Edit3, Edit, Settings, ExternalLink, BarChart } from 'lucide-react';
+import { RefreshCcw, Search, Package, ShieldCheck, ShieldAlert, Plus, X, Info, Image as ImageIcon, Loader2, LogOut, ChevronUp, ChevronDown, ChevronRight, Trash2, AlertCircle, Zap, ZapOff, DollarSign, Tag, History, Activity, Beaker, Edit3, Edit, Settings, ExternalLink, BarChart, Database } from 'lucide-react';
 
 export default function OpsDashboard() {
   const [editingRule, setEditingRule] = useState(null);
@@ -41,6 +41,8 @@ export default function OpsDashboard() {
   const [abandonedBuilds, setAbandonedBuilds] = useState([]);
   const [insightsLoading, setInsightsLoading] = useState(false);
   const [showDiscrepancyDropdown, setShowDiscrepancyDropdown] = useState(false);
+  const [componentData, setComponentData] = useState({ hubs: [], rims: [], spokes: [], nipples: [] });
+  const [componentTab, setComponentTab] = useState('hubs');
 
 
   useEffect(() => {
@@ -236,6 +238,22 @@ export default function OpsDashboard() {
     const savedPass = localStorage.getItem('loam_ops_auth');
     if (savedPass) { setPassword(savedPass); fetchRules(savedPass); }
   }, []);
+
+  const fetchComponentLibrary = async () => {
+      setLoading(true);
+      try {
+          const res = await fetch('/api/components', { headers: { 'x-dashboard-auth': password } });
+          const data = await res.json();
+          if (res.ok) setComponentData(data);
+      } catch (e) { console.error('Fetch Component Error: ', e); }
+      setLoading(false);
+  };
+  
+  useEffect(() => {
+     if (activeTab === 'component_library' && componentData.hubs.length === 0) {
+         fetchComponentLibrary();
+     }
+  }, [activeTab]);
 
   const fetchRules = async (passToUse) => {
     const auth = passToUse || password;
@@ -1026,6 +1044,7 @@ export default function OpsDashboard() {
           )}
           <SidebarLink icon={<BarChart size={18}/>} label="Insights & Analytics" active={activeTab === 'insights'} onClick={() => { setActiveTab('insights'); fetchAbandonedBuilds(); }} />
           <SidebarLink icon={<ShieldCheck size={18}/>} label="Shop Health" active={activeTab === 'audit'} onClick={() => setActiveTab('audit')} />
+          <SidebarLink icon={<Database size={18}/>} label="Component Library" active={activeTab === 'component_library'} onClick={() => setActiveTab('component_library')} />
         </nav>
         <div className="relative mt-auto border-t border-zinc-800 pt-6">
            {showUserMenu && (
@@ -2062,6 +2081,31 @@ export default function OpsDashboard() {
                 <p className="text-zinc-400 text-sm max-w-xs mx-auto mt-2">Integrating Section 4.11 from Master Notes. Reporting on Negative Inventory coming next.</p>
              </div>
           </div>
+        )}
+
+        {/* --- COMPONENT LIBRARY TAB --- */}
+        {activeTab === 'component_library' && (
+           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
+               <div className="flex items-center justify-between mb-8">
+                   <div>
+                       <h1 className="text-4xl font-black tracking-tight text-zinc-900 uppercase italic mb-2">Component Library</h1>
+                       <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest leading-relaxed max-w-2xl">
+                           Manage the master specification JSON database directly. Changes here will commit directly to the Unified Calculator Repository via GitHub API.
+                       </p>
+                   </div>
+                   <button onClick={() => {}} className="bg-black text-white px-6 py-4 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-zinc-800 transition-all shadow-xl flex items-center gap-2">
+                      <Plus size={16}/> New Component
+                   </button>
+               </div>
+
+               <div className="bg-white p-12 rounded-[2.5rem] border border-zinc-200 shadow-sm mt-8 border-dashed flex flex-col items-center text-center">
+                  <Database size={48} className="text-zinc-200 mb-6 mx-auto" />
+                  <h3 className="text-2xl font-black uppercase text-zinc-400 italic mb-2">GitHub Sync Established</h3>
+                  <p className="text-xs font-bold uppercase tracking-widest text-zinc-400 max-w-sm mx-auto">
+                      Currently tracking {componentData.hubs?.length || 0} Hubs, {componentData.rims?.length || 0} Rims, and {componentData.spokes?.length || 0} Spokes.
+                  </p>
+               </div>
+           </div>
         )}
 
         {/* --- FLOATING LAB BAR --- */}
