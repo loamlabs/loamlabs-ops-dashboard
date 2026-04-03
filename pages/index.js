@@ -1712,12 +1712,66 @@ export default function OpsDashboard() {
                                                                      return (
                                                                        <div key={m.key} className={`group/m group flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[10px] font-bold whitespace-nowrap transition-all ${isMismatch ? 'bg-red-50 border-red-200 text-red-600 shadow-sm' : val ? 'bg-zinc-50 border-zinc-100 text-zinc-500' : 'bg-transparent border-transparent text-zinc-300 opacity-60'}`}>
                                                                           <span className="uppercase opacity-50 text-[8px] tracking-widest">{m.label.replace('Wheel Spec ','').replace('Rim ','')}:</span>
-                                                                          <span 
-                                                                             className={`${isMismatch ? 'font-black' : ''} cursor-pointer hover:text-black hover:underline decoration-dashed decoration-1 underline-offset-4`}
-                                                                             title="Click to edit value directly"
-                                                                             onClick={async (e) => {
-                                                                                e.stopPropagation();
-                                                                                const newVal = window.prompt(`Update ${m.label}:\n\n(Leave blank to clear the value)`, val || '');
+                                                                          {metafieldOptionsMap[m.key] && metafieldOptionsMap[m.key].length > 0 ? (
+                                                                             <select 
+                                                                               className={`${isMismatch ? 'font-black' : ''} bg-transparent outline-none cursor-pointer hover:text-black focus:text-black leading-none pb-0 text-[10px]`}
+                                                                               style={{ width: '45px' }}
+                                                                               value={val || ''}
+                                                                               title="Select new value directly"
+                                                                               onClick={e => e.stopPropagation()}
+                                                                               onChange={async (e) => {
+                                                                                 const newVal = e.target.value;
+                                                                                 if (newVal === val) return;
+                                                                                 setLoading(true);
+                                                                                 try {
+                                                                                   const auth = localStorage.getItem('loam_ops_auth');
+                                                                                   await fetch('/api/bulk-update-metafields', {
+                                                                                     method: 'POST',
+                                                                                     headers: { 'Content-Type': 'application/json', 'x-dashboard-auth': auth },
+                                                                                     body: JSON.stringify({ ids: [String(variant.shopify_variant_id)], metafields: [{ namespace: 'custom', key: m.key, value: newVal, type: m.type }], targetType: 'ProductVariant' })
+                                                                                   });
+                                                                                   fetchRules();
+                                                                                 } catch(err) {}
+                                                                                 setLoading(false);
+                                                                               }}
+                                                                             >
+                                                                               <option value="">Clear</option>
+                                                                               {metafieldOptionsMap[m.key].map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                                                             </select>
+                                                                           ) : m.type === 'boolean' ? (
+                                                                             <select 
+                                                                               className={`${isMismatch ? 'font-black' : ''} bg-transparent outline-none cursor-pointer hover:text-black focus:text-black leading-none pb-0 text-[10px]`}
+                                                                               style={{ width: '45px' }}
+                                                                               value={val === 'true' || val === true ? 'true' : val === 'false' || val === false ? 'false' : ''}
+                                                                               title="Toggle boolean value"
+                                                                               onClick={e => e.stopPropagation()}
+                                                                               onChange={async (e) => {
+                                                                                 const newVal = e.target.value;
+                                                                                 if (newVal === val) return;
+                                                                                 setLoading(true);
+                                                                                 try {
+                                                                                   const auth = localStorage.getItem('loam_ops_auth');
+                                                                                   await fetch('/api/bulk-update-metafields', {
+                                                                                     method: 'POST',
+                                                                                     headers: { 'Content-Type': 'application/json', 'x-dashboard-auth': auth },
+                                                                                     body: JSON.stringify({ ids: [String(variant.shopify_variant_id)], metafields: [{ namespace: 'custom', key: m.key, value: newVal, type: m.type }], targetType: 'ProductVariant' })
+                                                                                   });
+                                                                                   fetchRules();
+                                                                                 } catch(err) {}
+                                                                                 setLoading(false);
+                                                                               }}
+                                                                             >
+                                                                               <option value="">Clear</option>
+                                                                               <option value="true">True</option>
+                                                                               <option value="false">False</option>
+                                                                             </select>
+                                                                           ) : (
+                                                                             <span 
+                                                                                className={`${isMismatch ? 'font-black' : ''} cursor-pointer hover:text-black hover:underline decoration-dashed decoration-1 underline-offset-4 flex-1`}
+                                                                                title="Click to edit value directly"
+                                                                                onClick={async (e) => {
+                                                                                   e.stopPropagation();
+                                                                                   const newVal = window.prompt(`Update ${m.label}:\n\n(Leave blank to clear the value)`, val || '');
                                                                                 if (newVal !== null && newVal !== val) {
                                                                                    setLoading(true);
                                                                                    try {
@@ -1736,7 +1790,8 @@ export default function OpsDashboard() {
                                                                                    setLoading(false);
                                                                                 }
                                                                              }}
-                                                                           >{val || '--'}</span>
+                                                                            >{val || '--'}</span>
+                                                                           )}
                                                                           {val && (
                                                                              <button 
                                                                                onClick={(e) => { e.stopPropagation(); syncFieldToFamily(product, m.key, val); }}
