@@ -153,6 +153,30 @@ export default function OpsDashboard() {
     return 'Base Config';
   };
 
+  const getProductGroupedDiscrepancies = (product, productVariants) => {
+    const groups = productVariants.reduce((acc, v) => {
+      const key = getVariantGroupKey(v, product);
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(v);
+      return acc;
+    }, {});
+
+    let allDiscrepancies = {};
+    Object.values(groups).forEach(groupArr => {
+        const groupDiscs = getDiscrepancies(groupArr);
+        Object.entries(groupDiscs).forEach(([k, config]) => {
+            if (!allDiscrepancies[k]) {
+                allDiscrepancies[k] = config;
+            } else {
+                config.values.forEach(v => {
+                    if (!allDiscrepancies[k].values.includes(v)) allDiscrepancies[k].values.push(v);
+                });
+            }
+        });
+    });
+    return allDiscrepancies;
+  };
+
   const handleCheckboxClick = (index, ruleId, e) => {
     if (e.shiftKey && lastCheckedIndex.current !== null && lastCheckedIndex.current !== index) {
       const start = Math.min(lastCheckedIndex.current, index);
@@ -1518,7 +1542,7 @@ export default function OpsDashboard() {
                       .filter(product => {
                         if (!labDiscrepancyOnly) return true;
                         const productVariants = allUniqueRules.filter(r => String(r.shopify_product_id) === String(product.shopify_product_id));
-                        return Object.keys(getDiscrepancies(productVariants)).length > 0;
+                        return Object.keys(getProductGroupedDiscrepancies(product, productVariants)).length > 0;
                       })
                       .sort((a,b) => a.title.localeCompare(b.title));
 
@@ -1541,7 +1565,7 @@ export default function OpsDashboard() {
                       return filtered.map(product => {
                         const isExpanded = expandedProducts.includes(product.shopify_product_id);
                         const productVariants = allUniqueRules.filter(r => r.shopify_product_id === product.shopify_product_id);
-                        const discrepancies = getDiscrepancies(productVariants);
+                        const discrepancies = getProductGroupedDiscrepancies(product, productVariants);
                         const hasIssue = Object.keys(discrepancies).length > 0;
 
                         return (
@@ -1608,36 +1632,11 @@ export default function OpsDashboard() {
                                  <td colSpan="6" className="p-0 bg-white shadow-inner">
                                    <div className="divide-y divide-zinc-50 border-x border-zinc-100 mx-6 mb-6 rounded-2xl overflow-hidden border border-zinc-200 bg-zinc-50">
                                      {(() => {
-                                        // Refined Grouping: Strip parent product title & clean parentheses
-                                        const parentTitle = product.title.split('(')[0].trim().toLowerCase();
-                                        
                                         const groups = productVariants.reduce((acc, v) => {
-                                           let variantLabel = v.title;
-                                           if (variantLabel.toLowerCase().startsWith(parentTitle)) {
-                                              variantLabel = variantLabel.substring(parentTitle.length).trim();
-                                           }
-                                           
-                                           // Strip leading/trailing formatting characters like ( or -
-                                           const cleanLabel = variantLabel.replace(/^[(\s/-]+|[)\s/-]+$/g, '').trim();
-                                           const parts = cleanLabel.split(/[/-]/).map(p => p.trim());
-                                           
-                                           // Determine the "Master Group" based on component type
-                                           const tags = Array.isArray(product.tags) ? product.tags.map(t => t.toLowerCase()) : [];
-                                           let groupKey = 'Base Config';
-                                           
-                                           if (parts.length > 0) {
-                                              if (tags.includes('component:hub') || tags.includes('hub')) {
-                                                 groupKey = parts[0]; // Hole Count
-                                              } else if (tags.includes('component:valvestem') || tags.includes('valvestem') || tags.includes('component:spoke') || tags.includes('spoke') || tags.includes('component:nipple') || tags.includes('nipple')) {
-                                                 groupKey = parts[0]; // Color
-                                              } else {
-                                                 groupKey = parts[0]; // Default to first differentiation
-                                              }
-                                           }
-                                           
-                                           if (!acc[groupKey]) acc[groupKey] = [];
-                                           acc[groupKey].push(v);
-                                           return acc;
+                                            const groupKey = getVariantGroupKey(v, product);
+                                            if (!acc[groupKey]) acc[groupKey] = [];
+                                            acc[groupKey].push(v);
+                                            return acc;
                                         }, {});
                                         const linearVariants = Object.entries(groups)
                                            .sort(([ka], [kb]) => ka.localeCompare(kb, undefined, { numeric: true }))
