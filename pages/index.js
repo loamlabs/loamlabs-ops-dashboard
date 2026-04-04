@@ -515,17 +515,17 @@ export default function OpsDashboard() {
 
   const DROPDOWN_OPTIONS = {
     'Wheel Spec Position': ['Front', 'Rear', 'Front/Rear'],
-    'Brake Interface': ['Centerlock', '6-Bolt', 'N/A', 'Rim Brake'],
-    'Option 1 Name': ['Size', 'Spoke Count', 'Freehub', 'Spacing', 'Color', 'Type'],
-    'Option 2 Name': ['Size', 'Spoke Count', 'Freehub', 'Spacing', 'Color', 'Type'],
-    'Rim Size': ['700c', '650b', '29"', '27.5"', '26"', '24"', '20"'],
-    'Spoke Count': ['24h', '28h', '32h', '36h'],
+    'Rim Size': ['26"', '27.5"', '29"', '32"', '700c', '650b'],
+    'Brake Interface': ['Centerlock', '6-Bolt', 'Rim Brake'],
     'Hub Type': ['J-Bend', 'Straight Pull', 'Hook Flange'],
-    'Hub Lacing Policy': ['Standard', 'Force 2-Cross for 28h Only', 'Force 3-Cross for 28h Only', 'Force All as 2-Cross', 'Use Manual Override Field', 'None'],
-    'Rim Washer Policy': ['Optional', 'Mandatory', 'Not Compatible', 'None'],
-    'Spoke Type': ['J-Bend', 'Straight Pull', 'Carbon'],
-    'Spoke Rounding Rule': ['Nearest', 'Even'],
-    'Hub Freehub': ['Standard', 'XD', 'XDR', 'N/A']
+    'Hub Pairing Policy': ['None', 'Match Standard Spoke', 'Special Case'],
+    'Hub Lacing Policy': ['Standard', 'Use Manual Override Field'],
+    'Spoke Polish': ['None', 'Polish Edge'],
+    'Spoke Rounding Rule': ['Round Down', 'Standard'],
+    'Rim Washer Policy': ['Standard', 'None'],
+    // Adding the specific new ones from user request
+    'rim_holes': ['16h', '18h', '20h', '24h', '28h', '32h', '36h'],
+    'hub_rim_sizes': ['26"', '27.5"', '29"', '32"', '700c', '650b']
   };
 
   const MANDATORY_FIELDS = {
@@ -539,13 +539,23 @@ export default function OpsDashboard() {
     if (!component) return '';
     const normTarget = key.toLowerCase().replace(/[^a-z0-9]/g, '');
     
+    // Explicit priority for Display Name to avoid mapping to "Option Name"
+    if (normTarget === 'name') {
+        return component.Name || component.name || component.title || component.Title || '';
+    }
+    if (normTarget === 'vendor') {
+        return component.Vendor || component.vendor || component.Brand || component.brand || '';
+    }
+
     // Exact match first
     if (component[key] !== undefined) return component[key];
     
     // Normalized match (Handling Shopify Metafield prefixes/suffixes)
+    // EXCLUDE "Option" keys when looking for generic "Name" or "Vendor"
     const foundKey = Object.keys(component).find(k => {
         const nk = k.toLowerCase().replace(/[^a-z0-9]/g, '');
-        // Match if the target name is contained within the raw key (e.g. "rimerd" matches "variantmetafieldcustomrimerdnumberdecimal")
+        const isOption = nk.includes('option');
+        if (isOption && (normTarget === 'name' || normTarget === 'vendor')) return false;
         return nk === normTarget || nk.includes(normTarget);
     });
     if (foundKey) return component[foundKey];
@@ -553,7 +563,10 @@ export default function OpsDashboard() {
     // Technical Fallbacks
     if (normTarget === 'wheelspecposition') return component['Wheel Spec Position'] || component.position || component.Position || '';
     if (normTarget === 'rimerd') return component['Rim Erd'] || component.erd || component.ERD || component.rim_erd || '';
-    if (normTarget === 'weightg') return component.weight || component.Weight || component.weight_g || '';
+    if (normTarget === 'weightg') {
+        // Either/Or weight check
+        return component['Weight G (p)'] || component['Weight G (v)'] || component.weight || component.Weight || '';
+    }
 
     return '';
   };
@@ -577,6 +590,17 @@ export default function OpsDashboard() {
     }
     
     required.forEach(field => {
+      // WEIGHT EITHER/OR LOGIC
+      if (field.includes('Weight G')) {
+          const pVal = getComponentValue(component, 'Weight G (p)');
+          const vVal = getComponentValue(component, 'Weight G (v)');
+          const hasWeight = (pVal !== '' && pVal !== undefined && pVal !== null) || (vVal !== '' && vVal !== undefined && vVal !== null);
+          if (!hasWeight && !missing.includes('Weight (Either/Or)')) {
+              missing.push('Weight (p) or (v)');
+          }
+          return;
+      }
+
       const val = getComponentValue(component, field);
       const isEmpty = val === undefined || val === null || String(val).trim() === '';
       
@@ -2506,7 +2530,7 @@ export default function OpsDashboard() {
                         };
                         
                         return (
-                           <div className="overflow-x-auto max-h-[650px] relative scrollbar-thin rounded-2xl border border-zinc-100 shadow-inner">
+                           <div className="overflow-x-auto w-full max-h-[650px] relative scrollbar-thin rounded-2xl border border-zinc-100 shadow-inner">
                              <table className="min-w-full text-left text-sm whitespace-nowrap select-none border-collapse">
                                <thead className="bg-zinc-50 sticky top-0 z-10 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
                                   <tr>
@@ -2691,7 +2715,15 @@ export default function OpsDashboard() {
                                    
                                    return specFields.map(key => {
                                       const isMandatory = MANDATORY_FIELDS[componentTab]?.some(f => { const nf = f.toLowerCase().replace(/[^a-z0-9]/g, ''); const nk = key.toLowerCase().replace(/[^a-z0-9]/g, ''); return nf === nk || nk.startsWith(nf); });
-                                      const options = DROPDOWN_OPTIONS[key] || DROPDOWN_OPTIONS[formatColumnTitle(key)] || DROPDOWN_OPTIONS[key.toLowerCase()];
+                                      let options = DROPDOWN_OPTIONS[key] || DROPDOWN_OPTIONS[formatColumnTitle(key)] || DROPDOWN_OPTIONS[key.toLowerCase()];
+                                       
+                                       // USER REQUESTED DROPDOWNS
+                                       if (componentTab === 'rims' && key === 'Option 2 Value') {
+                                          options = DROPDOWN_OPTIONS['rim_holes'];
+                                       }
+                                       if (componentTab === 'hubs' && key === 'Option 1 Value') {
+                                           options = DROPDOWN_OPTIONS['hub_rim_sizes'];
+                                       }
                                       
                                       return (
                                          <div key={key} className="flex items-start gap-4 group/field">
@@ -2726,7 +2758,7 @@ export default function OpsDashboard() {
                                                      onChange={(e) => {
                                                         let val = e.target.value;
                                                         // Spoke Polish: Auto-add 'h' for hole counts
-                                                        if (key.toLowerCase().includes('hole') || key.toLowerCase().includes('count') || key.toLowerCase().includes('option')) {
+                                                        if (key.toLowerCase().includes('hole') || key.toLowerCase().includes('count')) {
                                                            val = spokePolish(val);
                                                         }
                                                         setEditingComponent({...editingComponent, [key]: val});
