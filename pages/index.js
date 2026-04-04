@@ -2481,7 +2481,7 @@ export default function OpsDashboard() {
                            : activeList.filter(item => (item.Vendor || item.vendor || item.Brand || item.brand) === componentVendorFilter);
                            
                         // Build dynamic headers based on the first item
-                        const excludeKeys = ['Name', 'name', 'title', 'Title', 'Vendor', 'vendor', 'Brand', 'brand', 'Tags', 'tags', 'id', 'ID', 'shopify_product_id', 'Product ID', 'Variant ID', 'tags']];
+                        const excludeKeys = ['Name', 'name', 'title', 'Title', 'Vendor', 'vendor', 'Brand', 'brand', 'Tags', 'tags', 'id', 'ID', 'shopify_product_id', 'Product ID', 'Variant ID', 'tags'];
                         const rawColumns = Object.keys(activeList[0] || {}).filter(k => !excludeKeys.includes(k));
                         
                         let columns = componentColumnOrder[componentTab] || [];
@@ -2668,12 +2668,10 @@ export default function OpsDashboard() {
                                    { label: 'Display Name', key: 'Name' },
                                    { label: 'Vendor / Brand', key: 'Vendor' },
                                     { label: 'Product ID', key: 'Product ID' },
-                                    { label: 'Variant ID', key: 'Variant ID' },
-                                   
-                                ].map(field => (
+                                    { label: 'Variant ID', key: 'Variant ID' } ].map(field => (
                                    <div key={field.key} className="flex gap-4">
                                       <div className="flex-grow">
-                                         <div className="text-[9px] font-black uppercase text-zinc-500/60 mb-1 ml-1 tracking-widest">{field.label}{(field.key === 'Name' || field.key === 'Vendor' ||  <span className="text-red-500 ml-1 font-bold">*</span>}</div>
+                                         <div className="text-[9px] font-black uppercase text-zinc-500/60 mb-1 ml-1 tracking-widest">{field.label}{(field.key === 'Name' || field.key === 'Vendor') && <span className="text-red-500 ml-1 font-bold">*</span>}</div>
                                          <input 
                                             type="text" 
                                             list={`list-${field.key.replace(/\s+/g, '-')}`}
