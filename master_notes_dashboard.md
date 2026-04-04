@@ -37,9 +37,18 @@ Control product visibility per-tab using Shopify tags:
 - **Table Constraints**: `UNIQUE` constraint strictly enforced directly on `shopify_variant_id`.
 
 ## 🚀 Future Roadmap
-### **Phase 4: Component API Integration**
-1. **Component Management Tab**: Create a dashboard interface to manage `loamlabs-component-api` data (GitHub-backed JSON) directly from within the Ops Dashboard.
-2. **Shopify-Database Spec Sync**: Link Shopify product IDs to component specs and implement an audit/sync tool to ensure Hub/Rim dimensions perfectly match between the store and the unified calculator database.
+### **Phase 4: Component Library Architecture**
+The Component Library is a GitHub-backed engineering database that lives within the dashboard, allowing for direct management of the unified calculator JSON (`rims.json`, `hubs.json`, etc.).
+- **Smart Discovery**: Automatically identifies field naming conventions (e.g., `Option1Name` vs `Option 1 Name`) in the existing dataset to ensure data consistency during edits.
+- **Mandatory Validation**: Enforces "Ready-to-Build" data integrity. Missing fields (Name, Vendor, Position, Option Names/Values) are highlighted with red row backgrounds in the library.
+- **UI UX**: Implemented horizontal scrolling for wide spec sheets, zebra-stripping for readability, and high-contrast labels.
+- **Pre-population**: Automates data entry by pre-filling standard category defaults (e.g., "Size" and "Spoke Count" for Rims) based on the starting position.
+- **Strict Dropdowns**: technical specifications (Brake Interface, Spoke Count, Spacing) are locked to proper `<select>` dropdowns to prevent engineering typos.
+
+## 🚀 Future Roadmap
+### **Phase 5: Automated Integrity Audits**
+1. **Shopify-Database Spec Sync**: Link Shopify product IDs to component specs and implement an audit/sync tool to ensure Hub/Rim dimensions perfectly match between the store and the unified calculator database.
+2. **Global Margin Safety**: Integrate real-time component cost calculation into the library to monitor build profitability as vendor prices shift.
 
 ---
 *Updated March 2026 to reflect Data Integrity and Operational Consolidation stabilization.*

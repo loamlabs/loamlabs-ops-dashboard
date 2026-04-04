@@ -505,38 +505,60 @@ export default function OpsDashboard() {
   const DROPDOWN_OPTIONS = {
     'Position': ['Front', 'Rear', 'Universal', 'Front/Rear'],
     'Wheel Spec Position': ['Front', 'Rear', 'Universal', 'Front/Rear'],
-    'Brake Interface': ['Centerlock', '6-Bolt', 'N/A'],
-    'Hub Spacing': ['100x12mm', '100x15mm', '110x15mm (Boost)', '142x12mm', '148x12mm (Boost)', '157x12mm (Super Boost)'],
-    'Option 1 Name': ['Size', 'Spoke Count', 'Freehub', 'Spacing'],
-    'Option 2 Name': ['Size', 'Spoke Count', 'Freehub', 'Spacing'],
+    'Brake Interface': ['Centerlock', '6-Bolt', 'N/A', 'Rim Brake'],
+    'Hub Spacing': ['100x12mm', '100x15mm', '110x15mm (Boost)', '135mm QR', '142x12mm', '148x12mm (Boost)', '157x12mm (Super Boost)'],
+    'Option 1 Name': ['Size', 'Spoke Count', 'Freehub', 'Spacing', 'Color', 'Type'],
+    'Option 2 Name': ['Size', 'Spoke Count', 'Freehub', 'Spacing', 'Color', 'Type'],
     'Rim Size': ['700c', '650b', '29"', '27.5"', '26"', '24"', '20"'],
-    'Spoke Count': ['24h', '28h', '32h', '36h']
+    'Spoke Count': ['24h', '28h', '32h', '36h'],
+    'Hub Type': ['J-Bend', 'Straight Pull', 'Hook Flange'],
+    'Hub Lacing Policy': ['Standard', 'Use Manual Override Field', 'None'],
+    'Spoke Type': ['J-Bend', 'Straight Pull'],
+    'Spoke Rounding Rule': ['Round Down', 'Standard', 'Round Up']
   };
 
   const MANDATORY_FIELDS = {
-    rims: ['Name', 'Vendor', 'Position', 'Option 1 Name', 'Option 1 Value', 'Option 2 Name', 'Option 2 Value', 'Rim ERD', 'Weight (g)'],
-    hubs: ['Name', 'Vendor', 'Position', 'Option 1 Name', 'Option 1 Value', 'Brake Interface', 'Hub Spacing'],
-    spokes: ['Name', 'Vendor', 'Option 1 Name', 'Option 1 Value'],
-    nipples: ['Name', 'Vendor', 'Option 1 Name', 'Option 1 Value']
+    rims: ['Name', 'Vendor', 'Option 1 Name', 'Option 1 Value', 'Option 2 Name', 'Option 2 Value', 'Wheel Spec Position', 'Rim Erd', 'Weight G'],
+    hubs: ['Name', 'Vendor', 'Option 1 Name', 'Option 1 Value', 'Hub Flange Diameter Left', 'Hub Flange Diameter Right', 'Hub Flange Offset Left', 'Hub Flange Offset Right', 'Hub Spoke Hole Diameter', 'Hub Type', 'Weight G', 'Wheel Spec Position'],
+    spokes: ['Name', 'Vendor', 'Spoke Type', 'Spoke Cross Section Area Mm2', 'Spoke Model Group', 'Weight G', 'Spoke Diameter Spec', 'Spoke Rounding Rule'],
+    nipples: ['Name', 'Vendor', 'Option 1 Name', 'Option 1 Value', 'Weight G']
   };
 
   const getComponentValue = (component, key) => {
     if (!component) return '';
     // Try exact match
     if (component[key] !== undefined) return component[key];
-    // Try normalized match (no spaces, lowercase)
-    const normKey = key.toLowerCase().replace(/\s+/g, '');
-    const foundKey = Object.keys(component).find(k => k.toLowerCase().replace(/\s+/g, '') === normKey);
+    // Try normalized match (no spaces, lowercase, alpha-numeric only)
+    const normKey = key.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const foundKey = Object.keys(component).find(k => k.toLowerCase().replace(/[^a-z0-9]/g, '') === normKey);
+    
+    // Specific Fallbacks
+    if (!foundKey) {
+       if (normKey === 'name') return component.Name || component.name || component.title || component.Title || '';
+       if (normKey === 'vendor') return component.Vendor || component.vendor || component.Brand || component.brand || '';
+       if (normKey === 'weightg') return component['Weight (g)'] || component['Weight G'] || component['Weight'] || component['weight'] || '';
+    }
+
     return foundKey ? component[foundKey] : '';
   };
 
   const isComponentValid = (component, tab) => {
     if (!component) return true;
     const required = MANDATORY_FIELDS[tab] || [];
-    return required.every(field => {
+    const isValid = required.every(field => {
+      // Conditional Logic
+      const type = getComponentValue(component, 'Hub Type');
+      if (field === 'Hub Sp Offset Spoke Hole Left' || field === 'Hub Sp Offset Spoke Hole Right') {
+         if (type !== 'Straight Pull') return true;
+      }
+      if (field === 'Hub Lacing Policy') {
+         if (type !== 'Straight Pull' && type !== 'Hook Flange') return true;
+      }
+
       const val = getComponentValue(component, field);
       return val !== undefined && val !== null && String(val).trim() !== '';
     });
+    return isValid;
   };
 
   const handleCreateNewComponent = (tab) => {
@@ -555,30 +577,33 @@ export default function OpsDashboard() {
         ...newComp,
         [findKey('Option 1 Name')]: 'Size', 
         [findKey('Option 2 Name')]: 'Spoke Count',
-        [findKey('Position')]: 'Universal',
+        [findKey('Wheel Spec Position')]: 'Universal',
         [findKey('Rim Size')]: '29"',
         [findKey('Rim ERD')]: '',
-        [findKey('Weight')]: ''
+        [findKey('Weight G')]: ''
       };
     } else if (tab === 'hubs') {
       newComp = {
         ...newComp,
         [findKey('Option 1 Name')]: 'Spoke Count',
         [findKey('Option 2 Name')]: 'Spacing',
-        [findKey('Position')]: 'Front',
-        [findKey('Brake Interface')]: 'Centerlock'
+        [findKey('Wheel Spec Position')]: 'Front',
+        [findKey('Brake Interface')]: 'Centerlock',
+        [findKey('Hub Type')]: 'J-Bend',
+        [findKey('Hub Pairing Policy')]: 'None'
       };
     } else if (tab === 'spokes') {
         newComp = {
           ...newComp,
           [findKey('Option 1 Name')]: 'Color',
-          [findKey('Option 2 Name')]: 'Size'
+          [findKey('Option 2 Name')]: 'Size',
+          [findKey('Spoke Type')]: 'J-Bend'
         };
     } else if (tab === 'nipples') {
         newComp = {
           ...newComp,
-          [findKey('Option 1 Name')]: 'Color',
-          [findKey('Option 2 Name')]: 'Type'
+          [findKey('Option 1 Name')]: 'Type',
+          [findKey('Option 1 Value')]: ''
         };
     }
     setEditingComponent(newComp);
@@ -2593,7 +2618,7 @@ export default function OpsDashboard() {
                                          <input 
                                             type="text" 
                                             list={`list-${field.key.replace(/\s+/g, '-')}`}
-                                            value={editingComponent[field.key] || editingComponent[field.key.toLowerCase()] || ''}
+                                            value={getComponentValue(editingComponent, field.key)}
                                             onChange={(e) => setEditingComponent({...editingComponent, [field.key]: e.target.value})}
                                             className="w-full p-4 bg-zinc-50 rounded-xl outline-none border-2 border-transparent focus:border-black transition-all font-bold text-sm"
                                          />
@@ -2631,8 +2656,17 @@ export default function OpsDashboard() {
                                                </div>
                                                {options ? (
                                                   <select 
-                                                     value={editingComponent[key] || ''}
-                                                     onChange={(e) => setEditingComponent({...editingComponent, [key]: e.target.value})}
+                                                     value={(editingComponent[key] === 0 || editingComponent[key] === '0') ? '0' : (editingComponent[key] || '')}
+                                                     onChange={(e) => {
+                                                        const val = e.target.value;
+                                                        let updates = {[key]: val};
+                                                        if (key === 'Hub Type' || key.toLowerCase().replace(/[^a-z]/g,'') === 'hubtype') {
+                                                           if (val === 'Straight Pull' || val === 'Hook Flange') {
+                                                              updates['Hub Lacing Policy'] = 'Use Manual Override Field';
+                                                           }
+                                                        }
+                                                        setEditingComponent({...editingComponent, ...updates});
+                                                     }}
                                                      className="w-full p-4 bg-zinc-50 rounded-xl outline-none border-2 border-transparent focus:border-black transition-all font-bold text-sm appearance-none cursor-pointer"
                                                   >
                                                      <option value="">Select {formatColumnTitle(key)}...</option>
@@ -2642,7 +2676,7 @@ export default function OpsDashboard() {
                                                   <input 
                                                      type="text" 
                                                      list={`list-${key.replace(/\s+/g, '-')}`}
-                                                     value={editingComponent[key] || ''}
+                                                     value={(editingComponent[key] === 0 || editingComponent[key] === '0') ? '0' : (editingComponent[key] || '')}
                                                      onChange={(e) => {
                                                         let val = e.target.value;
                                                         // Spoke Polish: Auto-add 'h' for hole counts
@@ -3117,6 +3151,13 @@ export default function OpsDashboard() {
             </div>
           </div>
         )}
+
+        {/* --- DATALISTS FOR AUTO-SUGGESTION --- */}
+        {Object.entries(COMPONENT_SUGGESTIONS).map(([key, options]) => (
+          <datalist key={key} id={`list-${key.replace(/\s+/g, '-')}`}>
+            {options.map(opt => <option key={opt} value={opt} />)}
+          </datalist>
+        ))}
 
         {/* --- NOTIFICATION TOAST --- */}
         {notification && (
