@@ -2584,7 +2584,7 @@ export default function OpsDashboard() {
                                               width: componentColumnWidths[componentTab + '_name'] || 300, 
                                               minWidth: componentColumnWidths[componentTab + '_name'] || 300 
                                            }}
-                                           className={`p-4 px-6 text-xs border-r border-zinc-100 sticky left-0 z-10 truncate ${isValid ? (i % 2 === 0 ? 'bg-white' : 'bg-zinc-50/50') : 'bg-red-50'} group-hover:bg-zinc-100/50 transition-colors`}
+                                           className={`p-4 px-6 text-xs border-r border-zinc-100 sticky left-0 z-20 truncate ${isValid ? (i % 2 === 0 ? 'bg-white' : 'bg-zinc-50') : 'bg-red-50'} group-hover:bg-zinc-100 transition-colors shadow-[2px_0_5px_rgba(0,0,0,0.05)]`}
                                         >
                                            <div className="font-bold text-black flex items-center justify-between">
                                               <span className="truncate">{row.Name || row.name || row.title || row.Title || 'Unknown'}</span>
@@ -2691,13 +2691,13 @@ export default function OpsDashboard() {
                                 ].map(field => (
                                    <div key={field.key} className="flex gap-4">
                                       <div className="flex-grow">
-                                         <div className="text-[9px] font-black uppercase text-zinc-500/60 mb-1 ml-1 tracking-widest">{field.label}</div>
+                                         <div className="text-[9px] font-black uppercase text-zinc-500/60 mb-1 ml-1 tracking-widest">{field.label}{(field.key === 'Name' || field.key === 'Vendor' || field.key === 'Variant ID') && <span className="text-red-500 ml-1 font-bold">*</span>}</div>
                                          <input 
                                             type="text" 
                                             list={`list-${field.key.replace(/\s+/g, '-')}`}
                                             value={getComponentValue(editingComponent, field.key)}
                                             onChange={(e) => setEditingComponent({...editingComponent, [field.key]: e.target.value})}
-                                             className={`w-full p-4 rounded-xl outline-none border-2 transition-all font-bold text-sm ${(field.key === 'Name' || field.key === 'Vendor') && (String(getComponentValue(editingComponent, field.key)).trim() === '') ? 'bg-red-50 border-red-200 focus:border-red-500' : 'bg-zinc-50 border-transparent focus:border-black'}`}
+                                             className={`w-full p-4 rounded-xl outline-none border-2 transition-all font-bold text-sm ${(field.key === 'Name' || field.key === 'Vendor' || field.key === 'Variant ID') && (String(getComponentValue(editingComponent, field.key)).trim() === '') ? 'bg-red-50 border-red-200 focus:border-red-500' : 'bg-zinc-50 border-transparent focus:border-black'}`}
                                          />
                                       </div>
                                       {isDuplicateMode && (
@@ -2717,7 +2717,7 @@ export default function OpsDashboard() {
                                 <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block italic">Technical Specifications</label>
                                 {(() => {
                                    const activeList = componentData[componentTab] || [];
-                                   const excludeKeys = ['Name', 'name', 'title', 'Title', 'Vendor', 'vendor', 'Brand', 'brand', 'Tags', 'tags', 'id', 'ID', 'shopify_product_id', 'Product ID'];
+                                   const excludeKeys = ['Name', 'name', 'title', 'Title', 'Vendor', 'vendor', 'Brand', 'brand', 'Tags', 'tags', 'id', 'ID', 'shopify_product_id', 'Product ID', 'Variant ID', 'tags'];
                                    const specFields = Object.keys(activeList[0] || {}).filter(k => !excludeKeys.includes(k));
                                    
                                    return specFields.map(key => {
@@ -2762,7 +2762,7 @@ export default function OpsDashboard() {
                                                         }
                                                         setEditingComponent({...editingComponent, [key]: val});
                                                      }}
-                                                     className="w-full p-4 bg-zinc-50 rounded-xl outline-none border-2 border-transparent focus:border-black transition-all font-mono text-xs"
+                                                     className={`w-full p-4 rounded-xl outline-none border-2 transition-all font-mono text-xs ${isMandatory && String(editingComponent[key] || "").trim() === "" && editingComponent[key] !== 0 && editingComponent[key] !== "0" ? "bg-red-50 border-red-200 focus:border-red-500" : "bg-zinc-50 border-transparent focus:border-black"}`}
                                                   />
                                                )}
                                             </div>
