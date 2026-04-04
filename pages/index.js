@@ -539,32 +539,21 @@ export default function OpsDashboard() {
     if (!component) return '';
     const normTarget = key.toLowerCase().replace(/[^a-z0-9]/g, '');
     
-    // 1. Differentiate Product vs Variant weight specifically
-    if (normTarget === 'weightgp') {
-       return component['Weight G (p)'] || component['Metafield: custom.weight_g [number_decimal]'] || component['Metafield: custom.weight_g'] || '';
-    }
-    if (normTarget === 'weightgv') {
-       return component['Weight G (v)'] || component['Variant Metafield: custom.weight_g [number_decimal]'] || component['Variant Metafield: custom.weight_g'] || '';
-    }
-
-    // 2. Try exact match
+    // Exact match first
     if (component[key] !== undefined) return component[key];
     
-    // 3. Try normalized match across all keys (Handing Shopify suffixes like [number_decimal])
+    // Normalized match
     const foundKey = Object.keys(component).find(k => {
         const nk = k.toLowerCase().replace(/[^a-z0-9]/g, '');
-        return nk === normTarget || (nk.startsWith(normTarget) && nk.includes('number')) || (nk.startsWith(normTarget) && nk.includes('text'));
+        // Match exact normalized, or startsWith (for metafield tags like [number_decimal])
+        return nk === normTarget || (nk.startsWith(normTarget) && (nk.includes('number') || nk.includes('text') || nk.includes('metafield')));
     });
     if (foundKey) return component[foundKey];
     
-    // 4. Technical Fallbacks
+    // Technical Fallbacks
     if (normTarget === 'wheelspecposition') return component['Wheel Spec Position'] || component.position || component.Position || '';
     if (normTarget === 'rimerd') return component['Rim Erd'] || component.erd || component.ERD || component.rim_erd || '';
     if (normTarget === 'weightg') return component.weight || component.Weight || component.weight_g || '';
-    
-    // 5. Primary Identity Fallbacks
-    if (normTarget === 'name') return component.Name || component.name || component.title || component.Title || '';
-    if (normTarget === 'vendor') return component.Vendor || component.vendor || component.Brand || component.brand || '';
 
     return '';
   };
@@ -2677,7 +2666,7 @@ export default function OpsDashboard() {
                                             list={`list-${field.key.replace(/\s+/g, '-')}`}
                                             value={getComponentValue(editingComponent, field.key)}
                                             onChange={(e) => setEditingComponent({...editingComponent, [field.key]: e.target.value})}
-                                             className={`w-full p-4 rounded-xl outline-none border-2 transition-all font-bold text-sm ${(field.key === 'Name' || field.key === 'Vendor' || field.key === 'Variant ID') && (String(getComponentValue(editingComponent, field.key)).trim() === '') ? 'bg-red-50 border-red-200 focus:border-red-500' : 'bg-zinc-50 border-transparent focus:border-black'}`}
+                                             className={`w-full p-4 rounded-xl outline-none border-2 transition-all font-bold text-sm ${(field.key === 'Name' || field.key === 'Vendor' ||  (String(getComponentValue(editingComponent, field.key)).trim() === '') ? 'bg-red-50 border-red-200 focus:border-red-500' : 'bg-zinc-50 border-transparent focus:border-black'}`}
                                          />
                                       </div>
                                       {isDuplicateMode && (
@@ -2698,7 +2687,7 @@ export default function OpsDashboard() {
                                 {(() => {
                                    const activeList = componentData[componentTab] || [];
                                    const excludeKeys = ['Name', 'name', 'title', 'Title', 'Vendor', 'vendor', 'Brand', 'brand', 'Tags', 'tags', 'id', 'ID', 'shopify_product_id', 'Product ID', 'Variant ID', 'tags'];
-                                   const specFields = Object.keys(activeList[0] || {}).filter(k => !excludeKeys.includes(k));
+                                   const specFields = [...new Set(activeList.slice(0, 10).flatMap(item => Object.keys(item)))].filter(k => !excludeKeys.includes(k));
                                    
                                    return specFields.map(key => {
                                       const isMandatory = MANDATORY_FIELDS[componentTab]?.some(f => { const nf = f.toLowerCase().replace(/[^a-z0-9]/g, ''); const nk = key.toLowerCase().replace(/[^a-z0-9]/g, ''); return nf === nk || nk.startsWith(nf); });
