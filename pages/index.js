@@ -542,11 +542,11 @@ export default function OpsDashboard() {
     // Exact match first
     if (component[key] !== undefined) return component[key];
     
-    // Normalized match
+    // Normalized match (Handling Shopify Metafield prefixes/suffixes)
     const foundKey = Object.keys(component).find(k => {
         const nk = k.toLowerCase().replace(/[^a-z0-9]/g, '');
-        // Match exact normalized, or startsWith (for metafield tags like [number_decimal])
-        return nk === normTarget || (nk.startsWith(normTarget) && (nk.includes('number') || nk.includes('text') || nk.includes('metafield')));
+        // Match if the target name is contained within the raw key (e.g. "rimerd" matches "variantmetafieldcustomrimerdnumberdecimal")
+        return nk === normTarget || nk.includes(normTarget);
     });
     if (foundKey) return component[foundKey];
     
