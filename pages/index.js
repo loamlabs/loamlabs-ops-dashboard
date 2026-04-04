@@ -502,6 +502,17 @@ export default function OpsDashboard() {
     'Rim Size': ['700c', '650b', '29"', '27.5"', '26"', '24"', '20"']
   };
 
+  const DROPDOWN_OPTIONS = {
+    'Position': ['Front', 'Rear', 'Universal', 'Front/Rear'],
+    'Wheel Spec Position': ['Front', 'Rear', 'Universal', 'Front/Rear'],
+    'Brake Interface': ['Centerlock', '6-Bolt', 'N/A'],
+    'Hub Spacing': ['100x12mm', '100x15mm', '110x15mm (Boost)', '142x12mm', '148x12mm (Boost)', '157x12mm (Super Boost)'],
+    'Option 1 Name': ['Size', 'Spoke Count', 'Freehub', 'Spacing'],
+    'Option 2 Name': ['Size', 'Spoke Count', 'Freehub', 'Spacing'],
+    'Rim Size': ['700c', '650b', '29"', '27.5"', '26"', '24"', '20"'],
+    'Spoke Count': ['24h', '28h', '32h', '36h']
+  };
+
   const MANDATORY_FIELDS = {
     rims: ['Name', 'Vendor', 'Position', 'Option 1 Name', 'Option 1 Value', 'Option 2 Name', 'Option 2 Value', 'Rim ERD', 'Weight (g)'],
     hubs: ['Name', 'Vendor', 'Position', 'Option 1 Name', 'Option 1 Value', 'Brake Interface', 'Hub Spacing'],
@@ -509,46 +520,65 @@ export default function OpsDashboard() {
     nipples: ['Name', 'Vendor', 'Option 1 Name', 'Option 1 Value']
   };
 
+  const getComponentValue = (component, key) => {
+    if (!component) return '';
+    // Try exact match
+    if (component[key] !== undefined) return component[key];
+    // Try normalized match (no spaces, lowercase)
+    const normKey = key.toLowerCase().replace(/\s+/g, '');
+    const foundKey = Object.keys(component).find(k => k.toLowerCase().replace(/\s+/g, '') === normKey);
+    return foundKey ? component[foundKey] : '';
+  };
+
   const isComponentValid = (component, tab) => {
     if (!component) return true;
     const required = MANDATORY_FIELDS[tab] || [];
     return required.every(field => {
-      const val = component[field] || (editingComponent && editingComponent[field]) || ''; 
-      return String(val).trim() !== '';
+      const val = getComponentValue(component, field);
+      return val !== undefined && val !== null && String(val).trim() !== '';
     });
   };
 
   const handleCreateNewComponent = (tab) => {
-    let newComp = { Vendor: componentVendorFilter !== 'All' ? componentVendorFilter : '' };
+    const activeList = componentData[tab] || [];
+    const firstItem = activeList[0] || {};
+    
+    const findKey = (search) => {
+      const normSearch = search.toLowerCase().replace(/\s+/g, '').replace(/_/g, '');
+      const found = Object.keys(firstItem).find(k => k.toLowerCase().replace(/\s+/g, '').replace(/_/g, '') === normSearch);
+      return found || search;
+    };
+
+    let newComp = { [findKey('Vendor')]: componentVendorFilter !== 'All' ? componentVendorFilter : '' };
     if (tab === 'rims') {
       newComp = { 
         ...newComp,
-        'Option 1 Name': 'Size', 
-        'Option 2 Name': 'Spoke Count',
-        'Position': 'Universal',
-        'Rim Size': '29"',
-        'Rim ERD': '',
-        'Weight (g)': ''
+        [findKey('Option 1 Name')]: 'Size', 
+        [findKey('Option 2 Name')]: 'Spoke Count',
+        [findKey('Position')]: 'Universal',
+        [findKey('Rim Size')]: '29"',
+        [findKey('Rim ERD')]: '',
+        [findKey('Weight')]: ''
       };
     } else if (tab === 'hubs') {
       newComp = {
         ...newComp,
-        'Option 1 Name': 'Spoke Count',
-        'Option 2 Name': 'Spacing',
-        'Position': 'Front',
-        'Brake Interface': 'Centerlock'
+        [findKey('Option 1 Name')]: 'Spoke Count',
+        [findKey('Option 2 Name')]: 'Spacing',
+        [findKey('Position')]: 'Front',
+        [findKey('Brake Interface')]: 'Centerlock'
       };
     } else if (tab === 'spokes') {
         newComp = {
           ...newComp,
-          'Option 1 Name': 'Color',
-          'Option 2 Name': 'Size'
+          [findKey('Option 1 Name')]: 'Color',
+          [findKey('Option 2 Name')]: 'Size'
         };
     } else if (tab === 'nipples') {
         newComp = {
           ...newComp,
-          'Option 1 Name': 'Color',
-          'Option 2 Name': 'Type'
+          [findKey('Option 1 Name')]: 'Color',
+          [findKey('Option 2 Name')]: 'Type'
         };
     }
     setEditingComponent(newComp);
@@ -2459,7 +2489,7 @@ export default function OpsDashboard() {
                                               width: componentColumnWidths[componentTab + '_name'] || 300, 
                                               minWidth: componentColumnWidths[componentTab + '_name'] || 300 
                                            }}
-                                           className="p-4 px-6 text-xs border-r border-zinc-50 sticky left-0 bg-white group-hover:bg-zinc-50/50 truncate"
+                                           className={`p-4 px-6 text-xs border-r border-zinc-50 sticky left-0 z-10 truncate ${isValid ? (i % 2 === 0 ? 'bg-white' : 'bg-[#fafafa]') : 'bg-red-50'} group-hover:bg-zinc-100/50 transition-colors`}
                                         >
                                            <div className="font-bold text-black flex items-center justify-between">
                                               <span className="truncate">{row.Name || row.name || row.title || row.Title || 'Unknown'}</span>
@@ -2588,37 +2618,56 @@ export default function OpsDashboard() {
                                    const excludeKeys = ['Name', 'name', 'title', 'Title', 'Vendor', 'vendor', 'Brand', 'brand', 'Tags', 'tags', 'id', 'ID', 'shopify_product_id', 'Product ID'];
                                    const specFields = Object.keys(activeList[0] || {}).filter(k => !excludeKeys.includes(k));
                                    
-                                   return specFields.map(key => (
-                                      <div key={key} className="flex items-start gap-4 group/field">
-                                         <div className="flex-grow">
-                                            <div className="text-[9px] font-black uppercase text-zinc-500/60 mb-1 ml-1 tracking-widest">{formatColumnTitle(key)}</div>
-                                            <input 
-                                               type="text" 
-                                               list={`list-${key.replace(/\s+/g, '-')}`}
-                                               value={editingComponent[key] || ''}
-                                               onChange={(e) => {
-                                                  let val = e.target.value;
-                                                  // Spoke Polish: Auto-add 'h' for hole counts
-                                                  if (key.toLowerCase().includes('hole') || key.toLowerCase().includes('count') || key.toLowerCase().includes('option')) {
-                                                     val = spokePolish(val);
-                                                  }
-                                                  setEditingComponent({...editingComponent, [key]: val});
-                                               }}
-                                               className="w-full p-4 bg-zinc-50 rounded-xl outline-none border-2 border-transparent focus:border-black transition-all font-mono text-xs"
-                                            />
-                                         </div>
-                                         {isDuplicateMode && (
-                                            <div className="pt-5">
-                                               <button 
-                                                  onClick={() => toggleFieldConfirmation(key)}
-                                                  className={`p-4 rounded-xl border-2 transition-all ${confirmedFields.includes(key) ? 'bg-green-500 border-green-600 text-white' : 'bg-white border-zinc-200 text-zinc-300'}`}
-                                               >
-                                                  <ShieldCheck size={20}/>
-                                               </button>
+                                   return specFields.map(key => {
+                                      const isMandatory = MANDATORY_FIELDS[componentTab]?.some(f => f.toLowerCase().replace(/\s+/g, '') === key.toLowerCase().replace(/\s+/g, ''));
+                                      const options = DROPDOWN_OPTIONS[key] || DROPDOWN_OPTIONS[formatColumnTitle(key)] || DROPDOWN_OPTIONS[key.toLowerCase()];
+                                      
+                                      return (
+                                         <div key={key} className="flex items-start gap-4 group/field">
+                                            <div className="flex-grow">
+                                               <div className="text-[9px] font-black uppercase text-zinc-500/60 mb-1 ml-1 tracking-widest flex items-center gap-1">
+                                                  {formatColumnTitle(key)}
+                                                  {isMandatory && <span className="text-red-500 font-bold">*</span>}
+                                               </div>
+                                               {options ? (
+                                                  <select 
+                                                     value={editingComponent[key] || ''}
+                                                     onChange={(e) => setEditingComponent({...editingComponent, [key]: e.target.value})}
+                                                     className="w-full p-4 bg-zinc-50 rounded-xl outline-none border-2 border-transparent focus:border-black transition-all font-bold text-sm appearance-none cursor-pointer"
+                                                  >
+                                                     <option value="">Select {formatColumnTitle(key)}...</option>
+                                                     {options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                                  </select>
+                                               ) : (
+                                                  <input 
+                                                     type="text" 
+                                                     list={`list-${key.replace(/\s+/g, '-')}`}
+                                                     value={editingComponent[key] || ''}
+                                                     onChange={(e) => {
+                                                        let val = e.target.value;
+                                                        // Spoke Polish: Auto-add 'h' for hole counts
+                                                        if (key.toLowerCase().includes('hole') || key.toLowerCase().includes('count') || key.toLowerCase().includes('option')) {
+                                                           val = spokePolish(val);
+                                                        }
+                                                        setEditingComponent({...editingComponent, [key]: val});
+                                                     }}
+                                                     className="w-full p-4 bg-zinc-50 rounded-xl outline-none border-2 border-transparent focus:border-black transition-all font-mono text-xs"
+                                                  />
+                                               )}
                                             </div>
-                                         )}
-                                      </div>
-                                   ));
+                                            {isDuplicateMode && (
+                                               <div className="pt-5">
+                                                  <button 
+                                                     onClick={() => toggleFieldConfirmation(key)}
+                                                     className={`p-4 rounded-xl border-2 transition-all ${confirmedFields.includes(key) ? 'bg-green-500 border-green-600 text-white' : 'bg-white border-zinc-200 text-zinc-300'}`}
+                                                  >
+                                                     <ShieldCheck size={20}/>
+                                                  </button>
+                                               </div>
+                                            )}
+                                         </div>
+                                      );
+                                   });
                                 })()}
                              </div>
                           </div>
