@@ -490,7 +490,7 @@ export default function OpsDashboard() {
 
   const handleDuplicateComponent = (component) => {
     const newComp = { ...component };
-    if (newComp.Name) newComp.Name += " (Copy)";
+    if (newComp.Name) newComp.Name += " (Copy)"; if (componentTab === "nipples") newComp["Option 1 Name"] = "Type"; if (componentTab === "hubs") newComp["Hub Pairing Policy"] = "None";
     else if (newComp.name) newComp.name += " (Copy)";
     else if (newComp.title) newComp.title += " (Copy)";
     if (newComp.id) delete newComp.id;
@@ -529,10 +529,8 @@ export default function OpsDashboard() {
   };
 
   const MANDATORY_FIELDS = {
-    rims: ['Name', 'Vendor', 'Option 1 Name', 'Option 1 Value', 'Option 2 Name', 'Option 2 Value', 'Wheel Spec Position', 'Rim Erd', 'weight_either_or'],
-    hubs: [
-      'Name', 'Vendor', 'Option 1 Name', 'Option 1 Value', 'Hub Flange Diameter Left', 'Hub Flange Diameter Right', 'Hub Flange Offset Left', 'Hub Flange Offset Right', 'Hub Spoke Hole Diameter', 'Hub Type', 'weight_either_or', 'Wheel Spec Position'
-    ],
+    rims: ['Name', 'Vendor', 'Option 1 Name', 'Option 1 Value', 'Option 2 Name', 'Option 2 Value', 'Wheel Spec Position', 'Rim Erd', 'Weight G (p)'],
+    hubs: ['Name', 'Vendor', 'Option 1 Name', 'Option 1 Value', 'Hub Flange Diameter Left', 'Hub Flange Diameter Right', 'Hub Flange Offset Left', 'Hub Flange Offset Right', 'Hub Spoke Hole Diameter', 'Hub Type', 'Weight G (v)', 'Wheel Spec Position'],
     spokes: ['Name', 'Vendor', 'Spoke Type', 'Spoke Cross Section Area Mm2', 'Spoke Model Group', 'Weight G (p)', 'Spoke Diameter Spec', 'Spoke Rounding Rule'],
     nipples: ['Name', 'Vendor', 'Option 1 Name', 'Option 1 Value', 'Weight G (p)']
   };
@@ -543,10 +541,10 @@ export default function OpsDashboard() {
     
     // 1. Differentiate Product vs Variant weight specifically
     if (normKey === 'weightgp') {
-       return component['Metafield: custom.weight_g [number_decimal]'] || component['Metafield: custom.weight_g'] || '';
+       return component['Weight G (p)'] || component['Metafield: custom.weight_g [number_decimal]'] || component['Metafield: custom.weight_g'] || '';
     }
     if (normKey === 'weightgv') {
-       return component['Variant Metafield: custom.weight_g [number_decimal]'] || component['Variant Metafield: custom.weight_g'] || '';
+       return component['Weight G (v)'] || component['Variant Metafield: custom.weight_g [number_decimal]'] || component['Variant Metafield: custom.weight_g'] || '';
     }
 
     // 2. Try exact match
@@ -556,11 +554,11 @@ export default function OpsDashboard() {
     const foundKey = Object.keys(component).find(k => k.toLowerCase().replace(/[^a-z0-9]/g, '') === normKey);
     if (foundKey) return component[foundKey];
     
-    // 4. Technical Fallbacks
-    if (normKey === 'wheelspecposition') return component.position || component.Position || '';
-    if (normKey === 'rimerd') return component.erd || component.ERD || component.rim_erd || '';
+    // 4. Technical Fallbacks (Fixes for false-positives)
+    if (normKey === 'wheelspecposition') return component['Wheel Spec Position'] || component.position || component.Position || '';
+    if (normKey === 'rimerd') return component['Rim Erd'] || component.erd || component.ERD || component.rim_erd || '';
     if (normKey === 'weightg') return component.weight || component.Weight || component.weight_g || '';
-    if (normKey === 'hubspokeholediameter') return component.hub_hole_diameter || component.hole_diameter || '';
+    if (normKey === 'hubspokeholediameter') return component['Hub Spoke Hole Diameter'] || component.hub_hole_diameter || component.hole_diameter || '';
     
     // 5. Primary Identity Fallbacks
     if (normKey === 'name') return component.Name || component.name || component.title || component.Title || '';
@@ -574,20 +572,11 @@ export default function OpsDashboard() {
     const missing = [];
     const required = [...(MANDATORY_FIELDS[tab] || [])];
     
-    const hubType = getComponentValue(component, 'Hub Type');
-    const lacingPolicy = getComponentValue(component, 'Hub Lacing Policy');
-
     // Add conditional requirements for Hubs
     if (tab === 'hubs') {
+       const hubType = getComponentValue(component, 'Hub Type');
        if (hubType === 'Straight Pull' || hubType === 'Hook Flange') {
           if (!required.includes('Hub Lacing Policy')) required.push('Hub Lacing Policy');
-       }
-       if (lacingPolicy === 'Use Manual Override Field') {
-          ['Variant Metafield: custom.hub_manual_cross_value [number_decimal]', 
-           'Variant Metafield: custom.hub_lacing_cross_left [number_decimal]', 
-           'Variant Metafield: custom.hub_lacing_cross_right [number_decimal]'].forEach(f => {
-             if (!required.includes(f)) required.push(f);
-          });
        }
        if (hubType === 'Straight Pull') {
           ['Hub SP Offset Spoke Hole Left', 'Hub SP Offset Spoke Hole Right'].forEach(f => {
@@ -597,17 +586,6 @@ export default function OpsDashboard() {
     }
     
     required.forEach(field => {
-      if (field === 'weight_either_or') {
-         const pVal = getComponentValue(component, 'Weight G (p)');
-         const vVal = getComponentValue(component, 'Weight G (v)');
-         const pEmpty = pVal === undefined || pVal === null || String(pVal).trim() === '';
-         const vEmpty = vVal === undefined || vVal === null || String(vVal).trim() === '';
-         if (pEmpty && vEmpty && pVal !== 0 && vVal !== 0 && pVal !== '0' && vVal !== '0') {
-            missing.push('Weight G (p) or (v)');
-         }
-         return;
-      }
-
       const val = getComponentValue(component, field);
       const isEmpty = val === undefined || val === null || String(val).trim() === '';
       
@@ -2501,7 +2479,7 @@ export default function OpsDashboard() {
                            : activeList.filter(item => (item.Vendor || item.vendor || item.Brand || item.brand) === componentVendorFilter);
                            
                         // Build dynamic headers based on the first item
-                        const excludeKeys = ['Name', 'name', 'title', 'Title', 'Vendor', 'vendor', 'Brand', 'brand'];
+                        const excludeKeys = ['Name', 'name', 'title', 'Title', 'Vendor', 'vendor', 'Brand', 'brand', 'Tags', 'tags', 'id', 'ID', 'shopify_product_id', 'Product ID', 'Variant ID', 'tags']];
                         const rawColumns = Object.keys(activeList[0] || {}).filter(k => !excludeKeys.includes(k));
                         
                         let columns = componentColumnOrder[componentTab] || [];
@@ -2689,7 +2667,7 @@ export default function OpsDashboard() {
                                    { label: 'Vendor / Brand', key: 'Vendor' },
                                     { label: 'Product ID', key: 'Product ID' },
                                     { label: 'Variant ID', key: 'Variant ID' },
-                                   { label: 'Tags (comma separated)', key: 'Tags' }
+                                   
                                 ].map(field => (
                                    <div key={field.key} className="flex gap-4">
                                       <div className="flex-grow">
