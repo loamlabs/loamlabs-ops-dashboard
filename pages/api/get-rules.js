@@ -13,7 +13,7 @@ export default async function handler(req, res) {
   let rangeStart = 0;
   let rangeEnd = 999;
 
-  const SAFE_COLS = 'id, shopify_product_id, shopify_variant_id, title, vendor_name, vendor_url, auto_update, last_price, last_availability, last_run_at, original_msrp, current_shopify_price, current_compare_at_price, needs_review, price_last_changed_at, out_of_stock_since, oos_reminder_enabled, oos_reminder_days, bti_part_number, bti_oos_action, bti_monitoring_enabled, price_adjustment_factor, price_drop_threshold, wheel_spec_position, wheel_spec_brake_interface, wheel_spec_hub_spacing, wheel_spec_rim_size, rim_erd, internal_width_mm, inventory_alert_threshold, hub_manual_cross_value';
+  const SAFE_COLS = 'id, shopify_product_id, shopify_variant_id, title, vendor_name, vendor_url, auto_update, last_price, last_availability, last_run_at, original_msrp, current_shopify_price, current_compare_at_price, needs_review, price_last_changed_at, out_of_stock_since, oos_reminder_enabled, oos_reminder_days, bti_part_number, bti_oos_action, bti_monitoring_enabled, bti_inventory_active, price_adjustment_factor, price_drop_threshold, wheel_spec_position, wheel_spec_brake_interface, wheel_spec_hub_spacing, wheel_spec_rim_size, rim_erd, internal_width_mm, inventory_alert_threshold, hub_manual_cross_value';
   const ADVANCED_COLS = `${SAFE_COLS}, tags`;
 
   while (hasMore) {

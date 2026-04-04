@@ -45,14 +45,69 @@ export default function OpsDashboard() {
   const [componentTab, setComponentTab] = useState('rims');
   const [componentVendorFilter, setComponentVendorFilter] = useState('All');
   const [componentColumnOrder, setComponentColumnOrder] = useState({});
+  const [componentColumnWidths, setComponentColumnWidths] = useState({});
   const [draggedColumn, setDraggedColumn] = useState(null);
+  const [isComponentDrawerOpen, setIsComponentDrawerOpen] = useState(false);
+  const [editingComponent, setEditingComponent] = useState(null);
+  const [isDuplicateMode, setIsDuplicateMode] = useState(false);
+  const [confirmedFields, setConfirmedFields] = useState([]);
+  const [notification, setNotification] = useState(null);
+
+  const showNotification = (msg, type = 'success') => {
+    setNotification({ msg, type });
+    setTimeout(() => setNotification(null), 4000);
+  };
+
+  const spokePolish = (val) => {
+    if (!val) return val;
+    const str = String(val).trim();
+    if (/^\d+(\.\d+)?$/.test(str)) return str + 'h';
+    return str;
+  };
 
   useEffect(() => {
      try {
        const saved = localStorage.getItem('loamops_cols');
        if (saved) setComponentColumnOrder(JSON.parse(saved));
+       const savedWidths = localStorage.getItem('loamops_widths');
+       if (savedWidths) setComponentColumnWidths(JSON.parse(savedWidths));
      } catch(e) {}
   }, []);
+
+  const [resizingCol, setResizingCol] = useState(null);
+  const [startX, setStartX] = useState(0);
+  const [startWidth, setStartWidth] = useState(0);
+
+  const startResizing = (e, col) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setResizingCol(col);
+    setStartX(e.pageX);
+    setStartWidth(componentColumnWidths[col] || 150);
+  };
+
+  useEffect(() => {
+    if (!resizingCol) return;
+    const onMouseMove = (e) => {
+      const delta = e.pageX - startX;
+      setComponentColumnWidths(prev => ({ ...prev, [resizingCol]: Math.max(50, startWidth + delta) }));
+    };
+    const onMouseUp = () => {
+      setResizingCol(null);
+    };
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+    return () => {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    };
+  }, [resizingCol, startX, startWidth]);
+
+  useEffect(() => {
+    if (Object.keys(componentColumnWidths).length > 0) {
+      localStorage.setItem('loamops_widths', JSON.stringify(componentColumnWidths));
+    }
+  }, [componentColumnWidths]);
 
   useEffect(() => {
      if (showMetaEditModal && selectedLabProducts.length === 0) setMetaEditTab('variant');
@@ -286,7 +341,7 @@ export default function OpsDashboard() {
         
       } else {
         const err = await res.json();
-        alert("❌ Dashboard Error: " + (err.error || "Login Failed"));
+        showNotification("❌ Dashboard Error: " + (err.error || "Login Failed"), 'error');
       }
     } catch (e) { console.error(e); }
     setLoading(false);
@@ -325,9 +380,9 @@ export default function OpsDashboard() {
       // 2. Sync Metafield Definitions (Options)
       await fetch('/api/get-metafield-definitions', { headers: { 'x-dashboard-auth': password } });
       
-      alert(`Sync Complete. Imported/Updated ${d1.count} variants.`);
+      showNotification(`Sync Complete. Imported/Updated ${d1.count} variants.`);
       fetchRules();
-    } catch (e) { alert("Sync Failed: " + e.message); }
+    } catch (e) { showNotification("Sync Failed: " + e.message, 'error'); }
     setLoading(false);
   };
 
@@ -340,8 +395,8 @@ export default function OpsDashboard() {
         headers: { 'x-dashboard-auth': password } 
       });
       const data = await res.json();
-      alert("Status: " + data.message);
-    } catch (e) { alert("Failed to run audit."); }
+      showNotification("Status: " + data.message);
+    } catch (e) { showNotification("Failed to run audit.", 'error'); }
     setLoading(false);
   };
 
@@ -381,6 +436,72 @@ export default function OpsDashboard() {
     fetchRules();
   };
 
+  const saveComponentChanges = async (newArray, tabOverride = null) => {
+    const tab = tabOverride || componentTab;
+    setComponentSaving(true);
+    try {
+      const res = await fetch('/api/components', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-dashboard-auth': password },
+        body: JSON.stringify({ [tab]: newArray })
+      });
+      if (res.ok) {
+        setComponentData(prev => ({ ...prev, [tab]: newArray }));
+        setIsComponentDrawerOpen(false);
+        setEditingComponent(null);
+        setConfirmedFields([]);
+      } else {
+        const err = await res.json();
+        showNotification("Save Failed: " + (err.error || "Unknown error"), 'error');
+      }
+    } catch (e) {
+      console.error(e);
+      showNotification("Network error while saving components.", 'error');
+    }
+    setComponentSaving(false);
+  };
+
+  const handleEditComponent = (component) => {
+    setEditingComponent({ ...component });
+    setIsDuplicateMode(false);
+    setConfirmedFields([]);
+    setIsComponentDrawerOpen(true);
+  };
+
+  const handleDuplicateComponent = (component) => {
+    const newComp = { ...component };
+    if (newComp.Name) newComp.Name += " (Copy)";
+    else if (newComp.name) newComp.name += " (Copy)";
+    else if (newComp.title) newComp.title += " (Copy)";
+    if (newComp.id) delete newComp.id;
+    if (newComp.ID) delete newComp.ID;
+
+    setEditingComponent(newComp);
+    setIsDuplicateMode(true);
+    setConfirmedFields([]); 
+    setIsComponentDrawerOpen(true);
+  };
+
+  const handleCreateNewComponent = (tab) => {
+    const newComp = { Vendor: componentVendorFilter !== 'All' ? componentVendorFilter : '' };
+    if (tab === 'rims') {
+      newComp['Option 1 Name'] = 'Size';
+      newComp['Option 2 Name'] = 'Spoke Count';
+    } else if (tab === 'hubs') {
+      newComp['Option 1 Name'] = 'Spoke Count';
+    }
+    setEditingComponent(newComp);
+    setIsDuplicateMode(false);
+    setConfirmedFields([]);
+    setIsComponentDrawerOpen(true);
+  };
+
+  const toggleFieldConfirmation = (key) => {
+    setConfirmedFields(prev => 
+      prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
+    );
+  };
+
   const syncTags = async () => {
     setLoading(true);
     try {
@@ -393,13 +514,13 @@ export default function OpsDashboard() {
         } 
       });
       if (res.ok) {
-        alert("✅ Catalog Tags Synced Successfully!");
+        showNotification("✅ Catalog Tags Synced Successfully!");
         fetchRules();
       } else {
         const err = await res.json();
-        alert("❌ Sync Failed: " + (err.error || "Unknown Error"));
+        showNotification("❌ Sync Failed: " + (err.error || "Unknown Error"), 'error');
       }
-    } catch (e) { alert("❌ Sync Failed: " + e.message); }
+    } catch (e) { showNotification("❌ Sync Failed: " + e.message, 'error'); }
     setLoading(false);
   };
 
@@ -428,15 +549,15 @@ export default function OpsDashboard() {
       });
       const data = await res.json();
       if (res.ok) {
-        alert("✅ " + data.message + "\nNew Handle: " + data.newHandle);
+        showNotification("✅ " + data.message);
         setShowDupModal(false);
         fetchRules(); 
       } else {
-        alert("❌ Error: " + data.error);
+        showNotification("❌ Error: " + data.error, 'error');
       }
     } catch (e) {
       console.error(e);
-      alert("❌ Critical Error during duplication.");
+      showNotification("❌ Critical Error during duplication.", 'error');
     }
     setLoading(false);
   };
@@ -503,7 +624,6 @@ export default function OpsDashboard() {
   };
 
   const bulkApprovePrices = async () => {
-    if (!confirm(`Are you sure you want to approve manual price changes for ${selectedRules.length} items and PUSH them to Shopify?\n\nThis will permanently clear their "Needs Review" flags.`)) return;
     setLoading(true);
     try {
       await Promise.all(selectedRules.map(id => fetch('/api/update-rule', {
@@ -512,8 +632,8 @@ export default function OpsDashboard() {
         body: JSON.stringify({ id, updates: { needs_review: false } })
       })));
       await runSelectiveSync(selectedRules, true, true);
-      alert(`Prices Approved and Pushed to Shopify for ${selectedRules.length} items.`);
-    } catch(e) { console.error(e); alert('Error approving prices.'); }
+      showNotification(`Prices Approved and Pushed to Shopify for ${selectedRules.length} items.`);
+    } catch(e) { console.error(e); showNotification('Error approving prices.', 'error'); }
     setLoading(false);
   };
 
@@ -530,11 +650,11 @@ export default function OpsDashboard() {
         headers: { 'Content-Type': 'application/json', 'x-dashboard-auth': password },
         body: JSON.stringify({ id, updates: { price_adjustment_factor: factor } })
       })));
-      alert(`Price adjustment set to ${factor} for ${selectedRules.length} items. Syncing changes...`);
+      showNotification(`Price adjustment set to ${factor} for ${selectedRules.length} items. Syncing changes...`);
       await runSelectiveSync(selectedRules, true, false);
       fetchRules();
       setSelectedRules([]);
-    } catch(e) { console.error(e); alert('Error updating price adjustment.'); }
+    } catch(e) { console.error(e); showNotification('Error updating price adjustment.', 'error'); }
     setLoading(false);
   };
 
@@ -549,12 +669,12 @@ export default function OpsDashboard() {
       });
       const data = await res.json();
       if (res.ok) {
-        alert(`Done! ${data.updated} variants updated.${data.errors > 0 ? ` ${data.errors} errors.` : ''}`);
+        showNotification(`Done! ${data.updated} variants updated.`);
         fetchRules();
       } else {
-        alert('Failed: ' + (data.error || 'Unknown error'));
+        showNotification('Failed: ' + (data.error || 'Unknown error'), 'error');
       }
-    } catch(e) { console.error(e); alert('Network error.'); }
+    } catch(e) { console.error(e); showNotification('Network error.', 'error'); }
     setLoading(false);
   };
 
@@ -579,13 +699,13 @@ export default function OpsDashboard() {
       });
       const data = await res.json();
       if (res.ok) {
-        alert(`Success: Enrolled ${data.count} variants.`);
+        showNotification(`Success: Enrolled ${data.count} variants.`);
         fetchRules(password); 
       } else {
-        alert("Import failed: " + (data.error || "Check Vercel Logs"));
+        showNotification("Import failed: " + (data.error || "Check Vercel Logs"), 'error');
       }
     } catch (e) {
-      alert("Network Error: Could not reach the server.");
+      showNotification("Network Error: Could not reach the server.", 'error');
     }
     setLoading(false);
   };
@@ -598,12 +718,12 @@ export default function OpsDashboard() {
         headers: { 'x-dashboard-auth': password } 
       });
       if (res.ok) {
-        alert("Full Sync Complete!");
+        showNotification("Full Sync Complete!");
         fetchRules(password);
       } else {
-        alert("Sync failed. Error code: " + res.status);
+        showNotification("Sync failed. Error code: " + res.status, 'error');
       }
-    } catch (e) { alert("Sync failed to connect."); }
+    } catch (e) { showNotification("Sync failed to connect.", 'error'); }
     setLoading(false);
   };
 
@@ -622,7 +742,7 @@ export default function OpsDashboard() {
         body: JSON.stringify({ ruleIds, force_approve: forceApprove })
       });
       if (res.ok) {
-        if (!quiet) alert("Selective Sync Complete!");
+        if (!quiet) showNotification("Selective Sync Complete!");
         fetchRules(); // Refresh data
         if (ruleIds.length === 1 && !quiet) {
             setSelectedRules(prev => prev.filter(id => id !== ruleIds[0]));
@@ -631,9 +751,9 @@ export default function OpsDashboard() {
         }
       } else {
         const errorData = await res.json();
-        alert("Sync failed: " + (errorData.error || res.status));
+        showNotification("Sync failed: " + (errorData.error || res.status), 'error');
       }
-    } catch (e) { alert("Sync failed to connect."); }
+    } catch (e) { showNotification("Sync failed to connect.", 'error'); }
     setLoading(false);
   };
 
@@ -676,11 +796,11 @@ export default function OpsDashboard() {
         throw new Error(err.error || "Failed to sync fields");
       }
 
-      alert(`Synchronized ${reg.label} across product family.`);
+      showNotification(`Synchronized ${reg.label} across product family.`);
       fetchRules();
     } catch (e) {
       console.error(e);
-      alert("Error: " + e.message);
+      showNotification("Error: " + e.message, 'error');
     }
     setLoading(false);
   };
@@ -2127,7 +2247,7 @@ export default function OpsDashboard() {
                            Manage the master specification JSON database directly. Changes here will commit directly to the Unified Calculator Repository via GitHub API.
                        </p>
                    </div>
-                   <button onClick={() => {}} className="bg-black text-white px-6 py-4 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-zinc-800 transition-all shadow-xl flex items-center gap-2">
+                   <button onClick={() => handleCreateNewComponent(componentTab)} className="bg-black text-white px-6 py-4 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-zinc-800 transition-all shadow-xl flex items-center gap-2">
                       <Plus size={16}/> New Component
                    </button>
                </div>
@@ -2229,7 +2349,17 @@ export default function OpsDashboard() {
                              <table className="w-full text-left text-sm whitespace-nowrap select-none">
                                <thead className="bg-zinc-50 sticky top-0 z-10 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
                                   <tr>
-                                     <th className="p-4 px-6 font-black text-[10px] uppercase text-zinc-400 tracking-widest bg-zinc-50 z-20 top-0 left-0 sticky">Name</th>
+                                     <th 
+                                        style={{ 
+                                           width: componentColumnWidths[componentTab + '_name'] || 300, 
+                                           minWidth: componentColumnWidths[componentTab + '_name'] || 300,
+                                           position: 'sticky', left: 0, zIndex: 20
+                                        }}
+                                        className="p-4 px-6 font-black text-[10px] uppercase text-zinc-400 tracking-widest bg-zinc-50 border-r border-zinc-100 group/h relative"
+                                     >
+                                        Name
+                                        <div onMouseDown={(e) => startResizing(e, componentTab + '_name')} className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-black/20 transition-colors z-30" />
+                                     </th>
                                      {columns.map(col => (
                                         <th 
                                            key={col} 
@@ -2237,21 +2367,33 @@ export default function OpsDashboard() {
                                            onDragStart={() => handleDragStart(col)}
                                            onDragOver={handleDragOver}
                                            onDrop={() => handleDrop(col)}
-                                           className="p-4 font-black text-[10px] uppercase text-zinc-400 tracking-widest cursor-grab active:cursor-grabbing hover:bg-zinc-100 transition-colors"
+                                           style={{ 
+                                              width: componentColumnWidths[componentTab + '_' + col] || 150, 
+                                              minWidth: componentColumnWidths[componentTab + '_' + col] || 150 
+                                           }}
+                                           className="p-4 font-black text-[10px] uppercase text-zinc-400 tracking-widest cursor-grab active:cursor-grabbing hover:bg-zinc-100 transition-colors relative group/h border-r border-zinc-50"
                                         >
                                            {formatColumnTitle(col)}
+                                           <div onMouseDown={(e) => startResizing(e, componentTab + '_' + col)} className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-black/20 transition-colors z-30 opacity-0 group-hover/h:opacity-100" />
                                         </th>
                                      ))}
+                                     <th className="p-4 px-6 font-black text-[10px] uppercase text-zinc-400 tracking-widest text-right bg-zinc-50">Actions</th>
                                   </tr>
                                </thead>
                                <tbody className="divide-y divide-zinc-100">
                                   {filteredList.map((row, i) => {
                                      const shopifyId = row['Product ID'] || row['product_id'] || row['ID'];
                                      return (
-                                     <tr key={row.id || i} className="hover:bg-zinc-50/50 transition-colors group cursor-pointer" onClick={() => { /* Edit Modal Trigger goes here */ }}>
-                                        <td className="p-4 px-6 text-xs border-r border-zinc-50 sticky left-0 bg-white group-hover:bg-zinc-50/50 min-w-[200px] truncate max-w-[300px]">
+                                     <tr key={row.id || i} className="hover:bg-zinc-50/50 transition-colors group cursor-pointer" onClick={() => handleEditComponent(row)}>
+                                        <td 
+                                           style={{ 
+                                              width: componentColumnWidths[componentTab + '_name'] || 300, 
+                                              minWidth: componentColumnWidths[componentTab + '_name'] || 300 
+                                           }}
+                                           className="p-4 px-6 text-xs border-r border-zinc-50 sticky left-0 bg-white group-hover:bg-zinc-50/50 truncate"
+                                        >
                                            <div className="font-bold text-black flex items-center justify-between">
-                                              <span>{row.Name || row.name || row.title || row.Title || 'Unknown'}</span>
+                                              <span className="truncate">{row.Name || row.name || row.title || row.Title || 'Unknown'}</span>
                                               {shopifyId && (
                                                 <a href={`https://admin.shopify.com/store/loamlabs/products/${shopifyId}`} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} title="Open in Shopify Admin" className="p-1.5 rounded-lg bg-zinc-50 border border-zinc-100 hover:bg-black hover:text-white hover:border-black text-zinc-400 transition-all flex-shrink-0 ml-2">
                                                    <ExternalLink size={10} />
@@ -2263,16 +2405,34 @@ export default function OpsDashboard() {
                                         {columns.map(col => {
                                            const val = row[col];
                                            return (
-                                              <td key={col} className="p-4 text-xs font-medium text-zinc-600">
+                                              <td 
+                                                 key={col} 
+                                                 style={{ 
+                                                    width: componentColumnWidths[componentTab + '_' + col] || 150, 
+                                                    minWidth: componentColumnWidths[componentTab + '_' + col] || 150 
+                                                 }}
+                                                 className="p-4 text-xs font-medium text-zinc-600 border-r border-zinc-50/50 truncate"
+                                              >
                                                  {typeof val === 'object' ? JSON.stringify(val) : String(val === null || val === undefined ? '' : val)}
                                               </td>
                                            );
                                         })}
+                                        <td className="p-4 px-6 text-right" onClick={e => e.stopPropagation()}>
+                                           <div className="flex items-center justify-end gap-2">
+                                              <button onClick={() => handleDuplicateComponent(row)} title="Duplicate Line" className="p-2 bg-zinc-100 hover:bg-black hover:text-white text-zinc-400 rounded-lg transition-all"><Plus size={12} /></button>
+                                              <button onClick={() => {
+                                                 if (confirm(`Delete ${row.Name || row.title}?`)) {
+                                                    const newArr = filteredList.filter((_, idx) => idx !== i);
+                                                    saveComponentChanges(newArr);
+                                                 }
+                                              }} className="p-2 bg-zinc-100 hover:bg-red-500 hover:text-white text-zinc-300 rounded-lg transition-all opacity-0 group-hover:opacity-100"><Trash2 size={12}/></button>
+                                           </div>
+                                        </td>
                                      </tr>
                                      )
                                   })}
                                   {filteredList.length === 0 && (
-                                     <tr><td colSpan={columns.length + 1} className="p-12 text-center text-zinc-400 font-bold italic">No components match this filter.</td></tr>
+                                     <tr><td colSpan={columns.length + 2} className="p-12 text-center text-zinc-400 font-bold italic">No components match this filter.</td></tr>
                                   )}
                                </tbody>
                              </table>
@@ -2281,6 +2441,148 @@ export default function OpsDashboard() {
                     })()}
                  </div>
                </div>
+
+               {/* --- SIDEBAR EDITING DRAWER --- */}
+               {isComponentDrawerOpen && editingComponent && (
+                 <div className="fixed inset-0 z-[100] flex justify-end">
+                    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-in fade-in duration-300" onClick={() => setIsComponentDrawerOpen(false)}></div>
+                    <div className="relative w-full max-w-xl bg-white h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-500">
+                       <div className="p-8 border-b border-zinc-100 flex items-center justify-between bg-zinc-50">
+                          <div>
+                             <h3 className="text-2xl font-black uppercase italic tracking-tighter text-zinc-900">
+                                {isDuplicateMode ? 'Confirm Duplication' : (editingComponent.id || editingComponent.ID ? 'Edit Component' : 'New Component')}
+                             </h3>
+                             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 mt-1">
+                                {componentTab.replace(/s$/, '')} master record
+                             </p>
+                          </div>
+                          <button onClick={() => setIsComponentDrawerOpen(false)} className="p-3 hover:bg-zinc-200 rounded-2xl transition-all"><X size={20}/></button>
+                       </div>
+
+                       <div className="flex-grow overflow-y-auto p-8 space-y-8 scrollbar-thin">
+                          {isDuplicateMode && (
+                             <div className="bg-amber-50 border border-amber-200 p-6 rounded-2xl">
+                                <div className="flex items-center gap-3 text-amber-900 mb-2 font-black uppercase italic text-xs">
+                                   <ShieldAlert size={16}/> Safety Protocol Active
+                                </div>
+                                <p className="text-[10px] font-bold text-amber-700 leading-relaxed uppercase tracking-widest">
+                                   You are duplicating a component. Please manually verify and confirm each entry in the checklist below to unlock the save button.
+                                </p>
+                             </div>
+                          )}
+
+                          <div className="grid gap-6">
+                             {/* BASIC FIELDS */}
+                             <div className="space-y-4">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block italic">Primary Identity</label>
+                                {[
+                                   { key: 'Name', label: 'Display Name' },
+                                   { key: 'Vendor', label: 'Manufacturer' }
+                                ].map(field => (
+                                   <div key={field.key} className="flex items-start gap-4">
+                                      <div className="flex-grow">
+                                         <input 
+                                            type="text" 
+                                            placeholder={field.label}
+                                            value={editingComponent[field.key] || ''}
+                                            onChange={(e) => setEditingComponent({...editingComponent, [field.key]: e.target.value})}
+                                            className="w-full p-4 bg-zinc-50 rounded-xl outline-none border-2 border-transparent focus:border-black transition-all font-bold text-sm"
+                                         />
+                                      </div>
+                                      {isDuplicateMode && (
+                                         <button 
+                                            onClick={() => toggleFieldConfirmation(field.key)}
+                                            className={`p-4 rounded-xl border-2 transition-all ${confirmedFields.includes(field.key) ? 'bg-green-500 border-green-600 text-white' : 'bg-white border-zinc-200 text-zinc-300'}`}
+                                         >
+                                            <ShieldCheck size={20}/>
+                                         </button>
+                                      )}
+                                   </div>
+                                ))}
+                             </div>
+
+                             {/* SPECIFICATION FIELDS */}
+                             <div className="space-y-4">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block italic">Technical Specifications</label>
+                                {(() => {
+                                   const activeList = componentData[componentTab] || [];
+                                   const excludeKeys = ['Name', 'name', 'title', 'Title', 'Vendor', 'vendor', 'Brand', 'brand', 'Tags', 'tags', 'id', 'ID', 'shopify_product_id', 'Product ID'];
+                                   const specFields = Object.keys(activeList[0] || {}).filter(k => !excludeKeys.includes(k));
+                                   
+                                   return specFields.map(key => (
+                                      <div key={key} className="flex items-start gap-4 group/field">
+                                         <div className="flex-grow">
+                                            <div className="text-[9px] font-black uppercase text-zinc-300 mb-1 ml-1 tracking-widest">{formatColumnTitle(key)}</div>
+                                            <input 
+                                               type="text" 
+                                               value={editingComponent[key] || ''}
+                                               onChange={(e) => {
+                                                  let val = e.target.value;
+                                                  // Spoke Polish: Auto-add 'h' for hole counts
+                                                  if (key.toLowerCase().includes('hole') || key.toLowerCase().includes('count') || key.toLowerCase().includes('option')) {
+                                                     val = spokePolish(val);
+                                                  }
+                                                  setEditingComponent({...editingComponent, [key]: val});
+                                               }}
+                                               className="w-full p-4 bg-zinc-50 rounded-xl outline-none border-2 border-transparent focus:border-black transition-all font-mono text-xs"
+                                            />
+                                         </div>
+                                         {isDuplicateMode && (
+                                            <div className="pt-5">
+                                               <button 
+                                                  onClick={() => toggleFieldConfirmation(key)}
+                                                  className={`p-4 rounded-xl border-2 transition-all ${confirmedFields.includes(key) ? 'bg-green-500 border-green-600 text-white' : 'bg-white border-zinc-200 text-zinc-300'}`}
+                                               >
+                                                  <ShieldCheck size={20}/>
+                                               </button>
+                                            </div>
+                                         )}
+                                      </div>
+                                   ));
+                                })()}
+                             </div>
+                          </div>
+                       </div>
+
+                       <div className="p-8 bg-zinc-50 border-t border-zinc-100 flex items-center gap-4">
+                          <button 
+                             onClick={() => setIsComponentDrawerOpen(false)}
+                             className="flex-grow py-5 bg-white border-2 border-zinc-200 text-zinc-400 font-black uppercase tracking-widest text-xs rounded-2xl hover:border-zinc-400 hover:text-zinc-600 transition-all"
+                          >
+                             Cancel
+                          </button>
+                          {(() => {
+                             const activeList = componentData[componentTab] || [];
+                             const excludeKeys = ['Name', 'name', 'title', 'Title', 'Vendor', 'vendor', 'Brand', 'brand', 'Tags', 'tags', 'id', 'ID', 'shopify_product_id', 'Product ID'];
+                             const requiredKeys = ['Name', 'Vendor', ...Object.keys(activeList[0] || {}).filter(k => !excludeKeys.includes(k))];
+                             const allConfirmed = !isDuplicateMode || requiredKeys.every(k => confirmedFields.includes(k));
+                             
+                             return (
+                                <button 
+                                   disabled={!allConfirmed || componentSaving}
+                                   onClick={() => {
+                                      // Upsert logic
+                                      const activeArray = [...componentData[componentTab]];
+                                      const existingIdx = activeArray.findIndex(item => item.id === editingComponent.id || (item.Name === editingComponent.Name && item.Vendor === editingComponent.Vendor));
+                                      
+                                      if (existingIdx >= 0 && !isDuplicateMode) {
+                                         activeArray[existingIdx] = editingComponent;
+                                      } else {
+                                         activeArray.unshift(editingComponent);
+                                      }
+                                      saveComponentChanges(activeArray);
+                                   }}
+                                   className={`flex-[2] py-5 font-black uppercase tracking-widest text-xs rounded-2xl shadow-xl transition-all flex items-center justify-center gap-2 ${allConfirmed && !componentSaving ? 'bg-black text-white hover:bg-zinc-800' : 'bg-zinc-200 text-zinc-400 cursor-not-allowed shadow-none'}`}
+                                >
+                                   {componentSaving ? <Loader2 className="animate-spin" size={16}/> : <Database size={16}/>} 
+                                   {isDuplicateMode ? 'Confirm & Commit Clone' : 'Save Changes'}
+                                </button>
+                             );
+                          })()}
+                       </div>
+                    </div>
+                 </div>
+               )}
            </div>
         )}
 
@@ -2685,6 +2987,15 @@ export default function OpsDashboard() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* --- NOTIFICATION TOAST --- */}
+        {notification && (
+           <div className={`fixed top-6 right-6 z-[200] p-4 rounded-2xl shadow-2xl border animate-in slide-in-from-top-4 duration-300 flex items-center gap-3 ${notification.type === 'error' ? 'bg-red-50 border-red-100 text-red-900' : 'bg-black text-white border-zinc-800'}`}>
+              {notification.type === 'error' ? <ShieldAlert size={18} className="text-red-500" /> : <CheckCircle size={18} className="text-green-400" />}
+              <div className="text-[10px] font-black uppercase tracking-widest">{notification.msg}</div>
+              <button onClick={() => setNotification(null)} className="ml-2 hover:opacity-70 transition-opacity"><X size={14}/></button>
+           </div>
         )}
       </main>
     </div>
