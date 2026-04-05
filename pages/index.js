@@ -56,13 +56,14 @@ export default function OpsDashboard() {
   const toggleComponentSelection = (id, e, linearList) => {
     const isShift = e && (e.shiftKey || (e.nativeEvent && e.nativeEvent.shiftKey));
     if (isShift && lastCheckedComponentRef.current && linearList) {
-       // Unique mapping logic sync: rowId = (row.id || row.shopify_product_id || (row.Name + "_" + i))
-       const idx = linearList.findIndex((v, i) => (v.id || v.shopify_product_id || (v.Name + "_" + i)) === id);
-       const lastIdx = linearList.findIndex((v, i) => (v.id || v.shopify_product_id || (v.Name + "_" + i)) === lastCheckedComponentRef.current);
+       // Support both standard items and items with _rawIdx
+       const getID = (v, i) => (v.id || v.shopify_product_id || (v.Name + "_" + (v._rawIdx !== undefined ? v._rawIdx : i)));
+       const idx = linearList.findIndex((v, i) => getID(v, i) === id);
+       const lastIdx = linearList.findIndex((v, i) => getID(v, i) === lastCheckedComponentRef.current);
        if (idx !== -1 && lastIdx !== -1) {
           const start = Math.min(idx, lastIdx);
           const end = Math.max(idx, lastIdx);
-          const rangeIds = linearList.slice(start, end + 1).map((v, i) => (v.id || v.shopify_product_id || (v.Name + "_" + (start + i))));
+          const rangeIds = linearList.slice(start, end + 1).map((v, i) => getID(v, start + i));
           setSelectedComponents(prev => {
              const combined = new Set([...prev, ...rangeIds]);
              return [...combined];
@@ -77,12 +78,14 @@ export default function OpsDashboard() {
 
   const handleBulkDelete = async () => {
     if (selectedComponents.length === 0) return;
-    if (!confirm("Delete " + selectedComponents.length + " component(s)? This cannot be undone.")) return;
-    const activeArray = [...(componentData[componentTab] || [])];
-    const updatedArray = activeArray.filter((item, bulkIdx) => {
-       const bulkRowId = (item.id || item.shopify_product_id || (item.Name + "_" + bulkIdx));
-       return !selectedComponents.includes(bulkRowId);
+    if (!confirm("Delete " + selectedComponents.length + " component(s)? This cannot be undone.")) return;
+
+    const rawData = componentData[componentTab] || [];
+    const updatedArray = rawData.filter((item, idx) => {
+       const rowId = (item.id || item.shopify_product_id || (item.Name + "_" + idx));
+       return !selectedComponents.includes(rowId);
     });
+
     setComponentSaving(true);
     await saveComponentChanges(updatedArray);
     setSelectedComponents([]);
@@ -553,8 +556,8 @@ export default function OpsDashboard() {
     setComponentSaving(false);
   };
 
-  const handleEditComponent = (component) => {
-    setEditingComponent({ ...component });
+  const handleEditComponent = (component, editIdx) => {
+    setEditingComponent({ ...component, _editIdx: editIdx });
     setIsDuplicateMode(false);
     setConfirmedFields([]);
     setIsComponentDrawerOpen(true);
@@ -1728,7 +1731,7 @@ export default function OpsDashboard() {
                            <button onClick={() => runSelectiveSync([rule.id])} title="Sync this item now" className="p-2 bg-zinc-100 hover:bg-black hover:text-white text-zinc-400 rounded-lg transition-all"><RefreshCcw size={14} /></button>
                            <button onClick={() => toggleAutoSync(rule.id, rule.auto_update)} className={`w-12 h-6 rounded-full p-1 flex items-center transition-all ${rule.auto_update ? 'bg-black justify-end shadow-inner' : 'bg-zinc-300 justify-start'}`}><div className="w-4 h-4 bg-white rounded-full shadow-md"></div></button>
                            <button onClick={() => setEditingRule(rule)} className="bg-zinc-100 hover:bg-black hover:text-white text-zinc-600 px-3 py-1 rounded-lg text-[10px] font-black uppercase transition-all">Edit</button>
-                          <button onClick={() => deleteRule(rule.id)} className="text-zinc-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"><Trash2 size={18} /></button>
+                          <button onClick={() => deleteRule(rule.id)} className="text-zinc-300 hover:text-red-500 transition-colors "><Trash2 size={18} /></button>
                         </td>
                       </tr>
                     );
@@ -2304,7 +2307,7 @@ export default function OpsDashboard() {
                                                                    <div className="text-[8px] font-black uppercase text-zinc-300 tracking-widest">Base Price</div>
                                                                    <div className="text-xs font-mono font-bold">${(variant.last_price / 100).toFixed(2)}</div>
                                                                 </div>
-                                                                <button onClick={(e) => { e.stopPropagation(); setEditingRule(variant); }} className="opacity-0 group-hover:opacity-100 p-2 text-zinc-400 hover:text-black transition-all bg-white rounded-lg border border-zinc-100 flex items-center gap-2 ml-4">
+                                                                <button onClick={(e) => { e.stopPropagation(); setEditingRule(variant); }} className=" p-2 text-zinc-400 hover:text-black transition-all bg-white rounded-lg border border-zinc-100 flex items-center gap-2 ml-4">
                                                                     <div className="text-[10px] font-mono text-zinc-300">#{variant.shopify_variant_id}</div>
                                                                     <ExternalLink size={14}/>
                                                                  </button>
@@ -2542,7 +2545,7 @@ export default function OpsDashboard() {
                  
                  {/* VENDOR FILTERS OVERRIDE FOR COMPONENTS */}
                  {(() => {
-                    const activeList = componentData[componentTab] || [];
+                    const activeList = (componentData[componentTab] || []).map((item, idx) => ({ ...item, _rawIdx: idx }));
                     if (activeList.length === 0) return null;
                     const vends = activeList.map(item => item.Vendor || item.vendor || item.Brand || item.brand).filter(v => typeof v === 'string' && v.trim() !== '');
                     const uniqueVendors = [...new Set(vends)].sort((a,b) => a.localeCompare(b));
@@ -2589,7 +2592,7 @@ export default function OpsDashboard() {
                  {/* DYNAMIC DATA GRID */}
                  <div className="bg-white rounded-[2rem] border border-zinc-200 shadow-sm overflow-hidden">
                     {(() => {
-                        const activeList = componentData[componentTab] || [];
+                        const activeList = (componentData[componentTab] || []).map((item, idx) => ({ ...item, _rawIdx: idx }));
                         if (activeList.length === 0) return (
                            <div className="p-12 text-center">
                               <Loader2 className="animate-spin text-zinc-300 mx-auto mb-4" size={32}/>
@@ -2664,7 +2667,7 @@ export default function OpsDashboard() {
                                    <tr>
                                       <th className="p-4 px-6 w-12 bg-zinc-50 border-r border-zinc-100 sticky left-0 z-40">
                                           <input type="checkbox" checked={selectedComponents.length === filteredList.length && filteredList.length > 0} onChange={(e) => {
-                                             if (e.target.checked) setSelectedComponents(filteredList.map((v, i) => (v.id || v.shopify_product_id || (v.Name + "_" + i))));
+                                             if (e.target.checked) setSelectedComponents(filteredList.map((v) => { const rawIdx = activeList.indexOf(v); return (v.id || v.shopify_product_id || (v.Name + "_" + rawIdx)); }));
                                              else setSelectedComponents([]);
                                           }} className="w-4 h-4 rounded border-zinc-300 accent-blue-600 cursor-pointer" />
                                       </th>
@@ -2697,16 +2700,16 @@ export default function OpsDashboard() {
                                </thead>
                                <tbody className="divide-y divide-zinc-100">
                                   {filteredList.map((row, i) => {
-                                      const rowId = (row.id || row.shopify_product_id || (row.Name + "_" + i));
-                                      const isSelected = selectedComponents.includes(rowId);
-                                      const shopifyId = row['Product ID'] || row['product_id'] || row['ID'];
-                                      const validation = getComponentValidation(row, componentTab);
-                                     const { isValid, missingFields } = validation;
-                                     return (
-                                     <tr key={rowId || i} className={`${isValid ? 'odd:bg-white even:bg-zinc-100/30' : 'bg-red-50 hover:bg-red-100/50'} transition-colors group cursor-pointer border-b border-zinc-100 last:border-0 ${isSelected ? 'ring-2 ring-inset ring-blue-400' : ''}`} onClick={(e) => {
-                                         if (e.target.type === 'checkbox') return;
-                                         handleEditComponent(row);
-                                      }}>
+                                       const rowId = (row.id || row.shopify_product_id || (row.Name + "_" + row._rawIdx));
+                                       const isSelected = selectedComponents.includes(rowId);
+                                       const shopifyId = row['Product ID'] || row['product_id'] || row['ID'];
+                                       const validation = getComponentValidation(row, componentTab);
+                                      const { isValid, missingFields } = validation;
+                                      return (
+                                      <tr key={rowId || row._rawIdx} className={`${isValid ? 'odd:bg-white even:bg-zinc-100/30' : 'bg-red-50 hover:bg-red-100/50'} transition-colors group cursor-pointer border-b border-zinc-100 last:border-0 ${isSelected ? 'ring-2 ring-inset ring-blue-400' : ''}`} onClick={(e) => {
+                                          if (e.target.type === 'checkbox') return;
+                                          handleEditComponent(row, row._rawIdx);
+                                       }}>
                                          <td className="p-4 px-6 w-12 border-r border-zinc-100 sticky left-0 z-30 bg-zinc-50">
                                             <input type="checkbox" checked={isSelected} onChange={(e) => toggleComponentSelection(rowId, e, filteredList)} onClick={(e) => e.stopPropagation()} className="w-4 h-4 rounded border-zinc-300 accent-blue-600 cursor-pointer" />
                                          </td>
@@ -2753,11 +2756,15 @@ export default function OpsDashboard() {
                                            <div className="flex items-center justify-end gap-2">
                                               <button onClick={() => handleDuplicateComponent(row)} title="Duplicate Line" className="p-2 bg-zinc-100 hover:bg-black hover:text-white text-zinc-400 rounded-lg transition-all"><Plus size={12} /></button>
                                               <button onClick={() => {
-                                                  if (confirm("Delete " + (row.Name || row.title) + "? This cannot be undone.")) {
-                                                     const delId = (row.id || row.shopify_product_id || (row.Name + "_" + i));
-                                                     const newArr = activeList.filter((item, idx) => (item.id || item.shopify_product_id || (item.Name + "_" + idx)) !== delId);
+                                                  if (confirm("Delete " + (row.Name || row.title) + "? This cannot be undone.")) {
+
+                                                     const delId = (row.id || row.shopify_product_id || (row.Name + "_" + row._rawIdx));
+                                                      const newArrFull = activeList.filter(item => (item.id || item.shopify_product_id || (item.Name + "_" + item._rawIdx)) !== delId);
+                                                      const finalArr = newArrFull.map(({ _rawIdx, ...rest }) => rest);
+                                                      saveComponentChanges(finalArr);
+
                                                  }
-                                              }} className="p-2 bg-zinc-100 hover:bg-red-500 hover:text-white text-zinc-300 rounded-lg transition-all opacity-0 group-hover:opacity-100"><Trash2 size={12}/></button>
+                                              }} className="p-2 bg-zinc-100 hover:bg-red-500 hover:text-white text-zinc-300 rounded-lg transition-all "><Trash2 size={12}/></button>
                                            </div>
                                         </td>
                                      </tr>
@@ -2846,7 +2853,7 @@ export default function OpsDashboard() {
                              <div className="space-y-4">
                                 <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block italic">Technical Specifications</label>
                                 {(() => {
-                                   const activeList = componentData[componentTab] || [];
+                                   const activeList = (componentData[componentTab] || []).map((item, idx) => ({ ...item, _rawIdx: idx }));
                                    const excludeKeys = ['Name', 'name', 'title', 'Title', 'Vendor', 'vendor', 'Brand', 'brand', 'Tags', 'tags', 'id', 'ID', 'shopify_product_id', 'Product ID', 'Variant ID', 'tags'];
                                    const specFields = [...new Set(activeList.slice(0, 10).flatMap(item => Object.keys(item)))].filter(k => !excludeKeys.includes(k));
                                    
@@ -2922,7 +2929,7 @@ export default function OpsDashboard() {
                              Cancel
                           </button>
                           {(() => {
-                             const activeList = componentData[componentTab] || [];
+                             const activeList = (componentData[componentTab] || []).map((item, idx) => ({ ...item, _rawIdx: idx }));
                              const excludeKeys = ['Name', 'name', 'title', 'Title', 'Vendor', 'vendor', 'Brand', 'brand', 'Tags', 'tags', 'id', 'ID', 'shopify_product_id', 'Product ID'];
                              const requiredKeys = ['Name', 'Vendor', ...Object.keys(activeList[0] || {}).filter(k => !excludeKeys.includes(k))];
                              const allConfirmed = !isDuplicateMode || requiredKeys.every(k => confirmedFields.includes(k));
@@ -2931,22 +2938,23 @@ export default function OpsDashboard() {
                                 <button 
                                    disabled={!allConfirmed || componentSaving}
                                    onClick={() => {
-                                      // Upsert logic
-                                      const activeArray = [...componentData[componentTab]];
-                                       const existingIdx = activeArray.findIndex(item => {
-                                          if (editingComponent.id && item.id === editingComponent.id) return true;
-                                          if (editingComponent.shopify_product_id && item.shopify_product_id === editingComponent.shopify_product_id) return true;
-                                          const eName = (editingComponent.Name || editingComponent.name || '').toLowerCase().trim();
-                                          const iName = (item.Name || item.name || '').toLowerCase().trim();
-                                          return eName === iName && iName !== '';
-                                       });
-                                      
-                                      if (existingIdx >= 0 && !isDuplicateMode) {
-                                         activeArray[existingIdx] = editingComponent;
-                                      } else {
-                                         activeArray.unshift(editingComponent);
-                                      }
-                                      saveComponentChanges(activeArray);
+                                      // Upsert logic - use _editIdx for direct slot replacement
+                                       const activeArray = [...componentData[componentTab]];
+                                       const { _editIdx, ...cleanComp } = editingComponent;
+                                       let existingIdx = -1;
+                                       if (_editIdx !== undefined && _editIdx >= 0 && _editIdx < activeArray.length) {
+                                          existingIdx = _editIdx;
+                                       } else if (cleanComp.id) {
+                                          existingIdx = activeArray.findIndex(item => item.id === cleanComp.id);
+                                       } else if (cleanComp.shopify_product_id) {
+                                          existingIdx = activeArray.findIndex(item => item.shopify_product_id === cleanComp.shopify_product_id);
+                                       }
+                                       if (existingIdx >= 0 && !isDuplicateMode) {
+                                          activeArray[existingIdx] = cleanComp;
+                                       } else {
+                                          activeArray.unshift(cleanComp);
+                                       }
+                                       saveComponentChanges(activeArray);
                                    }}
                                    className={`flex-[2] py-5 font-black uppercase tracking-widest text-xs rounded-2xl shadow-xl transition-all flex items-center justify-center gap-2 ${allConfirmed && !componentSaving ? 'bg-black text-white hover:bg-zinc-800' : 'bg-zinc-200 text-zinc-400 cursor-not-allowed shadow-none'}`}
                                 >
@@ -3525,3 +3533,4 @@ function SidebarLink({ icon, label, active, onClick, badge, badgeOnClick }) {
     </button>
   );
 }
+ 
