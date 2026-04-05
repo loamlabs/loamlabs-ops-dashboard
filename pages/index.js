@@ -604,8 +604,14 @@ export default function OpsDashboard() {
     required.forEach(field => {
       // WEIGHT EITHER/OR CHECK (Ensuring correct mapping to Shopify Metafield keys)
       if (field.includes('Weight G')) {
-          const pKey = Object.keys(component).find(k => k.toLowerCase().includes('metafield') && k.toLowerCase().includes('weightg') && !k.toLowerCase().includes('variant'));
-          const vKey = Object.keys(component).find(k => k.toLowerCase().includes('metafield') && k.toLowerCase().includes('weightg') && k.toLowerCase().includes('variant'));
+          const pKey = Object.keys(component).find(k => {
+              const nk = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+              return (nk.includes('metafield') || nk.includes('weightg')) && nk.includes('weightg') && !nk.includes('variant');
+          });
+          const vKey = Object.keys(component).find(k => {
+              const nk = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+              return (nk.includes('metafield') || nk.includes('weightg')) && nk.includes('weightg') && nk.includes('variant');
+          });
           
           const pVal = component[pKey] || getComponentValue(component, 'Weight G (p)');
           const vVal = component[vKey] || getComponentValue(component, 'Weight G (v)');
@@ -2730,7 +2736,16 @@ export default function OpsDashboard() {
                                    const specFields = [...new Set(activeList.slice(0, 10).flatMap(item => Object.keys(item)))].filter(k => !excludeKeys.includes(k));
                                    
                                    return specFields.map(key => {
-                                      const isMandatory = MANDATORY_FIELDS[componentTab]?.some(f => { const nf = f.toLowerCase().replace(/[^a-z0-9]/g, ''); const nk = key.toLowerCase().replace(/[^a-z0-9]/g, ''); return nf === nk || nk.startsWith(nf); });
+                                      const isMandatory = MANDATORY_FIELDS[componentTab]?.some(f => {
+                                          const nf = f.toLowerCase().replace(/[^a-z0-9]/g, '');
+                                          const nk = key.toLowerCase().replace(/[^a-z0-9]/g, '');
+                                          const val = getComponentValue(editingComponent, 'Hub Type');
+                                          return nf === nk || nk.includes(nf);
+                                       }) || (componentTab === 'hubs' && (
+                                          (getComponentValue(editingComponent, 'Hub Type') === 'Straight Pull' && (key.includes('SP Offset') || key.includes('Manual Cross') || key.includes('Lacing Cross'))) ||
+                                          (getComponentValue(editingComponent, 'Hub Type') === 'Hook Flange' && (key.includes('Manual Cross') || key.includes('Lacing Cross'))) ||
+                                          (getComponentValue(editingComponent, 'Hub Type') === 'J-Bend' && key.includes('Spoke Hole Diameter'))
+                                       ));
                                       let options = DROPDOWN_OPTIONS[key] || DROPDOWN_OPTIONS[formatColumnTitle(key)] || DROPDOWN_OPTIONS[key.toLowerCase()];
                                        
                                        // USER REQUESTED DROPDOWNS
@@ -2820,7 +2835,13 @@ export default function OpsDashboard() {
                                    onClick={() => {
                                       // Upsert logic
                                       const activeArray = [...componentData[componentTab]];
-                                      const existingIdx = activeArray.findIndex(item => item.id === editingComponent.id || (item.Name === editingComponent.Name && item.Vendor === editingComponent.Vendor));
+                                      const existingIdx = activeArray.findIndex(item => {
+                                          if (editingComponent.id && item.id === editingComponent.id) return true;
+                                          if (editingComponent.shopify_product_id && item.shopify_product_id === editingComponent.shopify_product_id) return true;
+                                          const eName = (editingComponent.Name || editingComponent.name || '').toLowerCase().trim();
+                                          const iName = (item.Name || item.name || '').toLowerCase().trim();
+                                          return eName === iName && iName !== '';
+                                       });
                                       
                                       if (existingIdx >= 0 && !isDuplicateMode) {
                                          activeArray[existingIdx] = editingComponent;
