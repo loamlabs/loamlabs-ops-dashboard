@@ -56,12 +56,13 @@ export default function OpsDashboard() {
   const toggleComponentSelection = (id, e, linearList) => {
     const isShift = e && (e.shiftKey || (e.nativeEvent && e.nativeEvent.shiftKey));
     if (isShift && lastCheckedComponentRef.current && linearList) {
-       const idx = linearList.findIndex(v => (v.id || v.shopify_product_id || v.Name) === id);
-       const lastIdx = linearList.findIndex(v => (v.id || v.shopify_product_id || v.Name) === lastCheckedComponentRef.current);
+       // Unique mapping logic sync: rowId = (row.id || row.shopify_product_id || (row.Name + "_" + i))
+       const idx = linearList.findIndex((v, i) => (v.id || v.shopify_product_id || (v.Name + "_" + i)) === id);
+       const lastIdx = linearList.findIndex((v, i) => (v.id || v.shopify_product_id || (v.Name + "_" + i)) === lastCheckedComponentRef.current);
        if (idx !== -1 && lastIdx !== -1) {
           const start = Math.min(idx, lastIdx);
           const end = Math.max(idx, lastIdx);
-          const rangeIds = linearList.slice(start, end + 1).map(v => (v.id || v.shopify_product_id || v.Name));
+          const rangeIds = linearList.slice(start, end + 1).map((v, i) => (v.id || v.shopify_product_id || (v.Name + "_" + (start + i))));
           setSelectedComponents(prev => {
              const combined = new Set([...prev, ...rangeIds]);
              return [...combined];
@@ -90,19 +91,22 @@ export default function OpsDashboard() {
 
   const handleBulkEdit = async () => {
     if (!bulkEditField || selectedComponents.length === 0) return;
+    setComponentSaving(true);
     const activeArray = [...(componentData[componentTab] || [])];
-    const updatedArray = activeArray.map(item => {
-       const id = (item.id || item.shopify_product_id || item.Name);
-       if (selectedComponents.includes(id)) {
+    const updatedArray = activeArray.map((item, i) => {
+       // Sync with unique Name_i IDs
+       const rowId = (item.id || item.shopify_product_id || (item.Name + "_" + i));
+       if (selectedComponents.includes(rowId)) {
           return { ...item, [bulkEditField]: bulkEditValue };
        }
        return item;
     });
-    setComponentSaving(true);
     await saveComponentChanges(updatedArray);
     setIsBulkEditModalOpen(false);
     setSelectedComponents([]);
+    setBulkEditValue("");
     setComponentSaving(false);
+    setNotification({ type: 'success', msg: `Successfully updated ${selectedComponents.length} components` });
   };
 
   const [componentColumnWidths, setComponentColumnWidths] = useState({});
@@ -2547,29 +2551,37 @@ export default function OpsDashboard() {
 
                     return (
                       <div className="mb-8 p-8 bg-white border border-zinc-100 rounded-[2rem] shadow-sm">
-                         <div className="flex items-center justify-between mb-4">
-                           <label className="text-[10px] font-black uppercase text-zinc-400 tracking-[0.2em] italic">Filter by Component Vendor</label>
-                         </div>
-                         <div className="flex flex-wrap gap-2 mb-6">
-                           <button 
-                             onClick={() => setComponentVendorFilter('All')} 
-                             className={`px-4 py-2 rounded-xl border-2 font-black text-[10px] uppercase transition-all ${componentVendorFilter === 'All' ? 'bg-black text-white border-black shadow-lg scale-105' : 'bg-white text-zinc-400 border-zinc-100 hover:border-zinc-300'}`}
-                           >
-                             All Vendors
-                           </button>
-                           {uniqueVendors.map(v => (
-                               <button key={v} onClick={() => setComponentVendorFilter(v)} className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border-2 transition-all ${componentVendorFilter === v ? 'border-blue-500 bg-blue-50 text-blue-900 shadow-sm scale-[1.02]' : 'bg-white text-zinc-500 border-zinc-100 hover:border-zinc-300'}`}>
-                                 <span className="text-[10px] font-bold uppercase tracking-tight">{v}</span>
-                               </button>
-                            ))}
-                         </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-left">
+                             <div>
+                                <div className="flex items-center justify-between mb-4">
+                                  <label className="text-[10px] font-black uppercase text-zinc-400 tracking-[0.2em] italic">Filter by Component Vendor</label>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                  <button 
+                                    onClick={() => setComponentVendorFilter('All')} 
+                                    className={`px-4 py-2 rounded-xl border-2 font-black text-[10px] uppercase transition-all ${componentVendorFilter === 'All' ? 'bg-black text-white border-black shadow-lg scale-105' : 'bg-white text-zinc-400 border-zinc-100 hover:border-zinc-300'}`}
+                                  >
+                                    All Vendors
+                                  </button>
+                                  {uniqueVendors.map(v => (
+                                      <button key={v} onClick={() => setComponentVendorFilter(v)} className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border-2 transition-all ${componentVendorFilter === v ? 'border-primary bg-primary/5 text-primary shadow-sm scale-[1.02]' : 'bg-white text-zinc-500 border-zinc-100 hover:border-zinc-300'}`}>
+                                        <span className="text-[10px] font-bold uppercase tracking-tight">{v}</span>
+                                      </button>
+                                   ))}
+                                </div>
+                             </div>
 
-                         {/* Professional Filter Bar */}
-                         <div className="flex items-center gap-2 p-1 bg-zinc-100/50 rounded-2xl border border-zinc-100 w-fit">
-                            <button onClick={() => setShowMissingOnly(false)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${!showMissingOnly ? "bg-white text-black shadow-sm" : "text-zinc-400 hover:text-zinc-600"}`}>All Components</button>
-                            <button onClick={() => setShowMissingOnly(true)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${showMissingOnly ? "bg-red-500 text-white shadow-lg" : "text-zinc-400 hover:text-red-500"}`}>Missing Data</button>
-                            {showMissingOnly && <div className="px-4 text-[9px] font-bold text-red-500 flex items-center gap-1 uppercase italic animate-pulse"><AlertTriangle size={12} /> Enrollment Errors</div>}
-                         </div>
+                             <div className="border-l border-zinc-100 pl-8">
+                                <div className="flex items-center justify-between mb-4">
+                                  <label className="text-[10px] font-black uppercase text-zinc-400 tracking-[0.2em] italic">Data Integrity Filters</label>
+                                </div>
+                                <div className="flex items-center gap-2 p-1 bg-zinc-100/50 rounded-2xl border border-zinc-100 w-fit">
+                                   <button onClick={() => setShowMissingOnly(false)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${!showMissingOnly ? "bg-white text-black shadow-sm" : "text-zinc-400 hover:text-zinc-600"}`}>All Components</button>
+                                   <button onClick={() => setShowMissingOnly(true)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${showMissingOnly ? "bg-red-500 text-white shadow-lg" : "text-zinc-400 hover:text-red-500"}`}>Missing Data</button>
+                                </div>
+                                {showMissingOnly && <div className="px-4 mt-2 text-[9px] font-bold text-red-500 flex items-center gap-1 uppercase italic animate-pulse"><AlertTriangle size={12} /> Enrollment Errors Detected</div>}
+                             </div>
+                          </div>
                       </div>
                     )
                  })()}
@@ -2597,7 +2609,15 @@ export default function OpsDashboard() {
                         });
 
                         if (showMissingOnly) {
-                           filteredList = filteredList.filter(item => !getComponentValidation(item, componentTab).isValid);
+                           filteredList = filteredList.filter(item => {
+                              try {
+                                 const validation = getComponentValidation(item, componentTab);
+                                 return !validation.isValid;
+                              } catch (e) {
+                                 console.error("Filter validation error:", e, item);
+                                 return false;
+                              }
+                           });
                         }
 
                            
@@ -3351,6 +3371,118 @@ export default function OpsDashboard() {
             {options.map(opt => <option key={opt} value={opt} />)}
           </datalist>
         ))}
+
+        {/* --- COMPONENT MASS EDIT MODAL --- */}
+        {isBulkEditModalOpen && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
+            <div className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-[0_30px_100px_rgba(0,0,0,0.4)] border border-white/20 overflow-hidden" style={{animation: 'scaleUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)'}}>
+              <div className="p-8 bg-zinc-900 text-white flex justify-between items-center relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 blur-[60px] rounded-full translate-x-1/2 -translate-y-1/2"></div>
+                <div className="relative z-10">
+                  <h2 className="text-2xl font-black uppercase italic tracking-tighter shadow-sm">Mass Edit Engine</h2>
+                  <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-1 italic">Targeting {selectedComponents.length} Components</p>
+                </div>
+                <button onClick={() => setIsBulkEditModalOpen(false)} className="relative z-10 p-2 hover:bg-white/10 rounded-xl transition-colors">
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="p-8 space-y-6 bg-zinc-50/50">
+                <div>
+                  <label className="block text-[10px] font-black uppercase text-zinc-400 tracking-[0.2em] mb-3 italic px-1">Target Field Mapping</label>
+                  <select 
+                    value={bulkEditField || ""} 
+                    onChange={(e) => setBulkEditField(e.target.value)}
+                    className="w-full bg-white p-4 rounded-2xl border-2 border-zinc-100 font-bold text-sm focus:border-black transition-all outline-none shadow-sm"
+                  >
+                    <option value="">Select Field to Update...</option>
+                    {/* Unique keys from dataset */}
+                    {Array.from(new Set( (componentData[componentTab] || []).flatMap(obj => Object.keys(obj)) )).sort().map(k => (
+                       <option key={k} value={k}>{k.replace(/^Metafield:\s*custom\./i, '').replace(/_/g, ' ')}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-black uppercase text-zinc-400 tracking-[0.2em] mb-3 italic px-1">New Assignment Value</label>
+                  <div className="relative">
+                    <input 
+                      type="text"
+                      placeholder="Enter value..."
+                      value={bulkEditValue}
+                      onChange={(e) => setBulkEditValue(e.target.value)}
+                      className="w-full bg-white p-4 rounded-2xl border-2 border-zinc-100 font-bold text-sm focus:border-black transition-all outline-none shadow-sm"
+                    />
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-300">
+                      <Zap size={16} />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-4 flex gap-3">
+                  <button 
+                    onClick={handleBulkEdit}
+                    disabled={componentSaving || !bulkEditField}
+                    className={`flex-grow py-5 rounded-[1.5rem] font-black text-xs uppercase tracking-[0.15em] transition-all flex items-center justify-center gap-3 shadow-lg ${componentSaving || !bulkEditField ? 'bg-zinc-200 text-zinc-400 cursor-not-allowed' : 'bg-black text-white hover:bg-primary hover:shadow-primary/20 active:scale-95'}`}
+                  >
+                    {componentSaving ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={18} />}
+                    Execute Mass Command
+                  </button>
+                  <button 
+                    onClick={() => setIsBulkEditModalOpen(false)}
+                    className="px-8 py-5 border-2 border-zinc-200 rounded-[1.5rem] font-black text-xs uppercase tracking-widest text-zinc-400 hover:bg-zinc-100 transition-all shadow-sm"
+                  >
+                    Abort
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* --- COMPONENT BULK ACTION BAR --- */}
+        {selectedComponents.length > 0 && activeTab === 'components' && (
+          <div className="fixed bottom-12 left-1/2 -translate-x-1/2 z-[150] animate-in slide-in-from-bottom duration-500">
+             <div className="bg-zinc-900/95 backdrop-blur-xl border border-zinc-800 p-4 px-8 rounded-[3rem] shadow-[0_20px_60px_rgba(0,0,0,0.6)] flex items-center gap-10">
+                <div className="flex items-center gap-4 border-r border-zinc-800 pr-10">
+                   <div className="bg-blue-600 text-white p-2.5 rounded-2xl shadow-[0_0_20px_rgba(37,99,235,0.3)]">
+                      <Layers size={20} />
+                   </div>
+                   <div>
+                      <div className="text-white font-black text-sm uppercase italic tracking-tighter leading-none">{selectedComponents.length} Selected</div>
+                      <div className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mt-1">Mass Modification Engine</div>
+                   </div>
+                </div>
+
+                <div className="flex items-center gap-4">
+                   <button 
+                     onClick={() => setIsBulkEditModalOpen(true)}
+                     className="flex items-center gap-2 px-6 py-3 bg-zinc-800 hover:bg-white hover:text-black text-zinc-300 rounded-xl transition-all border border-zinc-700/50 group shadow-lg"
+                   >
+                      <Edit3 size={14} className="group-hover:scale-110 transition-transform"/>
+                      <span className="text-[10px] font-black uppercase tracking-widest">Mass Edit Items</span>
+                   </button>
+
+                   <button 
+                     onClick={handleBulkDelete}
+                     className="flex items-center gap-2 px-6 py-3 bg-red-900/20 hover:bg-red-500 text-red-500 hover:text-white rounded-xl transition-all border border-red-900/30 group shadow-lg"
+                   >
+                      <Trash2 size={14} className="group-hover:scale-110 transition-transform"/>
+                      <span className="text-[10px] font-black uppercase tracking-widest">Move to Trash</span>
+                   </button>
+
+                   <div className="w-1 h-8 bg-zinc-800 mx-2"></div>
+
+                   <button 
+                     onClick={() => setSelectedComponents([])}
+                     className="px-6 py-3 text-zinc-500 hover:text-white text-[10px] font-black uppercase tracking-widest transition-colors hover:bg-zinc-800 rounded-xl"
+                   >
+                      Dismiss
+                   </button>
+                </div>
+             </div>
+          </div>
+        )}
 
         {/* --- NOTIFICATION TOAST --- */}
         {notification && (
