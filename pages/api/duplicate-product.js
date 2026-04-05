@@ -27,7 +27,7 @@ async function shopifyQuery(query, variables = {}, token) {
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-  if (req.headers['x-dashboard-auth'] !== process.env.DASHBOARD_PASSWORD) {
+  if (req.headers['x-dashboard-auth']?.trim() !== process.env.DASHBOARD_PASSWORD?.trim()) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 

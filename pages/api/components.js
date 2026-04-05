@@ -1,7 +1,7 @@
 export const config = { api: { bodyParser: { sizeLimit: '10mb' } } };
 
 export default async function handler(req, res) {
-    if (req.headers['x-dashboard-auth'] !== process.env.DASHBOARD_PASSWORD) {
+    if (req.headers['x-dashboard-auth']?.trim() !== process.env.DASHBOARD_PASSWORD?.trim()) {
         return res.status(401).json({ error: 'Unauthorized' });
     }
 

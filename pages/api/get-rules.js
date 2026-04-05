@@ -15,7 +15,7 @@ export default async function handler(req, res) {
   }
 
   // Simple password check via Header
-  if (req.headers['x-dashboard-auth'] !== process.env.DASHBOARD_PASSWORD) {
+  if (req.headers['x-dashboard-auth']?.trim() !== process.env.DASHBOARD_PASSWORD?.trim()) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 

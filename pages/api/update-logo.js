@@ -23,7 +23,7 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   
   // LOGGING: Check if auth matches
-  if (req.headers['x-dashboard-auth'] !== process.env.DASHBOARD_PASSWORD) {
+  if (req.headers['x-dashboard-auth']?.trim() !== process.env.DASHBOARD_PASSWORD?.trim()) {
       console.error("Logo Update: Unauthorized attempt");
       return res.status(401).json({ error: 'Unauthorized' });
   }

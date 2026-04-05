@@ -35,7 +35,7 @@ async function getShopifyToken() {
 
 export default async function handler(req, res) {
   if (!checkSupabase(res)) return;
-  if (req.headers['x-dashboard-auth'] !== process.env.DASHBOARD_PASSWORD) return res.status(401).json({ error: 'Unauthorized' });
+  if (req.headers['x-dashboard-auth']?.trim() !== process.env.DASHBOARD_PASSWORD?.trim()) return res.status(401).json({ error: 'Unauthorized' });
 
   try {
     const adminToken = await getShopifyToken();
