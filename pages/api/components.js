@@ -45,6 +45,7 @@ export default async function handler(req, res) {
     
     if (req.method === 'POST') {
         const { hubs, rims, spokes, nipples } = req.body;
+        console.log(`[Backend Debug] POST request received. Keys: ${Object.keys(req.body).join(', ')}`);
         
         try {
             const filesToUpdate = [];
@@ -64,6 +65,9 @@ export default async function handler(req, res) {
                 if (getResp.ok) {
                     const getData = await getResp.json();
                     sha = getData.sha;
+                    console.log(`[Backend Debug] Found existing SHA for ${file.filename}: ${sha}`);
+                } else {
+                    console.log(`[Backend Debug] SHA fetch failed for ${file.filename}: ${getResp.status}`);
                 }
 
                 // 2. Put new content (base64)
@@ -84,8 +88,11 @@ export default async function handler(req, res) {
                     })
                 });
 
+                console.log(`[Backend Debug] GitHub PUT status for ${file.filename}: ${putResp.status} ${putResp.statusText}`);
                 if (!putResp.ok) {
-                    throw new Error(`Failed to update ${file.filename}: ` + await putResp.text());
+                    const errorText = await putResp.text();
+                    console.error(`[Backend Debug] GitHub PUT Error: ${errorText}`);
+                    throw new Error(`Failed to update ${file.filename}: ` + errorText);
                 }
             }
             return res.status(200).json({ success: true });

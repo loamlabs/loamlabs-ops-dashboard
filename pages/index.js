@@ -467,7 +467,8 @@ export default function OpsDashboard() {
       try {
           const auth = password || localStorage.getItem('loam_ops_auth');
           if (!auth) return;
-          const res = await fetch('/api/components', { headers: { 'x-dashboard-auth': auth } });
+          const cb = Date.now();
+          const res = await fetch(`/api/components?cb=${cb}`, { headers: { 'x-dashboard-auth': auth } });
           if (res.ok) {
               const data = await res.json();
               setComponentData(data);
@@ -521,12 +522,13 @@ export default function OpsDashboard() {
     setComponentSaving(true);
     try {
       const auth = password || localStorage.getItem('loam_ops_auth');
-      console.log(`[Persistence] Saving ${tab.toUpperCase()} (${sanitizedArray.length} items)...`);
+      console.log(`[Persistence Debug] Attempting SAVE: Tab=${tab}, Items=${sanitizedArray.length}, AuthPresent=${!!auth}`);
       const res = await fetch('/api/components', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-dashboard-auth': auth },
         body: JSON.stringify({ [tab]: sanitizedArray })
       });
+      console.log(`[Persistence Debug] ${tab.toUpperCase()} SAVE Status: ${res.status} ${res.statusText}`);
       if (res.ok) {
         setComponentData(prev => ({ ...prev, [tab]: newArray })); // Keep internal IDs for next edit
         setIsComponentDrawerOpen(false);
