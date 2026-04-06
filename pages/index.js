@@ -44,6 +44,7 @@ export default function OpsDashboard() {
   const [insightsLoading, setInsightsLoading] = useState(false);
   const [showDiscrepancyDropdown, setShowDiscrepancyDropdown] = useState(false);
   const [componentData, setComponentData] = useState({ hubs: [], rims: [], spokes: [], nipples: [] });
+  const [componentsLoaded, setComponentsLoaded] = useState(false);
   const [componentTab, setComponentTab] = useState('rims');
   const [componentVendorFilter, setComponentVendorFilter] = useState('All');
   const [componentColumnOrder, setComponentColumnOrder] = useState({});
@@ -56,14 +57,12 @@ export default function OpsDashboard() {
   const toggleComponentSelection = (id, e, linearList) => {
     const isShift = e && (e.shiftKey || (e.nativeEvent && e.nativeEvent.shiftKey));
     if (isShift && lastCheckedComponentRef.current && linearList) {
-       // Support both standard items and items with _rawIdx
-       const getID = (v, i) => (v.id || v.shopify_product_id || (v.Name + "_" + (v._rawIdx !== undefined ? v._rawIdx : i)));
-       const idx = linearList.findIndex((v, i) => getID(v, i) === id);
-       const lastIdx = linearList.findIndex((v, i) => getID(v, i) === lastCheckedComponentRef.current);
+       const idx = linearList.findIndex((v, i) => getComponentUniqueId(v, i) === id);
+       const lastIdx = linearList.findIndex((v, i) => getComponentUniqueId(v, i) === lastCheckedComponentRef.current);
        if (idx !== -1 && lastIdx !== -1) {
           const start = Math.min(idx, lastIdx);
           const end = Math.max(idx, lastIdx);
-          const rangeIds = linearList.slice(start, end + 1).map((v, i) => getID(v, start + i));
+          const rangeIds = linearList.slice(start, end + 1).map((v, i) => getComponentUniqueId(v, start + i));
           setSelectedComponents(prev => {
              const combined = new Set([...prev, ...rangeIds]);
              return [...combined];
@@ -83,7 +82,7 @@ export default function OpsDashboard() {
     const rawData = componentData[componentTab] || [];
     const updatedArray = rawData.filter((item, idx) => {
        console.log("[Persistence Debug] Bulk filtering items", { total: rawData.length, selected: selectedComponents.length });
-       const rowId = (item.id || item.shopify_product_id || (item.Name + "_" + idx));
+       const rowId = getComponentUniqueId(item, idx);
        return !selectedComponents.includes(rowId);
     });
 
@@ -99,7 +98,7 @@ export default function OpsDashboard() {
     const activeArray = [...(componentData[componentTab] || [])];
     const updatedArray = activeArray.map((item, i) => {
        // Sync with unique Name_i IDs
-       const rowId = (item.id || item.shopify_product_id || (item.Name + "_" + i));
+       const rowId = getComponentUniqueId(item, i);
        if (selectedComponents.includes(rowId)) {
           return { ...item, [bulkEditField]: bulkEditValue };
        }
@@ -388,11 +387,19 @@ export default function OpsDashboard() {
   const fetchComponentLibrary = async () => {
       setLoading(true);
       try {
-      console.log("[Persistence Debug] Fetching /api/components", JSON.stringify({ [tab]: sanitizedArray }));
+          console.log("[Persistence Debug] Initial components load started.");
           const res = await fetch('/api/components', { headers: { 'x-dashboard-auth': password } });
           const data = await res.json();
-          if (res.ok) setComponentData(data);
-      } catch (e) { console.error('Fetch Component Error: ', e); }
+          if (res.ok) {
+              console.log("[Persistence Debug] Components loaded successfully.");
+              setComponentData(data);
+              setComponentsLoaded(true);
+          } else {
+              console.error("[Persistence Debug] Components load failed with status:", res.status);
+          }
+      } catch (e) {
+          console.error('Fetch Component Error: ', e);
+      }
       setLoading(false);
   };
   
@@ -531,14 +538,19 @@ export default function OpsDashboard() {
 
   const saveComponentChanges = async (newArray, tabOverride = null) => {
     const tab = tabOverride || componentTab;
+    if (!tab) {
+        console.error("[Persistence Debug] CANNOT SAVE: No tab identified.");
+        showNotification("Save Error: No category selected", "error");
+        return;
+    }
     const sanitizedArray = newArray.map(item => {
-      const { tags, Tags, ...rest } = item;
+      const { tags, Tags, _rawIdx, _editIdx, ...rest } = item;
       return rest;
     });
     console.log(`[Persistence Debug] Saving ${tab} changes. Payload length: ${sanitizedArray.length}. Tab: ${tab}`);
     setComponentSaving(true);
     try {
-      console.log("[Persistence Debug] Fetching /api/components", JSON.stringify({ [tab]: sanitizedArray }));
+      console.log("[Persistence Debug] Initial components load started.");
       const res = await fetch('/api/components', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-dashboard-auth': password },
@@ -550,6 +562,7 @@ export default function OpsDashboard() {
         setIsComponentDrawerOpen(false);
         setEditingComponent(null);
         setConfirmedFields([]);
+        showNotification(`${tab.toUpperCase()} data saved successfully!`, 'success');
       } else {
         const err = await res.json();
         console.error(`[Persistence Debug] Save FAILED for ${tab}:`, err);
@@ -606,7 +619,18 @@ export default function OpsDashboard() {
     nipples: ['Name', 'Vendor', 'Option 1 Name', 'Option 1 Value', 'Weight G (p)']
   };
 
-    const getComponentValue = (component, key) => {
+    const getComponentUniqueId = (item, index) => {
+    if (!item) return `empty_${index}`;
+    // Support pre-labeled IDs or shopify IDs, with Name_idx as fallback
+    const baseId = item.id || item.shopify_product_id || item.ID || item['Product ID'];
+    if (baseId) return String(baseId);
+    
+    const name = item.Name || item.name || item.title || "Unknown";
+    const rawIdx = item._rawIdx !== undefined ? item._rawIdx : index;
+    return `${name}_${rawIdx}`;
+  };
+
+  const getComponentValue = (component, key) => {
     if (!component) return '';
     let normTarget = key.toLowerCase().replace(/[^a-z0-9]/g, '');
     
@@ -2600,10 +2624,17 @@ export default function OpsDashboard() {
                  <div className="bg-white rounded-[2rem] border border-zinc-200 shadow-sm overflow-hidden">
                     {(() => {
                         const activeList = (componentData[componentTab] || []).map((item, idx) => ({ ...item, _rawIdx: idx }));
-                        if (activeList.length === 0) return (
+                        if (!componentsLoaded) return (
                            <div className="p-12 text-center">
                               <Loader2 className="animate-spin text-zinc-300 mx-auto mb-4" size={32}/>
                               <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Fetching JSON Data</p>
+                           </div>
+                        );
+                        
+                        if (activeList.length === 0) return (
+                           <div className="p-12 text-center">
+                              <div className="text-zinc-300 mx-auto mb-4"><Database size={48} className="mx-auto opacity-20" /></div>
+                              <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest italic">Inventory currently empty for {componentTab}</p>
                            </div>
                         );
                         
@@ -2674,7 +2705,7 @@ export default function OpsDashboard() {
                                    <tr>
                                       <th className="p-4 px-6 w-12 bg-zinc-50 border-r border-zinc-100 sticky left-0 z-40">
                                           <input type="checkbox" checked={selectedComponents.length === filteredList.length && filteredList.length > 0} onChange={(e) => {
-                                             if (e.target.checked) setSelectedComponents(filteredList.map((v) => { const rawIdx = activeList.indexOf(v); return (v.id || v.shopify_product_id || (v.Name + "_" + rawIdx)); }));
+                                             if (e.target.checked) setSelectedComponents(filteredList.map((v) => getComponentUniqueId(v, activeList.indexOf(v))));
                                              else setSelectedComponents([]);
                                           }} className="w-4 h-4 rounded border-zinc-300 accent-blue-600 cursor-pointer" />
                                       </th>
@@ -2686,28 +2717,28 @@ export default function OpsDashboard() {
                                          <div onMouseDown={(e) => startResizing(e, componentTab + '_name')} className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-black/20 transition-colors z-30" />
                                      </th>
                                      {columns.map(col => (
-                                        <th 
-                                           key={col} 
-                                           draggable
-                                           onDragStart={() => handleDragStart(col)}
-                                           onDragOver={handleDragOver}
-                                           onDrop={() => handleDrop(col)}
-                                           style={{ 
-                                              width: componentColumnWidths[componentTab + '_' + col] || 150, 
-                                              minWidth: componentColumnWidths[componentTab + '_' + col] || 150 
-                                           }}
-                                           className="p-4 font-black text-[10px] uppercase text-zinc-400 tracking-widest cursor-grab active:cursor-grabbing hover:bg-zinc-100 transition-colors relative group/h border-r border-zinc-50"
-                                        >
-                                           {formatColumnTitle(col)}
-                                           <div onMouseDown={(e) => startResizing(e, componentTab + '_' + col)} className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-black/20 transition-colors z-30 opacity-0 group-hover/h:opacity-100" />
-                                        </th>
+                                       <th 
+                                          key={col} 
+                                          draggable
+                                          onDragStart={() => handleDragStart(col)}
+                                          onDragOver={handleDragOver}
+                                          onDrop={() => handleDrop(col)}
+                                          style={{ 
+                                             width: componentColumnWidths[componentTab + '_' + col] || 150, 
+                                             minWidth: componentColumnWidths[componentTab + '_' + col] || 150 
+                                          }}
+                                          className="p-4 font-black text-[10px] uppercase text-zinc-400 tracking-widest cursor-grab active:cursor-grabbing hover:bg-zinc-100 transition-colors relative group/h border-r border-zinc-50"
+                                       >
+                                          {formatColumnTitle(col)}
+                                          <div onMouseDown={(e) => startResizing(e, componentTab + '_' + col)} className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-black/20 transition-colors z-30 opacity-0 group-hover/h:opacity-100" />
+                                       </th>
                                       ))}
                                       <th className="p-4 px-6 font-black text-[10px] uppercase text-zinc-400 tracking-widest text-right bg-zinc-50">Actions</th>
                                    </tr>
                                </thead>
                                <tbody className="divide-y divide-zinc-100">
                                   {filteredList.map((row, i) => {
-                                       const rowId = (row.id || row.shopify_product_id || (row.Name + "_" + row._rawIdx));
+                                       const rowId = getComponentUniqueId(row, row._rawIdx);
                                        const isSelected = selectedComponents.includes(rowId);
                                        const shopifyId = row['Product ID'] || row['product_id'] || row['ID'];
                                        const validation = getComponentValidation(row, componentTab);
@@ -2765,9 +2796,9 @@ export default function OpsDashboard() {
                                               <button onClick={() => {
                                                   if (confirm("Delete " + (row.Name || row.title) + "? This cannot be undone.")) {
 
-                                                     const delId = (row.id || row.shopify_product_id || (row.Name + "_" + row._rawIdx));
+                                                     const delId = getComponentUniqueId(row, row._rawIdx);
                                                       console.log("[Persistence Debug] Individual DELETE", { delId, name: row.Name || row.title });
-                                                      const newArrFull = activeList.filter(item => (item.id || item.shopify_product_id || (item.Name + "_" + item._rawIdx)) !== delId);
+                                                      const newArrFull = activeList.filter(item => getComponentUniqueId(item, item._rawIdx) !== delId);
                                                       const finalArr = newArrFull.map(({ _rawIdx, ...rest }) => rest);
                                                       saveComponentChanges(finalArr);
 
@@ -2948,22 +2979,24 @@ export default function OpsDashboard() {
                                    onClick={() => {
                                       // Upsert logic - use _editIdx for direct slot replacement
                                         console.log("[Persistence Debug] Save Button Clicked", { _editIdx: editingComponent?._editIdx, isDuplicateMode });
-                                       const activeArray = [...componentData[componentTab]];
-                                       const { _editIdx, ...cleanComp } = editingComponent;
-                                       let existingIdx = -1;
-                                       if (_editIdx !== undefined && _editIdx >= 0 && _editIdx < activeArray.length) {
-                                          existingIdx = _editIdx;
-                                       } else if (cleanComp.id) {
-                                          existingIdx = activeArray.findIndex(item => item.id === cleanComp.id);
-                                       } else if (cleanComp.shopify_product_id) {
-                                          existingIdx = activeArray.findIndex(item => item.shopify_product_id === cleanComp.shopify_product_id);
-                                       }
-                                       if (existingIdx >= 0 && !isDuplicateMode) {
-                                          activeArray[existingIdx] = cleanComp;
-                                       } else {
-                                          activeArray.unshift(cleanComp);
-                                       }
-                                       saveComponentChanges(activeArray);
+                                        const activeArray = [...(componentData[componentTab] || [])];
+                                        const { _editIdx, ...cleanComp } = editingComponent;
+                                        
+                                        let existingIdx = -1;
+                                        if (_editIdx !== undefined && _editIdx >= 0 && _editIdx < activeArray.length) {
+                                           existingIdx = _editIdx;
+                                        } else {
+                                           // Fallback to ID matching if _editIdx is lost
+                                           const targetId = getComponentUniqueId(cleanComp);
+                                           existingIdx = activeArray.findIndex((item, i) => getComponentUniqueId(item, i) === targetId);
+                                        }
+
+                                        if (existingIdx >= 0 && !isDuplicateMode) {
+                                           activeArray[existingIdx] = cleanComp;
+                                        } else {
+                                           activeArray.unshift(cleanComp);
+                                        }
+                                        saveComponentChanges(activeArray).catch(err => console.error("[Persistence Error] Save failed:", err));
                                    }}
                                    className={`flex-[2] py-5 font-black uppercase tracking-widest text-xs rounded-2xl shadow-xl transition-all flex items-center justify-center gap-2 ${allConfirmed && !componentSaving ? 'bg-black text-white hover:bg-zinc-800' : 'bg-zinc-200 text-zinc-400 cursor-not-allowed shadow-none'}`}
                                 >
@@ -3474,7 +3507,8 @@ export default function OpsDashboard() {
                 <div className="flex items-center gap-4">
                    <button 
                      onClick={() => setIsBulkEditModalOpen(true)}
-                     className="flex items-center gap-2 px-6 py-3 bg-zinc-800 hover:bg-white hover:text-black text-zinc-300 rounded-xl transition-all border border-zinc-700/50 group shadow-lg"
+                     disabled={componentSaving}
+                     className={`flex items-center gap-2 px-6 py-3 bg-zinc-800 hover:bg-white hover:text-black text-zinc-300 rounded-xl transition-all border border-zinc-700/50 group shadow-lg ${componentSaving ? 'opacity-50 cursor-not-allowed' : ''}`}
                    >
                       <Edit3 size={14} className="group-hover:scale-110 transition-transform"/>
                       <span className="text-[10px] font-black uppercase tracking-widest">Mass Edit Items</span>
@@ -3482,7 +3516,8 @@ export default function OpsDashboard() {
 
                    <button 
                      onClick={handleBulkDelete}
-                     className="flex items-center gap-2 px-6 py-3 bg-red-900/20 hover:bg-red-500 text-red-500 hover:text-white rounded-xl transition-all border border-red-900/30 group shadow-lg"
+                     disabled={componentSaving}
+                     className={`flex items-center gap-2 px-6 py-3 rounded-xl transition-all border group shadow-lg ${componentSaving ? 'bg-zinc-800 text-zinc-500 border-zinc-700 cursor-not-allowed' : 'bg-red-900/20 hover:bg-red-500 text-red-500 hover:text-white border-red-900/30'}`}
                    >
                       <Trash2 size={14} className="group-hover:scale-110 transition-transform"/>
                       <span className="text-[10px] font-black uppercase tracking-widest">Move to Trash</span>
