@@ -4,6 +4,29 @@ import { RefreshCcw, Search, Package, ShieldCheck, ShieldAlert, Plus, X, Info, I
 
 const COMPONENT_SUGGESTIONS = {};
 
+const DROPDOWN_OPTIONS = {
+  'Wheel Spec Position': ['Front', 'Rear', 'Front/Rear'],
+  'Brake Interface': ['Centerlock', '6-Bolt', 'N/A', 'Rim Brake'],
+  'Option 1 Name': ['Size', 'Spoke Count', 'Freehub', 'Spacing', 'Color', 'Type'],
+  'Option 2 Name': ['Size', 'Spoke Count', 'Freehub', 'Spacing', 'Color', 'Type'],
+  'Rim Size': ['26"', '27.5"', '29"', '30"', '31"', '32"', '700c', '650b'],
+  'Spoke Count': ['16h', '18h', '20h', '24h', '28h', '32h', '36h'],
+  'Hub Type': ['J-Bend', 'Straight Pull', 'Hook Flange'],
+  'Hub Lacing Policy': ['Standard', 'Force 2-Cross for 28h Only', 'Force 3-Cross for 28h Only', 'Force All as 2-Cross', 'Use Manual Override Field', 'None'],
+  'Rim Washer Policy': ['Optional', 'Mandatory', 'Not Compatible', 'None'],
+  'Spoke Type': ['J-Bend', 'Straight Pull', 'Carbon'],
+  'Spoke Rounding Rule': ['Nearest', 'Even'],
+  'Hub Spacing': ['QR', '100mm', '110mm', '135mm', '142mm', '148mm', '150mm', '157mm'],
+  'Hub Freehub': ['Standard', 'XD', 'XDR', 'N/A']
+};
+
+const MANDATORY_FIELDS = {
+  rims: ['Name', 'Vendor', 'Option 1 Name', 'Option 1 Value', 'Option 2 Name', 'Option 2 Value', 'Wheel Spec Position', 'Rim Erd', 'Weight G (p)'],
+  hubs: ['Name', 'Vendor', 'Option 1 Name', 'Option 1 Value', 'Hub Type', 'Weight G (v)', 'Wheel Spec Position'],
+  spokes: ['Name', 'Vendor', 'Spoke Type', 'Spoke Cross Section Area Mm2', 'Spoke Model Group', 'Weight G (p)', 'Spoke Diameter Spec', 'Spoke Rounding Rule'],
+  nipples: ['Name', 'Vendor', 'Option 1 Name', 'Option 1 Value', 'Weight G (p)']
+};
+
 export default function OpsDashboard() {
   const [editingRule, setEditingRule] = useState(null);
   const [activeTab, setActiveTab] = useState('vendors');
@@ -55,7 +78,7 @@ export default function OpsDashboard() {
   const [bulkEditValue, setBulkEditValue] = useState("");
   const [isBulkEditModalOpen, setIsBulkEditModalOpen] = useState(false);
   const lastCheckedComponentRef = useRef(null);
-  const toggleComponentSelection = (id, e, linearList) => {
+  const toggleComponentSelection = React.useCallback((id, e, linearList) => {
     const isShift = e && (e.shiftKey || (e.nativeEvent && e.nativeEvent.shiftKey));
     if (isShift && lastCheckedComponentRef.current && linearList) {
        const idx = linearList.findIndex((v, i) => getComponentUniqueId(v, i) === id);
@@ -74,9 +97,9 @@ export default function OpsDashboard() {
     }
     setSelectedComponents(prev => prev.includes(id) ? prev.filter(v => v !== id) : [...prev, id]);
     lastCheckedComponentRef.current = id;
-  };
+  }, [getComponentUniqueId]);
 
-  const handleBulkDelete = async () => {
+  const handleBulkDelete = React.useCallback(async () => {
     if (selectedComponents.length === 0) return;
     if (!confirm("Delete " + selectedComponents.length + " component(s)? This cannot be undone.")) return;
 
@@ -91,9 +114,9 @@ export default function OpsDashboard() {
     await saveComponentChanges(updatedArray);
     setSelectedComponents([]);
     setComponentSaving(false);
-  };
+  }, [selectedComponents, componentData, componentTab, getComponentUniqueId, saveComponentChanges]);
 
-  const handleBulkEdit = async () => {
+  const handleBulkEdit = React.useCallback(async () => {
     if (!bulkEditField || selectedComponents.length === 0) return;
     setComponentSaving(true);
     const activeArray = [...(componentData[componentTab] || [])];
@@ -111,7 +134,7 @@ export default function OpsDashboard() {
     setBulkEditValue("");
     setComponentSaving(false);
     setNotification({ type: 'success', msg: `Successfully updated ${selectedComponents.length} components` });
-  };
+  }, [bulkEditField, selectedComponents, componentData, componentTab, getComponentUniqueId, bulkEditValue, saveComponentChanges]);
 
   const [componentColumnWidths, setComponentColumnWidths] = useState({});
   const [draggedColumn, setDraggedColumn] = useState(null);
@@ -166,7 +189,7 @@ export default function OpsDashboard() {
     setTimeout(() => setNotification(null), 4000);
   };
 
-  const formatColumnTitle = (title) => {
+  const formatColumnTitle = React.useCallback((title) => {
     const isVariant = title.toLowerCase().includes('variant metafield');
     const isProduct = !isVariant && title.toLowerCase().includes('metafield:');
     let clean = title.replace(/^Metafield:\s*custom\./i, '');
@@ -179,7 +202,7 @@ export default function OpsDashboard() {
        if (isProduct) return final + ' (p)';
     }
     return final;
-  };
+  }, []);
 
   const spokePolish = (val) => {
     if (!val) return val;
@@ -199,13 +222,13 @@ export default function OpsDashboard() {
   const [startX, setStartX] = useState(0);
   const [startWidth, setStartWidth] = useState(0);
 
-  const startResizing = (e, col) => {
+  const startResizing = React.useCallback((e, col) => {
     e.preventDefault();
     e.stopPropagation();
     setResizingCol(col);
     setStartX(e.pageX);
     setStartWidth(componentColumnWidths[col] || 150);
-  };
+  }, [componentColumnWidths]);
 
   useEffect(() => {
     if (!resizingCol) return;
@@ -303,7 +326,64 @@ export default function OpsDashboard() {
   const [syncLogs, setSyncLogs] = useState([]);
   const lastCheckedIndex = useRef(null);
 
-  const getDiscrepancies = (variants) => {
+  const handleDragStart = React.useCallback((col) => setDraggedColumn(col), []);
+  const handleDragOver = React.useCallback((e) => e.preventDefault(), []);
+  const handleDrop = React.useCallback((targetCol) => {
+    if (!draggedColumn || draggedColumn === targetCol) return;
+    const activeList = componentData[componentTab] || [];
+    const excludeKeys = ['Name', 'name', 'title', 'Title', 'Vendor', 'vendor', 'Brand', 'brand', 'Tags', 'tags', 'id', 'ID', 'shopify_product_id', 'Product ID', 'Variant ID', 'tags'];
+    const rawColumns = Object.keys(activeList[0] || {}).filter(k => !excludeKeys.includes(k));
+    let currentCols = componentColumnOrder[componentTab] || rawColumns;
+    const srcIdx = currentCols.indexOf(draggedColumn);
+    const tgtIdx = currentCols.indexOf(targetCol);
+    if (srcIdx === -1 || tgtIdx === -1) return;
+    const newCols = [...currentCols];
+    newCols.splice(srcIdx, 1);
+    newCols.splice(tgtIdx, 0, draggedColumn);
+    const newOrderMap = { ...componentColumnOrder, [componentTab]: newCols };
+    setComponentColumnOrder(newOrderMap);
+    localStorage.setItem('loamops_cols', JSON.stringify(newOrderMap));
+    setDraggedColumn(null);
+  }, [draggedColumn, componentData, componentTab, componentColumnOrder]);
+
+  const uniqueVendors = React.useMemo(() => {
+    const activeList = (componentData[componentTab] || []).map((item, idx) => ({ ...item, _rawIdx: idx }));
+    const vends = activeList.map(item => item.Vendor || item.vendor || item.Brand || item.brand).filter(v => typeof v === 'string' && v.trim() !== '');
+    return [...new Set(vends)].sort((a,b) => a.localeCompare(b));
+  }, [componentData, componentTab]);
+
+  const finalFilteredList = React.useMemo(() => {
+    const activeList = (componentData[componentTab] || []).map((item, idx) => ({ ...item, _rawIdx: idx }));
+    const addedRows = gridAddedRows[componentTab] || [];
+    const combinedList = [...activeList, ...addedRows];
+
+    let preFilteredList = componentVendorFilter === 'All' 
+      ? combinedList 
+      : combinedList.filter(item => (item.Vendor || item.vendor || item.Brand || item.brand) === componentVendorFilter);
+
+    if (showMissingOnly) {
+      preFilteredList = preFilteredList.filter(item => {
+        try {
+          const validation = getComponentValidation(item, componentTab);
+          return !validation.isValid;
+        } catch (e) {
+          return false;
+        }
+      });
+    }
+
+    return [...preFilteredList].sort((a, b) => {
+      // Prioritize new rows at the top
+      if (a._isNew && !b._isNew) return -1;
+      if (!a._isNew && b._isNew) return 1;
+      
+      const aN = (a.Name || a.name || a.title || a.Title || '').toLowerCase();
+      const bN = (b.Name || b.name || b.title || b.Title || '').toLowerCase();
+      return aN.localeCompare(bN);
+    });
+  }, [componentData, componentTab, gridAddedRows, componentVendorFilter, showMissingOnly, getComponentValidation]);
+
+  const getDiscrepancies = React.useCallback((variants) => {
     if (!variants || variants.length <= 1) return {};
     const constantKeys = metafieldRegistry.filter(m => m.isConstant).map(m => m.key);
     const issues = {};
@@ -321,9 +401,9 @@ export default function OpsDashboard() {
       }
     });
     return issues;
-  };
+  }, [metafieldRegistry]);
 
-  const getVariantGroupKey = (variant, product) => {
+  const getVariantGroupKey = React.useCallback((variant, product) => {
     const parentTitle = product.title.split('(')[0].trim().toLowerCase();
     let variantLabel = variant.title;
     if (variantLabel.toLowerCase().startsWith(parentTitle)) {
@@ -343,9 +423,9 @@ export default function OpsDashboard() {
       return parts[0]; // Size for rims, etc.
     }
     return 'Base Config';
-  };
+  }, []);
 
-  const getProductGroupedDiscrepancies = (product, productVariants) => {
+  const getProductGroupedDiscrepancies = React.useCallback((product, productVariants) => {
     const groups = productVariants.reduce((acc, v) => {
       const key = getVariantGroupKey(v, product);
       if (!acc[key]) acc[key] = [];
@@ -367,7 +447,7 @@ export default function OpsDashboard() {
         });
     });
     return allDiscrepancies;
-  };
+  }, [getVariantGroupKey, getDiscrepancies]);
 
   const handleCheckboxClick = (index, ruleId, e) => {
     if (e.shiftKey && lastCheckedIndex.current !== null && lastCheckedIndex.current !== index) {
@@ -576,7 +656,7 @@ export default function OpsDashboard() {
     fetchRules();
   };
 
-  const saveComponentChanges = async (newArray, tabOverride = null) => {
+  const saveComponentChanges = React.useCallback(async (newArray, tabOverride = null) => {
     const tab = tabOverride || componentTab;
     if (!tab) {
         console.error("[Persistence Debug] CANNOT SAVE: No tab identified.");
@@ -613,19 +693,21 @@ export default function OpsDashboard() {
       showNotification("Network error while saving components.", 'error');
     }
     setComponentSaving(false);
-  };
+  }, [componentTab, password, showNotification]);
 
-  const handleEditComponent = (component, editIdx) => {
+  const handleEditComponent = React.useCallback((component, editIdx) => {
     console.log(`[Persistence Debug] Opening Drawer for Edit. Index: ${editIdx}, Name: ${component.Name || component.title}`);
     setEditingComponent({ ...component, _editIdx: editIdx });
     setIsDuplicateMode(false);
     setConfirmedFields([]);
     setIsComponentDrawerOpen(true);
-  };
+  }, []);
 
-  const handleDuplicateComponent = (component) => {
+  const handleDuplicateComponent = React.useCallback((component) => {
     const newComp = { ...component };
-    if (newComp.Name) newComp.Name += " (Copy)"; if (componentTab === "nipples") newComp["Option 1 Name"] = "Type"; if (componentTab === "hubs") newComp["Hub Pairing Policy"] = "None";
+    if (newComp.Name) newComp.Name += " (Copy)"; 
+    if (componentTab === "nipples") newComp["Option 1 Name"] = "Type"; 
+    else if (componentTab === "hubs") newComp["Hub Pairing Policy"] = "None";
     else if (newComp.name) newComp.name += " (Copy)";
     else if (newComp.title) newComp.title += " (Copy)";
     if (newComp.id) delete newComp.id;
@@ -635,25 +717,10 @@ export default function OpsDashboard() {
     setIsDuplicateMode(true);
     setConfirmedFields([]); 
     setIsComponentDrawerOpen(true);
-  };
+  }, [componentTab]);
 
-  const DROPDOWN_OPTIONS = {
-    'Wheel Spec Position': ['Front', 'Rear', 'Front/Rear'],
-    'Brake Interface': ['Centerlock', '6-Bolt', 'N/A', 'Rim Brake'],
-    'Option 1 Name': ['Size', 'Spoke Count', 'Freehub', 'Spacing', 'Color', 'Type'],
-    'Option 2 Name': ['Size', 'Spoke Count', 'Freehub', 'Spacing', 'Color', 'Type'],
-    'Rim Size': ['26"', '27.5"', '29"', '30"', '31"', '32"', '700c', '650b'],
-    'Spoke Count': ['16h', '18h', '20h', '24h', '28h', '32h', '36h'],
-    'Hub Type': ['J-Bend', 'Straight Pull', 'Hook Flange'],
-    'Hub Lacing Policy': ['Standard', 'Force 2-Cross for 28h Only', 'Force 3-Cross for 28h Only', 'Force All as 2-Cross', 'Use Manual Override Field', 'None'],
-    'Rim Washer Policy': ['Optional', 'Mandatory', 'Not Compatible', 'None'],
-    'Spoke Type': ['J-Bend', 'Straight Pull', 'Carbon'],
-    'Spoke Rounding Rule': ['Nearest', 'Even'],
-    'Hub Spacing': ['QR', '100mm', '110mm', '135mm', '142mm', '148mm', '150mm', '157mm'],
-    'Hub Freehub': ['Standard', 'XD', 'XDR', 'N/A']
-  };
 
-  const handleGridEdit = (rowId, colKey, newValue) => {
+  const handleGridEdit = React.useCallback((rowId, colKey, newValue) => {
     setGridUnsavedChanges(prev => {
       const tabChanges = prev[componentTab] || {};
       const rowChanges = tabChanges[rowId] || {};
@@ -665,9 +732,9 @@ export default function OpsDashboard() {
         }
       };
     });
-  };
+  }, [componentTab]);
 
-  const handleAddNewRow = (count = 1) => {
+  const handleAddNewRow = React.useCallback((count = 1) => {
     const tab = componentTab;
     const newRows = Array.from({ length: count }).map((_, i) => ({
       _rid: `new_${Date.now()}_${i}`,
@@ -680,9 +747,9 @@ export default function OpsDashboard() {
       [tab]: [...(prev[tab] || []), ...newRows]
     }));
     showNotification(`Added ${count} blank row(s)`, 'success');
-  };
+  }, [componentTab, showNotification]);
 
-  const handleBatchDuplicate = () => {
+  const handleBatchDuplicate = React.useCallback(() => {
      if (selectedComponents.length === 0) return;
      const tab = componentTab;
      const sourceData = [...(componentData[tab] || [])];
@@ -704,9 +771,9 @@ export default function OpsDashboard() {
      }));
      showNotification(`Duplicated ${duplicated.length} components into pending rows`, 'success');
      setSelectedComponents([]);
-  };
+  }, [selectedComponents, componentTab, componentData, getComponentUniqueId, showNotification]);
 
-  const handleCommitBatchSave = async () => {
+  const handleCommitBatchSave = React.useCallback(async () => {
     const tab = componentTab;
     const unsaved = gridUnsavedChanges[tab] || {};
     const added = gridAddedRows[tab] || [];
@@ -735,9 +802,9 @@ export default function OpsDashboard() {
       showNotification("Batch save failed", "error");
     }
     setComponentSaving(false);
-  };
+  }, [componentTab, gridUnsavedChanges, gridAddedRows, componentData, getComponentUniqueId, saveComponentChanges, showNotification]);
 
-  const handleGridPaste = (e, startRowId, startColKey, columns) => {
+  const handleGridPaste = React.useCallback((e, startRowId, startColKey, columns) => {
     e.preventDefault();
     const clipboardData = e.clipboardData.getData('text');
     const rows = clipboardData.split(/\r?\n/).filter(r => r.trim() !== '');
@@ -770,19 +837,13 @@ export default function OpsDashboard() {
       newChanges[componentTab] = tabChanges;
       return newChanges;
     });
-  };
+  }, [componentTab, componentData, getComponentUniqueId]);
 
 
 
 
-  const MANDATORY_FIELDS = {
-    rims: ['Name', 'Vendor', 'Option 1 Name', 'Option 1 Value', 'Option 2 Name', 'Option 2 Value', 'Wheel Spec Position', 'Rim Erd', 'Weight G (p)'],
-    hubs: ['Name', 'Vendor', 'Option 1 Name', 'Option 1 Value', 'Hub Type', 'Weight G (v)', 'Wheel Spec Position'],
-    spokes: ['Name', 'Vendor', 'Spoke Type', 'Spoke Cross Section Area Mm2', 'Spoke Model Group', 'Weight G (p)', 'Spoke Diameter Spec', 'Spoke Rounding Rule'],
-    nipples: ['Name', 'Vendor', 'Option 1 Name', 'Option 1 Value', 'Weight G (p)']
-  };
 
-    const getComponentUniqueId = (item, index) => {
+  const getComponentUniqueId = React.useCallback((item, index) => {
     if (!item) return `empty_${index}`;
     // Use raw index if available, otherwise fallback to provided index
     const actualIdx = item._rawIdx !== undefined ? item._rawIdx : index;
@@ -793,9 +854,9 @@ export default function OpsDashboard() {
     
     const name = item.Name || item.name || item.title || "Unknown";
     return `${name}_${actualIdx}`;
-  };
+  }, []);
 
-  const getComponentValue = (component, key) => {
+  const getComponentValue = React.useCallback((component, key) => {
     if (!component) return '';
     let normTarget = key.toLowerCase().replace(/[^a-z0-9]/g, '');
     
@@ -873,9 +934,9 @@ export default function OpsDashboard() {
     if (normTarget.includes('weight')) return component['Weight G (p)'] || component['Weight G (v)'] || component.weight || '';
 
     return '';
-  };
+  }, []);
 
-  const getComponentValidation = (component, tab) => {
+  const getComponentValidation = React.useCallback((component, tab) => {
     if (!component) return { isValid: true, missingFields: [] };
     const missing = [];
     const required = [...(MANDATORY_FIELDS[tab] || [])];
@@ -930,11 +991,11 @@ export default function OpsDashboard() {
     });
 
     return { isValid: missing.length === 0, missingFields: missing };
-  };
+  }, [getComponentValue]);
 
-  const isComponentValid = (component, tab) => getComponentValidation(component, tab).isValid;
+  const isComponentValid = React.useCallback((component, tab) => getComponentValidation(component, tab).isValid, [getComponentValidation]);
 
-  const handleCreateNewComponent = (tab) => {
+  const handleCreateNewComponent = React.useCallback((tab) => {
     const activeList = componentData[tab] || [];
     const firstItem = activeList[0] || {};
     
@@ -989,13 +1050,13 @@ export default function OpsDashboard() {
     setIsDuplicateMode(false);
     setConfirmedFields([]);
     setIsComponentDrawerOpen(true);
-  };
+  }, [componentData, componentVendorFilter]);
 
-  const toggleFieldConfirmation = (key) => {
+  const toggleFieldConfirmation = React.useCallback((key) => {
     setConfirmedFields(prev => 
       prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
     );
-  };
+  }, []);
 
   const syncTags = async () => {
     setLoading(true);
@@ -2707,7 +2768,7 @@ export default function OpsDashboard() {
                              <input 
                                type="text" 
                                placeholder="Paste Shopify Logo URL..." 
-                                                      className={`w-full p-4 rounded-xl outline-none border-2 transition-all font-mono text-xs ${isMandatory && String(editingComponent[key] || '').trim() === '' && editingComponent[key] !== 0 && editingComponent[key] !== '0' ? 'bg-red-50 border-red-200 focus:border-red-500' : 'bg-zinc-50 border-transparent focus:border-black'}`}
+                               className="w-full p-4 rounded-xl outline-none border-2 bg-zinc-50 border-transparent focus:border-black transition-all font-mono text-xs"
                                defaultValue={logo?.logo_url || ''}
                                onBlur={(e) => handleLogoUpdate(vendor, e.target.value)}
                              />
@@ -2737,10 +2798,7 @@ export default function OpsDashboard() {
                 <p className="text-zinc-400 text-sm max-w-xs mx-auto mt-2">Integrating Section 4.11 from Master Notes. Reporting on Negative Inventory coming next.</p>
              </div>
           </div>
-        ) : null}
-
-        {/* --- COMPONENT LIBRARY TAB --- */}
-        {activeTab === 'component_library' && (
+        ) : activeTab === 'component_library' ? (
            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
                <div className="flex items-center justify-between mb-8">
                    <div>
@@ -2757,163 +2815,98 @@ export default function OpsDashboard() {
                           <Edit3 size={16}/> New Component (Drawer)
                        </button>
                     </div>
-                 </div>
+                </div>
 
-               <div className="mb-10">
-                  {(() => {
-                     const activeList = (componentData[componentTab] || []).map((item, idx) => ({ ...item, _rawIdx: idx }));
-                     const vends = activeList.map(item => item.Vendor || item.vendor || item.Brand || item.brand).filter(v => typeof v === 'string' && v.trim() !== '');
-                     const uniqueVendors = [...new Set(vends)].sort((a,b) => a.localeCompare(b));
-                     
-                     const addedRows = gridAddedRows[componentTab] || [];
-                     const combinedList = [...activeList, ...addedRows];
-
-                     let preFilteredList = componentVendorFilter === 'All' 
-                        ? combinedList 
-                        : combinedList.filter(item => (item.Vendor || item.vendor || item.Brand || item.brand) === componentVendorFilter);
-
-                     if (showMissingOnly) {
-                        preFilteredList = preFilteredList.filter(item => {
-                           try {
-                              const validation = getComponentValidation(item, componentTab);
-                              return !validation.isValid;
-                           } catch (e) {
-                              return false;
-                           }
-                        });
-                     }
-
-                     const finalFilteredList = [...preFilteredList].sort((a, b) => {
-                        const aN = (a.Name || a.name || a.title || a.Title || '').toLowerCase();
-                        const bN = (b.Name || b.name || b.title || b.Title || '').toLowerCase();
-                        return aN.localeCompare(bN);
-                     });
-                     const formatColumnTitle = (title) => {
-                          if (title.toLowerCase().includes('metafield: custom.weight_g')) {
-                             return title.toLowerCase().includes('variant') ? 'Weight G (v)' : 'Weight G (p)';
-                          }
-                         let clean = title.replace(/^Metafield:\s*custom\./i, '');
-                         clean = clean.replace(/^Variant Metafield:\s*custom\./i, '');
-                         clean = clean.replace(/\[.*?\]/g, '');
-                         clean = clean.replace(/_/g, ' ');
-                         return clean.trim().replace(/\b\w/g, l => l.toUpperCase());
-                     };
-
-                     const handleDragStart = (col) => setDraggedColumn(col);
-                     const handleDragOver = (e) => e.preventDefault();
-                     const handleDrop = (targetCol) => {
-                        if (!draggedColumn || draggedColumn === targetCol) return;
-                        const excludeKeys = ['Name', 'name', 'title', 'Title', 'Vendor', 'vendor', 'Brand', 'brand', 'Tags', 'tags', 'id', 'ID', 'shopify_product_id', 'Product ID', 'Variant ID', 'tags'];
-                        const rawColumns = Object.keys(activeList[0] || {}).filter(k => !excludeKeys.includes(k));
-                        let currentCols = componentColumnOrder[componentTab] || rawColumns;
-                        const srcIdx = currentCols.indexOf(draggedColumn);
-                        const tgtIdx = currentCols.indexOf(targetCol);
-                        if (srcIdx === -1 || tgtIdx === -1) return;
-                        const newCols = [...currentCols];
-                        newCols.splice(srcIdx, 1);
-                        newCols.splice(tgtIdx, 0, draggedColumn);
-                        const newOrderMap = { ...componentColumnOrder, [componentTab]: newCols };
-                        setComponentColumnOrder(newOrderMap);
-                        localStorage.setItem('loamops_cols', JSON.stringify(newOrderMap));
-                        setDraggedColumn(null);
-                     };
-
-                     return (
-                        <>
-                           <div className="flex gap-4 mb-8 border-b-2 border-zinc-100 pb-2">
-                              {['rims', 'hubs', 'spokes', 'nipples'].map(tab => (
+                <div className="mb-10">
+                   <div className="flex gap-4 mb-8 border-b-2 border-zinc-100 pb-2">
+                      {['rims', 'hubs', 'spokes', 'nipples'].map(tab => (
+                         <button 
+                            key={tab} 
+                            onClick={() => { setComponentTab(tab); setComponentVendorFilter('All'); setShowMissingOnly(false); }} 
+                            className={`px-6 py-3 font-black text-[10px] uppercase tracking-widest transition-all ${componentTab === tab ? 'text-black border-b-2 border-black -mb-[10px] bg-zinc-100 rounded-t-xl' : 'text-zinc-400 hover:text-zinc-600'}`}
+                         >
+                            {tab} ({componentData[tab]?.length || 0})
+                         </button>
+                      ))}
+                   </div>
+                   
+                   {uniqueVendors.length > 0 && (
+                     <div className="mb-8 p-8 bg-white border border-zinc-100 rounded-[2rem] shadow-sm animate-in fade-in slide-in-from-top-2 duration-300">
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-left">
+                            <div>
+                               <div className="flex items-center justify-between mb-4">
+                                 <label className="text-[10px] font-black uppercase text-zinc-400 tracking-[0.2em] italic">Filter by Component Vendor</label>
+                               </div>
+                               <div className="flex flex-wrap gap-2">
                                  <button 
-                                    key={tab} 
-                                    onClick={() => { setComponentTab(tab); setComponentVendorFilter('All'); setShowMissingOnly(false); }} 
-                                    className={`px-6 py-3 font-black text-[10px] uppercase tracking-widest transition-all ${componentTab === tab ? 'text-black border-b-2 border-black -mb-[10px] bg-zinc-100 rounded-t-xl' : 'text-zinc-400 hover:text-zinc-600'}`}
+                                   onClick={() => setComponentVendorFilter('All')} 
+                                   className={`px-4 py-2 rounded-xl border-2 font-black text-[10px] uppercase transition-all ${componentVendorFilter === 'All' ? 'bg-black text-white border-black shadow-lg scale-105' : 'bg-white text-zinc-400 border-zinc-100 hover:border-zinc-300'}`}
                                  >
-                                    {tab} ({componentData[tab]?.length || 0})
+                                   All Vendors
                                  </button>
-                              ))}
-                           </div>
-                           
-                           {/* VENDOR FILTERS OVERRIDE FOR COMPONENTS */}
-                           {uniqueVendors.length > 0 && (
-                             <div className="mb-8 p-8 bg-white border border-zinc-100 rounded-[2rem] shadow-sm animate-in fade-in slide-in-from-top-2 duration-300">
-                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-left">
-                                    <div>
-                                       <div className="flex items-center justify-between mb-4">
-                                         <label className="text-[10px] font-black uppercase text-zinc-400 tracking-[0.2em] italic">Filter by Component Vendor</label>
-                                       </div>
-                                       <div className="flex flex-wrap gap-2">
-                                         <button 
-                                           onClick={() => setComponentVendorFilter('All')} 
-                                           className={`px-4 py-2 rounded-xl border-2 font-black text-[10px] uppercase transition-all ${componentVendorFilter === 'All' ? 'bg-black text-white border-black shadow-lg scale-105' : 'bg-white text-zinc-400 border-zinc-100 hover:border-zinc-300'}`}
-                                         >
-                                           All Vendors
-                                         </button>
-                                         {uniqueVendors.map(v => (
-                                             <button key={v} onClick={() => setComponentVendorFilter(v)} className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border-2 transition-all ${componentVendorFilter === v ? 'border-zinc-900 bg-zinc-900 text-white shadow-sm scale-[1.02]' : 'bg-white text-zinc-500 border-zinc-100 hover:border-zinc-300'}`}>
-                                               <span className="text-[10px] font-bold uppercase tracking-tight">{v}</span>
-                                             </button>
-                                          ))}
-                                       </div>
-                                    </div>
+                                 {uniqueVendors.map(v => (
+                                     <button key={v} onClick={() => setComponentVendorFilter(v)} className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border-2 transition-all ${componentVendorFilter === v ? 'border-zinc-900 bg-zinc-900 text-white shadow-sm scale-[1.02]' : 'bg-white text-zinc-500 border-zinc-100 hover:border-zinc-300'}`}>
+                                       <span className="text-[10px] font-bold uppercase tracking-tight">{v}</span>
+                                     </button>
+                                  ))}
+                               </div>
+                            </div>
 
-                                    <div className="border-l border-zinc-100 pl-8">
-                                       <div className="flex items-center justify-between mb-4">
-                                         <label className="text-[10px] font-black uppercase text-zinc-400 tracking-[0.2em] italic">Data Integrity Filters</label>
-                                       </div>
-                                       <div className="flex items-center gap-2 p-1 bg-zinc-100/50 rounded-2xl border border-zinc-100 w-fit">
-                                          <button onClick={() => setShowMissingOnly(false)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${!showMissingOnly ? "bg-white text-black shadow-sm" : "text-zinc-400 hover:text-zinc-600"}`}>All Components</button>
-                                          <button onClick={() => setShowMissingOnly(true)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${showMissingOnly ? "bg-red-500 text-white shadow-lg" : "text-zinc-400 hover:text-red-500"}`}>Missing Data</button>
-                                       </div>
-                                       {showMissingOnly && <div className="px-4 mt-2 text-[9px] font-bold text-red-500 flex items-center gap-1 uppercase italic animate-pulse"><AlertTriangle size={12} /> Enrollment Errors Detected</div>}
-                                    </div>
-                                 </div>
-                             </div>
-                           )}
+                            <div className="border-l border-zinc-100 pl-8">
+                               <div className="flex items-center justify-between mb-4">
+                                 <label className="text-[10px] font-black uppercase text-zinc-400 tracking-[0.2em] italic">Data Integrity Filters</label>
+                               </div>
+                               <div className="flex items-center gap-2 p-1 bg-zinc-100/50 rounded-2xl border border-zinc-100 w-fit">
+                                  <button onClick={() => setShowMissingOnly(false)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${!showMissingOnly ? "bg-white text-black shadow-sm" : "text-zinc-400 hover:text-zinc-600"}`}>All Components</button>
+                                  <button onClick={() => setShowMissingOnly(true)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${showMissingOnly ? "bg-red-500 text-white shadow-lg" : "text-zinc-400 hover:text-red-500"}`}>Missing Data</button>
+                               </div>
+                               {showMissingOnly && <div className="px-4 mt-2 text-[9px] font-bold text-red-500 flex items-center gap-1 uppercase italic animate-pulse"><AlertTriangle size={12} /> Enrollment Errors Detected</div>}
+                            </div>
+                         </div>
+                     </div>
+                   )}
 
-                           {/* DYNAMIC DATA GRID */}
-                           <div className="bg-white rounded-[2rem] border border-zinc-200 shadow-sm overflow-hidden">
-                              {!componentsLoaded ? (
-                                 <div className="p-12 text-center">
-                                    <Loader2 className="animate-spin text-zinc-300 mx-auto mb-4" size={32}/>
-                                    <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Fetching JSON Data</p>
-                                 </div>
-                              ) : finalFilteredList.length === 0 ? (
-                                 <div className="p-12 text-center">
-                                    <div className="text-zinc-300 mx-auto mb-4"><Database size={48} className="mx-auto opacity-20" /></div>
-                                    <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest italic">No {componentTab} match filters ({componentVendorFilter} / Missing Only: {showMissingOnly ? 'Yes' : 'No'})</p>
-                                 </div>
-                              ) : (
-                                 <ComponentLibraryGrid
-                                    componentTab={componentTab}
-                                    finalFilteredList={finalFilteredList}
-                                    selectedComponents={selectedComponents}
-                                    setSelectedComponents={setSelectedComponents}
-                                    gridUnsavedChanges={gridUnsavedChanges}
-                                    handleGridEdit={handleGridEdit}
-                                    handleGridPaste={handleGridPaste}
-                                    componentColumnWidths={componentColumnWidths}
-                                    startResizing={startResizing}
-                                    handleDragStart={handleDragStart}
-                                    handleDragOver={handleDragOver}
-                                    handleDrop={handleDrop}
-                                    formatColumnTitle={formatColumnTitle}
-                                    getComponentUniqueId={getComponentUniqueId}
-                                    getComponentValidation={getComponentValidation}
-                                    toggleComponentSelection={toggleComponentSelection}
-                                    DROPDOWN_OPTIONS={DROPDOWN_OPTIONS}
-                                    handleEditComponent={handleEditComponent}
-                                    saveComponentChanges={saveComponentChanges}
-                                    componentData={componentData}
-                                    focusedCell={focusedCell}
-                                    setFocusedCell={setFocusedCell}
-                                    editingCell={editingCell}
-                                    setEditingCell={setEditingCell}
-                                    componentSaving={componentSaving}
-                                 />
-                              )}
-                           </div>
-                        </>
-                     );
-                  })()}
+                   <div className="bg-white rounded-[2rem] border border-zinc-200 shadow-sm overflow-hidden">
+                      {!componentsLoaded ? (
+                         <div className="p-12 text-center">
+                            <Loader2 className="animate-spin text-zinc-300 mx-auto mb-4" size={32}/>
+                            <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Fetching JSON Data</p>
+                         </div>
+                      ) : finalFilteredList.length === 0 ? (
+                         <div className="p-12 text-center">
+                            <div className="text-zinc-300 mx-auto mb-4"><Database size={48} className="mx-auto opacity-20" /></div>
+                            <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest italic">No {componentTab} match filters ({componentVendorFilter} / Missing Only: {showMissingOnly ? 'Yes' : 'No'})</p>
+                         </div>
+                      ) : (
+                         <ComponentLibraryGrid
+                            componentTab={componentTab}
+                            finalFilteredList={finalFilteredList}
+                            selectedComponents={selectedComponents}
+                            setSelectedComponents={setSelectedComponents}
+                            gridUnsavedChanges={gridUnsavedChanges}
+                            handleGridEdit={handleGridEdit}
+                            handleGridPaste={handleGridPaste}
+                            componentColumnWidths={componentColumnWidths}
+                            startResizing={startResizing}
+                            handleDragStart={handleDragStart}
+                            handleDragOver={handleDragOver}
+                            handleDrop={handleDrop}
+                            formatColumnTitle={formatColumnTitle}
+                            getComponentUniqueId={getComponentUniqueId}
+                            getComponentValidation={getComponentValidation}
+                            toggleComponentSelection={toggleComponentSelection}
+                            DROPDOWN_OPTIONS={DROPDOWN_OPTIONS}
+                            handleEditComponent={handleEditComponent}
+                            saveComponentChanges={saveComponentChanges}
+                            componentData={componentData}
+                            focusedCell={focusedCell}
+                            setFocusedCell={setFocusedCell}
+                            editingCell={editingCell}
+                            setEditingCell={setEditingCell}
+                            componentSaving={componentSaving}
+                         />
+                      )}
+                   </div>
                 </div>
 
                {/* --- SIDEBAR EDITING DRAWER --- */}
@@ -3105,8 +3098,8 @@ export default function OpsDashboard() {
                     </div>
                  </div>
                )}
-           </div>
-        )}
+            </div>
+         ) : null}
 
         {/* --- UNIVERSAL FLOATING BAR --- */}
         {((activeTab === 'product_lab' && (selectedLabProducts.length > 0 || selectedLabVariants.length > 0)) || (activeTab === 'vendors' && selectedRules.length > 0)) && (
@@ -3681,7 +3674,7 @@ export default function OpsDashboard() {
                         <button 
                            onClick={handleCommitBatchSave}
                            disabled={componentSaving}
-                           className={`flex items-center gap-3 px-10 py-4 bg-primary text-black rounded-2xl font-black uppercase text-xs tracking-[0.1em] transition-all hover:scale-105 active:scale-95 shadow-xl disabled:opacity-50 disabled:grayscale`}
+                           className={`flex items-center gap-3 px-10 py-4 bg-white text-zinc-900 rounded-2xl font-black uppercase text-xs tracking-[0.1em] transition-all hover:scale-105 active:scale-95 shadow-xl disabled:opacity-50 disabled:grayscale`}
                         >
                            {componentSaving ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={18} />}
                            Commit Changes to Main

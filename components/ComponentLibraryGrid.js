@@ -5,7 +5,7 @@ import {
   Database, ShieldAlert, Loader2, X, Layers
 } from 'lucide-react';
 
-const EditableCell = ({ 
+const EditableCell = React.memo(({ 
   rowId, 
   colKey, 
   value, 
@@ -75,9 +75,9 @@ const EditableCell = ({
       </span>
     </div>
   );
-};
+});
 
-export default function ComponentLibraryGrid({
+const ComponentLibraryGrid = React.memo(({
   componentTab,
   finalFilteredList,
   selectedComponents,
@@ -103,7 +103,7 @@ export default function ComponentLibraryGrid({
   editingCell,
   setEditingCell,
   componentSaving
-}) {
+}) => {
   const tableRef = useRef(null);
 
   const getBiologicalCols = () => {
@@ -271,7 +271,7 @@ export default function ComponentLibraryGrid({
 
                   <td 
                     style={{ width: componentColumnWidths[componentTab + '_name'] || 300, minWidth: componentColumnWidths[componentTab + '_name'] || 300, position: 'sticky', left: '198px', zIndex: 20 }}
-                    className={"p-0 border-r border-zinc-100 truncate " + (isValid ? (i % 2 === 0 ? 'bg-white' : 'bg-zinc-50') : 'bg-red-50') + " group-hover:bg-zinc-100 transition-colors shadow-[2px_0_5px_rgba(0,0,0,0.05)] sm-relative"}
+                    className={"p-0 border-r border-zinc-100 " + (isValid ? (i % 2 === 0 ? 'bg-white' : 'bg-zinc-50') : 'bg-red-50') + " group-hover:bg-zinc-100 transition-colors shadow-[2px_0_5px_rgba(0,0,0,0.05)] sm-relative"}
                   >
                     <EditableCell 
                       rowId={rowId}
@@ -286,9 +286,10 @@ export default function ComponentLibraryGrid({
                       onPaste={(e) => handleGridPaste(e, rowId, 'Name', biologicalCols)}
                     />
                     {!isValid && (
-                      <div className="absolute bottom-1 left-2 pointer-events-none">
-                        <div className="text-[7px] font-black uppercase text-red-500 bg-white/80 px-1 rounded shadow-sm flex items-center gap-1">
-                          <ShieldAlert size={6} /> Data Error
+                      <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
+                        <div className="text-[9px] font-black uppercase text-white bg-red-600 px-3 py-1.5 rounded-full shadow-lg border border-red-500/50 flex items-center gap-2 whitespace-nowrap overflow-hidden animate-pulse">
+                          <ShieldAlert size={10} /> 
+                          <span>Data Required: {validation.missingFields.join(', ')}</span>
                         </div>
                       </div>
                     )}
@@ -338,4 +339,7 @@ export default function ComponentLibraryGrid({
       </div>
     </div>
   );
-}
+});
+
+export default ComponentLibraryGrid;
+
