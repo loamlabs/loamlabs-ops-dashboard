@@ -107,10 +107,18 @@ const ComponentLibraryGrid = React.memo(({
   const tableRef = useRef(null);
 
   const getBiologicalCols = () => {
-    const row0 = finalFilteredList[0] || {};
-    const excludeKeys = ['Name', 'name', 'title', 'Title', 'Vendor', 'vendor', 'Brand', 'brand', 'Tags', 'tags', 'id', 'ID', 'shopify_product_id', 'Product ID', 'Variant ID', 'tags', '_rid', '_isNew', '_rawIdx'];
-    const dynamicCols = Object.keys(row0).filter(k => !excludeKeys.includes(k));
-    return ['Vendor', 'Name', ...dynamicCols];
+    const rawData = componentData[componentTab] || [];
+    const excludeKeys = ['Name', 'name', 'title', 'Title', 'Vendor', 'vendor', 'Brand', 'brand', 'Tags', 'tags', 'id', 'ID', 'shopify_product_id', 'Product ID', 'Variant ID', 'tags', '_rid', '_isNew', '_rawIdx', '_editIdx'];
+    
+    // Scan all rows to find every possible unique key (specification column)
+    const allKeys = new Set();
+    rawData.forEach(row => {
+      Object.keys(row).forEach(k => {
+        if (!excludeKeys.includes(k)) allKeys.add(k);
+      });
+    });
+    
+    return ['Vendor', 'Name', ...Array.from(allKeys)];
   };
 
   const navigateGrid = (direction) => {
@@ -271,28 +279,39 @@ const ComponentLibraryGrid = React.memo(({
 
                   <td 
                     style={{ width: componentColumnWidths[componentTab + '_name'] || 300, minWidth: componentColumnWidths[componentTab + '_name'] || 300, position: 'sticky', left: '198px', zIndex: 20 }}
-                    className={"p-0 border-r border-zinc-100 " + (isValid ? (i % 2 === 0 ? 'bg-white' : 'bg-zinc-50') : 'bg-red-50') + " group-hover:bg-zinc-100 transition-colors shadow-[2px_0_5px_rgba(0,0,0,0.05)] sm-relative"}
+                    className={"p-0 border-r border-zinc-100 " + (isValid ? (i % 2 === 0 ? 'bg-white' : 'bg-zinc-50') : 'bg-red-50') + " group-hover:bg-zinc-100 transition-colors shadow-[2px_0_5px_rgba(0,0,0,0.05)] relative"}
                   >
-                    <EditableCell 
-                      rowId={rowId}
-                      colKey="Name"
-                      value={unsaved.Name !== undefined ? unsaved.Name : (row.Name || row.name || row.title || row.Title || row.displayName || row.product_title || '')}
-                      isFocused={focusedCell?.rowId === rowId && focusedCell?.colKey === 'Name'}
-                      isEditing={editingCell?.rowId === rowId && editingCell?.colKey === 'Name'}
-                      onFocus={() => { setFocusedCell({ rowId, colKey: 'Name' }); }}
-                      onBlur={() => setEditingCell(null)}
-                      onChange={(val) => handleGridEdit(rowId, 'Name', val)}
-                      onDoubleClick={() => setEditingCell({ rowId, colKey: 'Name' })}
-                      onPaste={(e) => handleGridPaste(e, rowId, 'Name', biologicalCols)}
-                    />
-                    {!isValid && (
-                      <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
-                        <div className="text-[9px] font-black uppercase text-white bg-red-600 px-3 py-1.5 rounded-full shadow-lg border border-red-500/50 flex items-center gap-2 whitespace-nowrap overflow-hidden animate-pulse">
-                          <ShieldAlert size={10} /> 
-                          <span>Data Required: {validation.missingFields.join(', ')}</span>
+                    <div className="flex items-center justify-between px-2">
+                        <div className="flex-grow">
+                          <EditableCell 
+                            rowId={rowId}
+                            colKey="Name"
+                            value={unsaved.Name !== undefined ? unsaved.Name : (row.Name || row.name || row.title || row.Title || row.displayName || row.product_title || '')}
+                            isFocused={focusedCell?.rowId === rowId && focusedCell?.colKey === 'Name'}
+                            isEditing={editingCell?.rowId === rowId && editingCell?.colKey === 'Name'}
+                            onFocus={() => { setFocusedCell({ rowId, colKey: 'Name' }); }}
+                            onBlur={() => setEditingCell(null)}
+                            onChange={(val) => handleGridEdit(rowId, 'Name', val)}
+                            onDoubleClick={() => setEditingCell({ rowId, colKey: 'Name' })}
+                            onPaste={(e) => handleGridPaste(e, rowId, 'Name', biologicalCols)}
+                          />
                         </div>
-                      </div>
-                    )}
+                        {!isValid && (
+                          <div 
+                            className="flex-shrink-0 ml-2 animate-pulse cursor-help group/val" 
+                            title={`DATA REQUIRED: ${validation.missingFields.join(', ')}`}
+                          >
+                            <div className="bg-red-500 text-white rounded-full p-1.5 shadow-lg border border-red-400">
+                                <ShieldAlert size={10} />
+                            </div>
+                            {/* Detailed Popover on Hover */}
+                            <div className="absolute top-[80%] right-2 hidden group-hover/val:block z-[100] bg-zinc-900 text-white p-3 rounded-xl border border-zinc-800 shadow-2xl min-w-[200px] animate-in fade-in zoom-in duration-200">
+                               <div className="text-[9px] font-black uppercase text-red-400 italic mb-1 tracking-widest">Enrollment Error Detected</div>
+                               <div className="text-[10px] font-bold text-zinc-300">Missing: {validation.missingFields.join(', ')}</div>
+                            </div>
+                          </div>
+                        )}
+                    </div>
                   </td>
 
                   {biologicalCols.slice(2).map(col => {
