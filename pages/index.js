@@ -61,7 +61,7 @@ export default function OpsDashboard() {
   const [activeTab, setActiveTab] = useState('vendors');
   const [rules, setRules] = useState([]);
   const [vendorLogos, setVendorLogos] = useState([]);
-  const [password, setPassword] = useState('');
+  const [password, setPassword] = useState(process.env.NEXT_PUBLIC_DASHBOARD_PASSWORD || '');
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [loading, setLoading] = useState(false);
   const [metafieldOptionsMap, setMetafieldOptionsMap] = useState({});
@@ -481,7 +481,10 @@ export default function OpsDashboard() {
 
   // 1. Auth Bootloader (Persisted Login)
   useEffect(() => {
-    const auth = localStorage.getItem('loam_ops_auth');
+    const savedAuth = localStorage.getItem('loam_ops_auth');
+    const envAuth = process.env.NEXT_PUBLIC_DASHBOARD_PASSWORD;
+    const auth = envAuth || savedAuth;
+    
     if (auth) {
       setPassword(auth);
       fetchRules(auth);
@@ -491,7 +494,7 @@ export default function OpsDashboard() {
   // 2. Component Library Data Fetcher
   useEffect(() => {
     const auth = password || localStorage.getItem('loam_ops_auth');
-    if (auth && activeTab === 'library' && !componentsLoaded) {
+    if (auth && activeTab === 'component_library' && !componentsLoaded) {
       fetchComponentLibrary();
     }
   }, [password, componentsLoaded, activeTab]);
