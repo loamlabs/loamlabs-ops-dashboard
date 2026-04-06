@@ -9,6 +9,8 @@ node_modules
 !pages/**/*.jsx
 !api/**/*.js
 !api/**/*.jsx
+!components/**/*.js
+!components/**/*.jsx
 !public/**/*
 !*.js.config
 !next.config.js
