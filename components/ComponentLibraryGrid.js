@@ -331,10 +331,6 @@ const ComponentLibraryGrid = React.memo(({
        return;
     }
 
-    if (isMeta && e.key === 'v') {
-       onPaste();
-       return;
-    }
 
     if (editingCell) {
       if (e.key === 'Enter' || e.key === 'Tab') {
@@ -375,6 +371,13 @@ const ComponentLibraryGrid = React.memo(({
     >
       <div 
         ref={scrollRef}
+        tabIndex={0}
+        onKeyDown={handleKeyDown}
+        onPaste={(e) => {
+          if (focusedCell) {
+            handleGridPaste(e, focusedCell.rowId, focusedCell.colKey);
+          }
+        }}
         className="overflow-x-auto overflow-y-auto max-h-[650px] relative scrollbar-thin rounded-2xl border border-zinc-100 shadow-inner"
       >
         <table 
