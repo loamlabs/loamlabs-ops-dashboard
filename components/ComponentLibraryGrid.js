@@ -12,6 +12,7 @@ const EditableCell = React.memo(({
   isDropdown, 
   options, 
   isFocused, 
+  isSelected,
   isEditing, 
   onFocus, 
   onBlur, 
@@ -63,15 +64,22 @@ const EditableCell = React.memo(({
     );
   }
 
+  const cellClasses = `
+    w-full h-full min-h-[2.5rem] flex items-center px-4 cursor-cell transition-all 
+    ${isFocused ? 'ring-2 ring-inset ring-blue-500 z-20 bg-white' : ''} 
+    ${isSelected && !isFocused ? 'bg-blue-100/50 z-10' : ''}
+    ${!isSelected && !isFocused ? 'group-hover:bg-zinc-50' : ''}
+  `.trim();
+
   return (
     <div 
       onClick={onFocus}
       onDoubleClick={onDoubleClick}
       onPaste={onPaste}
-      className={`w-full h-full min-h-[2.5rem] flex items-center px-4 cursor-cell transition-all group-hover:bg-zinc-50 ${isFocused ? 'bg-blue-50 ring-2 ring-inset ring-blue-400 z-10' : ''}`}
+      className={cellClasses}
     >
-      <span className="truncate text-[11px]">
-        {getDisplayValue() || '(empty)'}
+      <span className={`truncate text-[11px] ${isSelected || isFocused ? 'font-medium text-blue-900' : ''}`}>
+        {getDisplayValue() || (isFocused ? '' : '(empty)')}
       </span>
     </div>
   );
@@ -100,6 +108,8 @@ const ComponentLibraryGrid = React.memo(({
   componentData,
   focusedCell,
   setFocusedCell,
+  selectedCells,
+  setSelectedCells,
   editingCell,
   setEditingCell,
   componentSaving,
@@ -108,27 +118,6 @@ const ComponentLibraryGrid = React.memo(({
 }) => {
   const tableRef = useRef(null);
   const scrollRef = useRef(null);
-
-  useEffect(() => {
-    const container = scrollRef.current;
-    if (!container) return;
-
-    const handleScroll = () => {
-      const thead = tableRef.current?.querySelector('thead');
-      if (thead) {
-        const rect = thead.getBoundingClientRect();
-        const containerRect = container.getBoundingClientRect();
-        const isPinned = rect.top <= containerRect.top + 1;
-        if (window.STICKY_DEBUG) {
-           console.log(`[Sticky Debug] Scroll=${container.scrollTop}, HeadTop=${rect.top}, ContainerTop=${containerRect.top}, Pinned=${isPinned}`);
-        }
-      }
-    };
-
-    container.addEventListener('scroll', handleScroll);
-    window.STICKY_DEBUG = true; 
-    return () => container.removeEventListener('scroll', handleScroll);
-  }, []);
 
   const getBiologicalCols = () => {
     const rawData = componentData[componentTab] || [];
@@ -143,6 +132,48 @@ const ComponentLibraryGrid = React.memo(({
     });
     
     return ['Vendor', 'Name', ...Array.from(allKeys)];
+  };
+
+  const getRectangularRange = (startCell, endCell) => {
+    if (!startCell || !endCell) return [];
+    const allCols = getBiologicalCols();
+    const startRowIdx = finalFilteredList.findIndex(r => (r._rid || getComponentUniqueId(r)) === startCell.rowId);
+    const endRowIdx = finalFilteredList.findIndex(r => (r._rid || getComponentUniqueId(r)) === endCell.rowId);
+    const startColIdx = allCols.indexOf(startCell.colKey);
+    const endColIdx = allCols.indexOf(endCell.colKey);
+
+    if (startRowIdx === -1 || endRowIdx === -1 || startColIdx === -1 || endColIdx === -1) return [];
+
+    const minRow = Math.min(startRowIdx, endRowIdx);
+    const maxRow = Math.max(startRowIdx, endRowIdx);
+    const minCol = Math.min(startColIdx, endColIdx);
+    const maxCol = Math.max(startColIdx, endColIdx);
+
+    const range = [];
+    for (let r = minRow; r <= maxRow; r++) {
+      const rowId = finalFilteredList[r]._rid || getComponentUniqueId(finalFilteredList[r]);
+      for (let c = minCol; c <= maxCol; c++) {
+        range.push(`${rowId}|${allCols[c]}`);
+      }
+    }
+    return range;
+  };
+
+  const handleCellClick = (rowId, colKey, e) => {
+    const cellId = `${rowId}|${colKey}`;
+    const isMeta = e.ctrlKey || e.metaKey;
+    const isShift = e.shiftKey;
+
+    if (isShift && focusedCell) {
+      const range = getRectangularRange(focusedCell, { rowId, colKey });
+      setSelectedCells(range);
+    } else if (isMeta) {
+      setSelectedCells(prev => prev.includes(cellId) ? prev.filter(c => c !== cellId) : [...prev, cellId]);
+      setFocusedCell({ rowId, colKey });
+    } else {
+      setSelectedCells([cellId]);
+      setFocusedCell({ rowId, colKey });
+    }
   };
 
   const navigateGrid = (direction) => {
@@ -179,7 +210,10 @@ const ComponentLibraryGrid = React.memo(({
     if (nextRow) {
       const nextRowId = nextRow._rid || getComponentUniqueId(nextRow);
       const nextColKey = allCols[newColIdx];
+      const nextCellId = `${nextRowId}|${nextColKey}`;
+      
       setFocusedCell({ rowId: nextRowId, colKey: nextColKey });
+      setSelectedCells([nextCellId]);
     }
   };
 
@@ -311,14 +345,16 @@ const ComponentLibraryGrid = React.memo(({
                   <td 
                     style={{ position: 'sticky', left: '148px', zIndex: 80 }}
                     className={"p-0 border-r border-zinc-100 " + (isValid ? (i % 2 === 0 ? 'bg-white' : 'bg-zinc-50') : 'bg-red-50') + " group-hover:bg-zinc-100 transition-colors shadow-[2px_0_5px_rgba(0,0,0,0.02)]"}
+                    onClick={(e) => handleCellClick(rowId, 'Vendor', e)}
                   >
                     <EditableCell 
                       rowId={rowId}
                       colKey="Vendor"
                       value={unsaved.Vendor !== undefined ? unsaved.Vendor : (row.Vendor || row.vendor || row.Brand || row.brand || row.brand_name || '')}
                       isFocused={focusedCell?.rowId === rowId && focusedCell?.colKey === 'Vendor'}
+                      isSelected={selectedCells.includes(`${rowId}|Vendor`)}
                       isEditing={editingCell?.rowId === rowId && editingCell?.colKey === 'Vendor'}
-                      onFocus={() => { setFocusedCell({ rowId, colKey: 'Vendor' }); }}
+                      onFocus={() => handleCellClick(rowId, 'Vendor', {})}
                       onBlur={() => setEditingCell(null)}
                       onChange={(val) => handleGridEdit(rowId, 'Vendor', val)}
                       onDoubleClick={() => setEditingCell({ rowId, colKey: 'Vendor' })}
@@ -329,21 +365,23 @@ const ComponentLibraryGrid = React.memo(({
                   <td 
                     style={{ width: componentColumnWidths[componentTab + '_name'] || 300, minWidth: componentColumnWidths[componentTab + '_name'] || 300, position: 'sticky', left: '298px', zIndex: 80 }}
                     className={"p-0 border-r border-zinc-100 " + (isValid ? (i % 2 === 0 ? 'bg-white' : 'bg-zinc-50') : 'bg-red-50') + " group-hover:bg-zinc-100 transition-colors shadow-[2px_0_5px_rgba(0,0,0,0.05)] relative"}
+                    onClick={(e) => handleCellClick(rowId, 'Name', e)}
                   >
-                    <div className="flex items-center justify-between px-2">
+                    <div className="flex items-center justify-between">
                         <div className="flex-grow">
-                          <EditableCell 
-                            rowId={rowId}
-                            colKey="Name"
-                            value={unsaved.Name !== undefined ? unsaved.Name : (row.Name || row.name || row.title || row.Title || row.displayName || row.product_title || '')}
-                            isFocused={focusedCell?.rowId === rowId && focusedCell?.colKey === 'Name'}
-                            isEditing={editingCell?.rowId === rowId && editingCell?.colKey === 'Name'}
-                            onFocus={() => { setFocusedCell({ rowId, colKey: 'Name' }); }}
-                            onBlur={() => setEditingCell(null)}
-                            onChange={(val) => handleGridEdit(rowId, 'Name', val)}
-                            onDoubleClick={() => setEditingCell({ rowId, colKey: 'Name' })}
-                            onPaste={(e) => handleGridPaste(e, rowId, 'Name', biologicalCols)}
-                          />
+                            <EditableCell 
+                              rowId={rowId}
+                              colKey="Name"
+                              value={unsaved.Name !== undefined ? unsaved.Name : (row.Name || row.name || row.title || row.Title || '')}
+                              isFocused={focusedCell?.rowId === rowId && focusedCell?.colKey === 'Name'}
+                              isSelected={selectedCells.includes(`${rowId}|Name`)}
+                              isEditing={editingCell?.rowId === rowId && editingCell?.colKey === 'Name'}
+                              onFocus={() => handleCellClick(rowId, 'Name', {})}
+                              onBlur={() => setEditingCell(null)}
+                              onChange={(val) => handleGridEdit(rowId, 'Name', val)}
+                              onDoubleClick={() => setEditingCell({ rowId, colKey: 'Name' })}
+                              onPaste={(e) => handleGridPaste(e, rowId, 'Name', biologicalCols)}
+                            />
                         </div>
                         {!isValid && (
                           <div 
@@ -368,7 +406,7 @@ const ComponentLibraryGrid = React.memo(({
                     const options = DROPDOWN_OPTIONS[col] || DROPDOWN_OPTIONS[formatColumnTitle(col)];
                     
                     return (
-                      <td key={col} className="p-0 border-r border-zinc-50">
+                      <td key={col} className="p-0 border-r border-zinc-50" onClick={(e) => handleCellClick(rowId, col, e)}>
                         <EditableCell 
                           rowId={rowId}
                           colKey={col}
@@ -376,8 +414,9 @@ const ComponentLibraryGrid = React.memo(({
                           isDropdown={!!options}
                           options={options || []}
                           isFocused={focusedCell?.rowId === rowId && focusedCell?.colKey === col}
+                          isSelected={selectedCells.includes(`${rowId}|${col}`)}
                           isEditing={editingCell?.rowId === rowId && editingCell?.colKey === col}
-                          onFocus={() => { setFocusedCell({ rowId, colKey: col }); }}
+                          onFocus={() => handleCellClick(rowId, col, {})}
                           onBlur={() => setEditingCell(null)}
                           onChange={(newVal) => handleGridEdit(rowId, col, newVal)}
                           onDoubleClick={() => setEditingCell({ rowId, colKey: col })}

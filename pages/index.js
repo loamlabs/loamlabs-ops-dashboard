@@ -119,6 +119,7 @@ export default function OpsDashboard() {
   const [gridUnsavedChanges, setGridUnsavedChanges] = useState({}); 
   const [gridAddedRows, setGridAddedRows] = useState({ hubs: [], rims: [], spokes: [], nipples: [] });
   const [focusedCell, setFocusedCell] = useState(null); 
+  const [selectedCells, setSelectedCells] = useState([]); 
   const [editingCell, setEditingCell] = useState(null); 
 
    const [metaEditFields, setMetaEditFields] = useState({});
@@ -476,9 +477,9 @@ export default function OpsDashboard() {
           if (res.ok) {
               const data = await res.json();
               const hydrated = {};
-              
               Object.keys(data).forEach(tab => {
                   const rawList = data[tab] || [];
+                  const seenRids = new Set();
                   const hydratedList = rawList.map((item, idx) => {
                       const baseId = item.id || item.shopify_product_id || item.ID || item['Product ID'];
                       const name = item.Name || item.name || item.title || "NoName";
@@ -487,8 +488,13 @@ export default function OpsDashboard() {
                       const specs = specKeys.map(k => `${k}:${item[k]}`).join('|');
                       const hash = `${name}_${vendor}_${specs}`.toLowerCase().replace(/[^a-z0-9]/g, '');
                       
-                      const stableRid = item._rid || baseId || `hash_${hash}_${idx}`;
-                      return { ...item, _rid: stableRid, _rawIdx: idx };
+                      let rid = item._rid || baseId || `hash_${hash}`;
+                      if (seenRids.has(rid)) {
+                         rid = `${rid}_${idx}`;
+                      }
+                      seenRids.add(rid);
+
+                      return { ...item, _rid: rid, _rawIdx: idx };
                   });
                   
                   hydrated[tab] = hydratedList;
@@ -2752,6 +2758,8 @@ export default function OpsDashboard() {
                             componentData={componentData}
                             focusedCell={focusedCell}
                             setFocusedCell={setFocusedCell}
+                            selectedCells={selectedCells}
+                            setSelectedCells={setSelectedCells}
                             editingCell={editingCell}
                             setEditingCell={setEditingCell}
                             componentSaving={componentSaving}
