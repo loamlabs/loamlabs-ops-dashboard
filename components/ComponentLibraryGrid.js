@@ -415,7 +415,7 @@ const ComponentLibraryGrid = React.memo(({
                     <EditableCell 
                       rowId={rowId}
                       colKey="Vendor"
-                      value={unsaved.Vendor !== undefined ? unsaved.Vendor : (row.Vendor || row.vendor || row.Brand || row.brand || row.brand_name || '')}
+                      value={unsaved['Vendor'] !== undefined ? unsaved['Vendor'] : (row.Vendor || row.vendor || row.Brand || row.brand || row.brand_name || '')}
                       isFocused={focusedCell?.rowId === rowId && focusedCell?.colKey === 'Vendor'}
                       isSelected={selectedCells.includes(`${rowId}|Vendor`)}
                       isEditing={editingCell?.rowId === rowId && editingCell?.colKey === 'Vendor'}
@@ -437,7 +437,7 @@ const ComponentLibraryGrid = React.memo(({
                             <EditableCell 
                               rowId={rowId}
                               colKey="Name"
-                              value={unsaved.Name !== undefined ? unsaved.Name : (row.Name || row.name || row.title || row.Title || '')}
+                              value={unsaved[colKey] !== undefined ? unsaved[colKey] : (row.Name || row.name || row.title || row.Title || '')}
                               isFocused={focusedCell?.rowId === rowId && focusedCell?.colKey === 'Name'}
                               isSelected={selectedCells.includes(`${rowId}|Name`)}
                               isEditing={editingCell?.rowId === rowId && editingCell?.colKey === 'Name'}
@@ -450,16 +450,11 @@ const ComponentLibraryGrid = React.memo(({
                         </div>
                         {!isValid && (
                           <div 
-                            className="flex-shrink-0 ml-2 animate-pulse cursor-help group/val" 
+                            className="flex-shrink-0 ml-2 animate-pulse cursor-help" 
                             title={`DATA REQUIRED: ${validation.missingFields.join(', ')}`}
                           >
                             <div className="bg-red-500 text-white rounded-full p-1.5 shadow-lg border border-red-400">
                                 <ShieldAlert size={10} />
-                            </div>
-                            {/* Detailed Popover on Hover */}
-                            <div className="absolute top-[80%] right-2 hidden group-hover/val:block z-[100] bg-zinc-900 text-white p-3 rounded-xl border border-zinc-800 shadow-2xl min-w-[200px] animate-in fade-in zoom-in duration-200">
-                               <div className="text-[9px] font-black uppercase text-red-400 italic mb-1 tracking-widest">Enrollment Error Detected</div>
-                               <div className="text-[10px] font-bold text-zinc-300">Missing: {validation.missingFields.join(', ')}</div>
                             </div>
                           </div>
                         )}

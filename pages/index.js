@@ -2932,7 +2932,11 @@ export default function OpsDashboard() {
                                    const specFields = [...new Set(activeList.slice(0, 10).flatMap(item => Object.keys(item)))].filter(k => !excludeKeys.includes(k));
                                    
                                    return specFields.map(key => {
-                                      const isMandatory = MANDATORY_FIELDS[componentTab]?.some(f => { const nf = f.toLowerCase().replace(/[^a-z0-9]/g, ''); const nk = key.toLowerCase().replace(/[^a-z0-9]/g, ''); return nf === nk || nk.startsWith(nf); });
+                                      const isMandatory = MANDATORY_FIELDS[componentTab]?.some(f => { 
+                                          const nf = f.toLowerCase().replace(/[^a-z0-9]/g, ''); 
+                                          const nk = key.toLowerCase().replace(/[^a-z0-9]/g, ''); 
+                                          return nf === nk || nk.startsWith(nf) || nf.startsWith(nk); 
+                                       });
                                       const options = DROPDOWN_OPTIONS[key] || DROPDOWN_OPTIONS[formatColumnTitle(key)] || DROPDOWN_OPTIONS[key.toLowerCase()];
                                       
                                       return (
@@ -3049,6 +3053,125 @@ export default function OpsDashboard() {
                     </div>
                  </div>
                )}
+
+                {/* --- MASS EDIT DRAWER --- */}
+                {isBulkEditDrawerOpen && (
+                  <div className="fixed inset-0 z-[160] flex justify-end">
+                     <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-in fade-in duration-300" onClick={() => setIsBulkEditDrawerOpen(false)}></div>
+                     <div className="relative w-full max-w-xl bg-white h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-500">
+                         <div className="p-8 border-b flex justify-between items-center bg-zinc-900 text-white sticky top-0 z-20">
+                            <div className="flex items-center gap-4">
+                               <div className="p-4 rounded-2xl bg-white/10 border-2 border-white/20 text-white shadow-lg">
+                                  <Layers size={24}/>
+                               </div>
+                               <div>
+                                  <h3 className="text-2xl font-black uppercase italic tracking-tighter">
+                                     Mass Edit {componentTab.slice(0, -1)}
+                                  </h3>
+                                  <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-1 italic">Updating {selectedComponents.length} selected items</p>
+                                </div>
+                            </div>
+                            <button onClick={() => setIsBulkEditDrawerOpen(false)} className="p-3 hover:bg-white/10 rounded-2xl transition-all"><X size={24}/></button>
+                         </div>
+ 
+                        <div className="flex-grow overflow-y-auto p-8 space-y-8 scrollbar-thin bg-zinc-50/30">
+                           <div className="bg-amber-50 border border-amber-200 p-6 rounded-2xl mb-4 shadow-sm">
+                              <div className="flex items-center gap-3 text-amber-900 mb-2 font-black uppercase italic text-xs">
+                                 <AlertTriangle size={16} className="animate-pulse"/> Bulk Update Protocol
+                              </div>
+                              <p className="text-[10px] font-bold text-amber-700 leading-relaxed uppercase tracking-widest">
+                                 Values entered below will overwrite the existing data for ALL {selectedComponents.length} selected components. 
+                                 <span className="block mt-1 font-black text-amber-900 underline underline-offset-2">Fields left blank will not be modified.</span>
+                              </p>
+                           </div>
+ 
+                           <div className="grid gap-6">
+                              {/* VENDOR FIELD (Often bulk updated) */}
+                              <div className="space-y-4 mb-4">
+                                 <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block italic">Global Identity</label>
+                                 <div className="flex-grow">
+                                    <div className="text-[9px] font-black uppercase text-zinc-500/60 mb-1 ml-1 tracking-widest uppercase">Vendor / Brand</div>
+                                    <input 
+                                       type="text" 
+                                       placeholder="Leave blank to keep original..."
+                                       value={bulkEditComponent.Vendor || ''}
+                                       onChange={(e) => setBulkEditComponent({...bulkEditComponent, Vendor: e.target.value})}
+                                       className="w-full p-4 rounded-xl outline-none border-2 border-zinc-100 bg-white shadow-sm focus:border-black transition-all font-bold text-sm"
+                                    />
+                                 </div>
+                              </div>
+ 
+                              {/* SPECIFICATION FIELDS */}
+                              <div className="space-y-4">
+                                 <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block italic">Technical Specifications</label>
+                                 {(() => {
+                                    const activeList = (componentData[componentTab] || []);
+                                    const excludeKeys = ['Name', 'name', 'title', 'Title', 'Vendor', 'vendor', 'Brand', 'brand', 'Tags', 'tags', 'id', 'ID', 'shopify_product_id', 'Product ID', 'Variant ID', 'tags'];
+                                    const specFields = Array.from(new Set(activeList.slice(0, 10).flatMap(item => Object.keys(item)))).filter(k => !excludeKeys.includes(k));
+                                    
+                                    return specFields.map(key => {
+                                       const isMandatory = MANDATORY_FIELDS[componentTab]?.some(f => { 
+                                          const nf = f.toLowerCase().replace(/[^a-z0-9]/g, ''); 
+                                          const nk = key.toLowerCase().replace(/[^a-z0-9]/g, ''); 
+                                          return nf === nk || nk.startsWith(nf) || nf.startsWith(nk); 
+                                       });
+                                       const options = DROPDOWN_OPTIONS[key] || DROPDOWN_OPTIONS[formatColumnTitle(key)] || DROPDOWN_OPTIONS[key.toLowerCase()];
+                                       
+                                       return (
+                                          <div key={key} className="flex items-start gap-4">
+                                             <div className="flex-grow">
+                                                <div className="text-[9px] font-black uppercase text-zinc-500/60 mb-1 ml-1 tracking-widest flex items-center gap-1">
+                                                   {formatColumnTitle(key)}
+                                                   {isMandatory && <span className="text-red-500 font-bold">*</span>}
+                                                </div>
+                                                {options ? (
+                                                   <select 
+                                                      value={bulkEditComponent[key] || ''}
+                                                      onChange={(e) => setBulkEditComponent({...bulkEditComponent, [key]: e.target.value})}
+                                                       className={`w-full p-4 rounded-xl outline-none border-2 transition-all font-bold text-sm appearance-none cursor-pointer ${isMandatory && String(bulkEditComponent[key] || '').trim() === '' ? 'bg-red-50 border-red-200 focus:border-red-500' : 'bg-white border-zinc-100 focus:border-black'}`}
+                                                   >
+                                                      <option value="">-- No Change --</option>
+                                                      {options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                                   </select>
+                                                ) : (
+                                                   <input 
+                                                      type="text" 
+                                                      list={`list-${key.replace(/\s+/g, '-')}`}
+                                                      placeholder="Leave blank to skip..."
+                                                      value={bulkEditComponent[key] || ''}
+                                                      onChange={(e) => setBulkEditComponent({...bulkEditComponent, [key]: e.target.value})}
+                                                       className={`w-full p-4 rounded-xl outline-none border-2 transition-all font-mono text-xs ${isMandatory && String(bulkEditComponent[key] || '').trim() === '' ? 'bg-red-50 border-red-200 focus:border-red-500' : 'bg-white border-zinc-100 focus:border-black'}`}
+                                                   />
+                                                )}
+                                             </div>
+                                          </div>
+                                       );
+                                    });
+                                 })()}
+                              </div>
+                           </div>
+                        </div>
+ 
+                        <div className="p-8 bg-zinc-900 border-t border-zinc-800 flex items-center gap-4">
+                           <button 
+                              onClick={() => setIsBulkEditDrawerOpen(false)}
+                              className="flex-grow py-5 bg-zinc-800 text-zinc-400 font-black uppercase tracking-widest text-xs rounded-2xl hover:text-white transition-all shadow-lg"
+                           >
+                              Abort Edit
+                           </button>
+                           <button 
+                              disabled={componentSaving || Object.keys(bulkEditComponent).length === 0}
+                              onClick={handleBulkEdit}
+                              className={`flex-grow py-5 bg-white text-black font-black uppercase tracking-widest text-xs rounded-2xl transition-all shadow-[0_10px_30px_rgba(255,255,255,0.1)] flex items-center justify-center gap-2 ${componentSaving || Object.keys(bulkEditComponent).length === 0 ? 'opacity-50 grayscale cursor-not-allowed' : 'hover:scale-105 active:scale-95'}`}
+                           >
+                              {componentSaving ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={18} />}
+                              Apply Changes
+                           </button>
+                        </div>
+                     </div>
+                  </div>
+                )}
+
             </div>
          ) : null}
 
@@ -3312,118 +3435,6 @@ export default function OpsDashboard() {
                        <input type="text" readOnly className="flex-grow p-4 bg-zinc-50 rounded-xl font-mono text-[10px] text-zinc-500 outline-none border-2 border-transparent" value={editingRule.last_log.split('Link:')[1].trim()} />
                        <a href={editingRule.last_log.split('Link:')[1].trim()} target="_blank" className="p-4 bg-black text-white rounded-xl hover:bg-zinc-800 transition-all"><ExternalLink size={14}/></a>
                     </div>
-                  </div>
-                )}
-
-                {/* --- MASS EDIT DRAWER --- */}
-                {isBulkEditDrawerOpen && (
-                  <div className="fixed inset-0 z-[160] flex justify-end">
-                     <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-in fade-in duration-300" onClick={() => setIsBulkEditDrawerOpen(false)}></div>
-                     <div className="relative w-full max-w-xl bg-white h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-500">
-                         <div className="p-8 border-b flex justify-between items-center bg-zinc-900 text-white sticky top-0 z-20">
-                            <div className="flex items-center gap-4">
-                               <div className="p-4 rounded-2xl bg-white/10 border-2 border-white/20 text-white shadow-lg">
-                                  <Layers size={24}/>
-                               </div>
-                               <div>
-                                  <h3 className="text-2xl font-black uppercase italic tracking-tighter">
-                                     Mass Edit {componentTab.slice(0, -1)}
-                                  </h3>
-                                  <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-1 italic">Updating {selectedComponents.length} selected items</p>
-                                </div>
-                            </div>
-                            <button onClick={() => setIsBulkEditDrawerOpen(false)} className="p-3 hover:bg-white/10 rounded-2xl transition-all"><X size={24}/></button>
-                         </div>
- 
-                        <div className="flex-grow overflow-y-auto p-8 space-y-8 scrollbar-thin bg-zinc-50/30">
-                           <div className="bg-amber-50 border border-amber-200 p-6 rounded-2xl mb-4 shadow-sm">
-                              <div className="flex items-center gap-3 text-amber-900 mb-2 font-black uppercase italic text-xs">
-                                 <AlertTriangle size={16} className="animate-pulse"/> Bulk Update Protocol
-                              </div>
-                              <p className="text-[10px] font-bold text-amber-700 leading-relaxed uppercase tracking-widest">
-                                 Values entered below will overwrite the existing data for ALL {selectedComponents.length} selected components. 
-                                 <span className="block mt-1 font-black text-amber-900 underline underline-offset-2">Fields left blank will not be modified.</span>
-                              </p>
-                           </div>
- 
-                           <div className="grid gap-6">
-                              {/* VENDOR FIELD (Often bulk updated) */}
-                              <div className="space-y-4 mb-4">
-                                 <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block italic">Global Identity</label>
-                                 <div className="flex-grow">
-                                    <div className="text-[9px] font-black uppercase text-zinc-500/60 mb-1 ml-1 tracking-widest uppercase">Vendor / Brand</div>
-                                    <input 
-                                       type="text" 
-                                       placeholder="Leave blank to keep original..."
-                                       value={bulkEditComponent.Vendor || ''}
-                                       onChange={(e) => setBulkEditComponent({...bulkEditComponent, Vendor: e.target.value})}
-                                       className="w-full p-4 rounded-xl outline-none border-2 border-zinc-100 bg-white shadow-sm focus:border-black transition-all font-bold text-sm"
-                                    />
-                                 </div>
-                              </div>
- 
-                              {/* SPECIFICATION FIELDS */}
-                              <div className="space-y-4">
-                                 <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block italic">Technical Specifications</label>
-                                 {(() => {
-                                    const activeList = (componentData[componentTab] || []);
-                                    const excludeKeys = ['Name', 'name', 'title', 'Title', 'Vendor', 'vendor', 'Brand', 'brand', 'Tags', 'tags', 'id', 'ID', 'shopify_product_id', 'Product ID', 'Variant ID', 'tags'];
-                                    const specFields = Array.from(new Set(activeList.slice(0, 10).flatMap(item => Object.keys(item)))).filter(k => !excludeKeys.includes(k));
-                                    
-                                    return specFields.map(key => {
-                                       const options = DROPDOWN_OPTIONS[key] || DROPDOWN_OPTIONS[formatColumnTitle(key)] || DROPDOWN_OPTIONS[key.toLowerCase()];
-                                       
-                                       return (
-                                          <div key={key} className="flex items-start gap-4">
-                                             <div className="flex-grow">
-                                                <div className="text-[9px] font-black uppercase text-zinc-500/60 mb-1 ml-1 tracking-widest">
-                                                   {formatColumnTitle(key)}
-                                                </div>
-                                                {options ? (
-                                                   <select 
-                                                      value={bulkEditComponent[key] || ''}
-                                                      onChange={(e) => setBulkEditComponent({...bulkEditComponent, [key]: e.target.value})}
-                                                      className="w-full p-4 rounded-xl outline-none border-2 border-zinc-100 bg-white shadow-sm focus:border-black transition-all font-bold text-sm appearance-none cursor-pointer"
-                                                   >
-                                                      <option value="">-- No Change --</option>
-                                                      {options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                                                   </select>
-                                                ) : (
-                                                   <input 
-                                                      type="text" 
-                                                      list={`list-${key.replace(/\s+/g, '-')}`}
-                                                      placeholder="Leave blank to skip..."
-                                                      value={bulkEditComponent[key] || ''}
-                                                      onChange={(e) => setBulkEditComponent({...bulkEditComponent, [key]: e.target.value})}
-                                                      className="w-full p-4 rounded-xl outline-none border-2 border-zinc-100 bg-white shadow-sm focus:border-black transition-all font-mono text-xs"
-                                                   />
-                                                )}
-                                             </div>
-                                          </div>
-                                       );
-                                    });
-                                 })()}
-                              </div>
-                           </div>
-                        </div>
- 
-                        <div className="p-8 bg-zinc-900 border-t border-zinc-800 flex items-center gap-4">
-                           <button 
-                              onClick={() => setIsBulkEditDrawerOpen(false)}
-                              className="flex-grow py-5 bg-zinc-800 text-zinc-400 font-black uppercase tracking-widest text-xs rounded-2xl hover:text-white transition-all shadow-lg"
-                           >
-                              Abort Edit
-                           </button>
-                           <button 
-                              disabled={componentSaving || Object.keys(bulkEditComponent).length === 0}
-                              onClick={handleBulkEdit}
-                              className={`flex-grow py-5 bg-white text-black font-black uppercase tracking-widest text-xs rounded-2xl transition-all shadow-[0_10px_30px_rgba(255,255,255,0.1)] flex items-center justify-center gap-2 ${componentSaving || Object.keys(bulkEditComponent).length === 0 ? 'opacity-50 grayscale cursor-not-allowed' : 'hover:scale-105 active:scale-95'}`}
-                           >
-                              {componentSaving ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={18} />}
-                              Apply Changes
-                           </button>
-                        </div>
-                     </div>
                   </div>
                 )}
 
