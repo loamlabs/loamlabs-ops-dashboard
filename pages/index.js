@@ -659,7 +659,27 @@ export default function OpsDashboard() {
         [componentTab]: { ...tabChanges, [rowId]: { ...rowChanges, [colKey]: newValue } }
       };
     });
-  }, [componentTab, showNotification, formatColumnTitle]);
+  }, [componentTab, formatColumnTitle, showNotification]);
+
+   const getComponentTabColumns = React.useCallback((tab) => {
+     const rawData = componentData[tab] || [];
+     const excludeKeys = ['Name', 'name', 'title', 'Title', 'Vendor', 'vendor', 'Brand', 'brand', 'Tags', 'tags', 'id', 'ID', 'shopify_product_id', 'Product ID', 'Variant ID', 'tags', '_rid', '_isNew', '_rawIdx', '_editIdx'];
+     const allKeys = new Set();
+     rawData.forEach(row => Object.keys(row).forEach(k => { if (!excludeKeys.includes(k)) allKeys.add(k); }));
+     const specCols = Array.from(allKeys);
+     const order = componentColumnOrder?.[tab];
+     if (order && Array.isArray(order)) {
+       specCols.sort((a, b) => {
+         const aIdx = order.indexOf(a);
+         const bIdx = order.indexOf(b);
+         if (aIdx === -1 && bIdx === -1) return 0;
+         if (aIdx === -1) return 1;
+         if (bIdx === -1) return -1;
+         return aIdx - bIdx;
+       });
+     }
+     return ['Vendor', 'Name', ...specCols];
+   }, [componentData, componentColumnOrder]);
 
    const applyPastedData = React.useCallback((tsvData, startRowId, startColKey, currentChanges) => {
      const rows = tsvData.split(/\r?\n/).filter(r => r.trim() !== '');
@@ -704,7 +724,6 @@ export default function OpsDashboard() {
    const handleBulkPaste = React.useCallback(() => {
      if (clipboardValue === null || selectedCells.length === 0) return;
      
-     // Find the top-left most cell in the selection to start the paste
      const allCols = getComponentTabColumns(componentTab);
      const parsedCells = selectedCells.map(c => {
        const [rowId, colKey] = c.split('|');
@@ -714,18 +733,13 @@ export default function OpsDashboard() {
      }).filter(c => c.rowIdx !== -1 && c.colIdx !== -1);
 
      if (parsedCells.length === 0) return;
-
-     // Sort to find the true top-left cell
      parsedCells.sort((a,b) => (a.rowIdx - b.rowIdx) || (a.colIdx - b.colIdx));
      const startCell = parsedCells[0];
 
      setGridUnsavedChanges(prev => {
-        // If it looks like a range (contains tabs or newlines), use applyPastedData
         if (clipboardValue.includes('\t') || clipboardValue.includes('\n')) {
           return applyPastedData(clipboardValue, startCell.rowId, startCell.colKey, prev);
         }
-
-        // Single value paste repeated across selection (original behavior)
         const newChanges = { ...prev };
         const tabChanges = { ...(newChanges[componentTab] || {}) };
         let skipCount = 0;
@@ -741,30 +755,10 @@ export default function OpsDashboard() {
           tabChanges[rowId] = rowChanges;
         });
         newChanges[componentTab] = tabChanges;
-        if (skipCount > 0) showNotification(`${skipCount} values were incompatible with dropdown options and skipped.`, 'error');
+        if (skipCount > 0) showNotification(`${skipCount} values were incompatible and skipped.`, 'error');
         return newChanges;
      });
    }, [componentTab, clipboardValue, selectedCells, applyPastedData, getComponentTabColumns, componentData, getComponentUniqueId, showNotification, formatColumnTitle]);
-
-   const getComponentTabColumns = React.useCallback((tab) => {
-     const rawData = componentData[tab] || [];
-     const excludeKeys = ['Name', 'name', 'title', 'Title', 'Vendor', 'vendor', 'Brand', 'brand', 'Tags', 'tags', 'id', 'ID', 'shopify_product_id', 'Product ID', 'Variant ID', 'tags', '_rid', '_isNew', '_rawIdx', '_editIdx'];
-     const allKeys = new Set();
-     rawData.forEach(row => Object.keys(row).forEach(k => { if (!excludeKeys.includes(k)) allKeys.add(k); }));
-     const specCols = Array.from(allKeys);
-     const order = componentColumnOrder?.[tab];
-     if (order && Array.isArray(order)) {
-       specCols.sort((a, b) => {
-         const aIdx = order.indexOf(a);
-         const bIdx = order.indexOf(b);
-         if (aIdx === -1 && bIdx === -1) return 0;
-         if (aIdx === -1) return 1;
-         if (bIdx === -1) return -1;
-         return aIdx - bIdx;
-       });
-     }
-     return ['Vendor', 'Name', ...specCols];
-   }, [componentData, componentColumnOrder]);
 
   const toggleComponentSelection = React.useCallback((rowId, e, list = []) => {
     const isShift = e && (e.shiftKey || (e.nativeEvent && e.nativeEvent.shiftKey));
