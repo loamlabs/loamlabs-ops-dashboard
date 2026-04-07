@@ -128,45 +128,23 @@ const ComponentLibraryGrid = React.memo(({
    useEffect(() => {
      if (!focusedCell || !scrollRef.current) return;
      
-     const { colKey } = focusedCell;
-     const allCols = getBiologicalCols();
-     const colIndex = allCols.indexOf(colKey);
-     if (colIndex === -1) return;
- 
-     // Sticky columns: Checkbox(48) + Actions(100) + Vendor(150) + Name(300)
-     // The spec columns start after the Name column. 
-     // We only need to auto-scroll for columns that aren't the sticky ones.
-     const stickyWidth = 48 + 100 + 150 + (componentColumnWidths[componentTab + '_name'] || 300);
+     const cellElement = scrollRef.current.querySelector(`[data-cell-id="${focusedCell.rowId}|${focusedCell.colKey}"]`);
+     if (!cellElement) return;
+
+     const containerRect = scrollRef.current.getBoundingClientRect();
+     const cellRect = cellElement.getBoundingClientRect();
      
-     // Calculate the start position of this column
-     let colStart = 48 + 100 + 150 + (componentColumnWidths[componentTab + '_name'] || 300);
-     for (let i = 2; i < colIndex; i++) {
-       const key = allCols[i];
-       colStart += (componentColumnWidths[componentTab + '_' + key] || 150);
-     }
-     const colWidth = (componentColumnWidths[componentTab + '_' + colKey] || 150);
-     const colEnd = colStart + colWidth;
- 
-     const currentScroll = scrollRef.current.scrollLeft;
-     const viewportWidth = scrollRef.current.offsetWidth;
-     const visibleStart = currentScroll + stickyWidth;
-     const visibleEnd = currentScroll + viewportWidth;
- 
-     const BUFF = 40; // Pixels buffer for scrolling
- 
-     // If cell is to the left of visible area (hidden by sticky cols)
-     if (colStart < visibleStart && colIndex >= 2) {
-       scrollRef.current.scrollTo({
-         left: colStart - stickyWidth - BUFF,
-         behavior: 'auto'
-       });
-     } 
-     // If cell is to the right of visible area
-     else if (colEnd > visibleEnd - BUFF) {
-       scrollRef.current.scrollTo({
-         left: colEnd - viewportWidth + BUFF,
-         behavior: 'auto'
-       });
+     // Sticky columns total width: Checkbox(48) + Actions(100) + Vendor(150) + Name(resizable)
+     const stickyLimit = containerRect.left + 48 + 100 + 150 + (componentColumnWidths[componentTab + '_name'] || 300);
+     
+     const BUFF = 40;
+     const isTooFarLeft = cellRect.left < stickyLimit;
+     const isTooFarRight = cellRect.right > containerRect.right - BUFF;
+
+     if (isTooFarLeft) {
+       scrollRef.current.scrollLeft -= (stickyLimit - cellRect.left + BUFF);
+     } else if (isTooFarRight) {
+       scrollRef.current.scrollLeft += (cellRect.right - containerRect.right + BUFF + 20);
      }
    }, [focusedCell, componentTab, componentColumnWidths]);
 
@@ -323,9 +301,32 @@ const ComponentLibraryGrid = React.memo(({
     const isMeta = e.ctrlKey || e.metaKey;
     
     if (isMeta && e.key === 'c') {
-       if (focusedCell) {
-          const val = getCellValue(focusedCell.rowId, focusedCell.colKey);
-          onCopy(val);
+       if (selectedCells.length > 0) {
+          const allCols = getBiologicalCols();
+          const parsed = selectedCells.map(c => {
+            const [rowId, colKey] = c.split('|');
+            const rowIdx = finalFilteredList.findIndex(r => (r._rid || getComponentUniqueId(r)) === rowId);
+            const colIdx = allCols.indexOf(colKey);
+            return { rowId, colKey, rowIdx, colIdx };
+          }).filter(c => c.rowIdx !== -1 && c.colIdx !== -1);
+
+          if (parsed.length === 0) return;
+
+          const minRow = Math.min(...parsed.map(p => p.rowIdx));
+          const maxRow = Math.max(...parsed.map(p => p.rowIdx));
+          const minCol = Math.min(...parsed.map(p => p.colIdx));
+          const maxCol = Math.max(...parsed.map(p => p.colIdx));
+
+          let tsvRows = [];
+          for (let r = minRow; r <= maxRow; r++) {
+            let rowVals = [];
+            const rid = finalFilteredList[r]._rid || getComponentUniqueId(finalFilteredList[r]);
+            for (let c = minCol; c <= maxCol; c++) {
+               rowVals.push(getCellValue(rid, allCols[c]));
+            }
+            tsvRows.push(rowVals.join('\t'));
+          }
+          onCopy(tsvRows.join('\n'));
        }
        return;
     }
@@ -470,6 +471,7 @@ const ComponentLibraryGrid = React.memo(({
                     style={{ position: 'sticky', left: '148px', zIndex: 80 }}
                     className={"p-0 border-r border-zinc-100 " + (isValid ? (i % 2 === 0 ? 'bg-white' : 'bg-zinc-50') : 'bg-red-50') + " group-hover:bg-zinc-100 transition-colors shadow-[2px_0_5px_rgba(0,0,0,0.02)]"}
                     onClick={(e) => handleCellClick(rowId, 'Vendor', e)}
+                    data-cell-id={`${rowId}|Vendor`}
                   >
                     <EditableCell 
                       rowId={rowId}
@@ -490,6 +492,7 @@ const ComponentLibraryGrid = React.memo(({
                     style={{ width: componentColumnWidths[componentTab + '_name'] || 300, minWidth: componentColumnWidths[componentTab + '_name'] || 300, position: 'sticky', left: '298px', zIndex: 80 }}
                     className={"p-0 border-r border-zinc-100 " + (isValid ? (i % 2 === 0 ? 'bg-white' : 'bg-zinc-50') : 'bg-red-50') + " group-hover:bg-zinc-100 transition-colors shadow-[2px_0_5px_rgba(0,0,0,0.05)] relative"}
                     onClick={(e) => handleCellClick(rowId, 'Name', e)}
+                    data-cell-id={`${rowId}|Name`}
                   >
                     <div className="flex items-center justify-between">
                         <div className="flex-grow">
@@ -525,7 +528,12 @@ const ComponentLibraryGrid = React.memo(({
                     const options = DROPDOWN_OPTIONS[col] || DROPDOWN_OPTIONS[formatColumnTitle(col)];
                     
                     return (
-                      <td key={col} className="p-0 border-r border-zinc-50" onClick={(e) => handleCellClick(rowId, col, e)}>
+                     <td 
+                       key={col} 
+                       className="p-0 border-r border-zinc-50" 
+                       onClick={(e) => handleCellClick(rowId, col, e)}
+                       data-cell-id={`${rowId}|${col}`}
+                     >
                         <EditableCell 
                           rowId={rowId}
                           colKey={col}

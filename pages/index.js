@@ -120,7 +120,15 @@ export default function OpsDashboard() {
   const [focusedCell, setFocusedCell] = useState(null); 
   const [selectedCells, setSelectedCells] = useState([]); 
   const [editingCell, setEditingCell] = useState(null); 
-  const [clipboardValue, setClipboardValue] = useState(null);
+   const [clipboardValue, setClipboardValue] = useState(null);
+   const handleClipboardCopy = React.useCallback(async (val) => {
+     setClipboardValue(val);
+     if (navigator.clipboard && val !== null && val !== undefined) {
+         try {
+             await navigator.clipboard.writeText(String(val));
+         } catch(e) { console.error("Clipboard write failed", e); }
+     }
+   }, []);
 
    const [metaEditFields, setMetaEditFields] = useState({});
   const [metafieldRegistry, setMetafieldRegistry] = useState([
@@ -653,42 +661,110 @@ export default function OpsDashboard() {
     });
   }, [componentTab, showNotification, formatColumnTitle]);
 
-  const handleBulkPaste = React.useCallback(() => {
-    if (clipboardValue === null || selectedCells.length === 0) return;
-    
-    let pasteCount = 0;
-    let skipCount = 0;
+   const applyPastedData = React.useCallback((tsvData, startRowId, startColKey, currentChanges) => {
+     const rows = tsvData.split(/\r?\n/).filter(r => r.trim() !== '');
+     const gridRows = rows.map(r => r.split('\t'));
+     const allCols = getComponentTabColumns(componentTab);
+     const startColIndex = allCols.indexOf(startColKey);
+     const visibleData = (componentData[componentTab] || []).map((item, idx) => ({ ...item, _rid: getComponentUniqueId(item, idx) }));
+     const startRowIndex = visibleData.findIndex(r => r._rid === startRowId);
+     
+     if (startRowIndex === -1 || startColIndex === -1) return currentChanges;
 
-    setGridUnsavedChanges(prev => {
-      const newChanges = { ...prev };
-      const tabChanges = { ...(newChanges[componentTab] || {}) };
-      
-      selectedCells.forEach(cellId => {
-        const [rowId, colKey] = cellId.split('|');
-        
-        // Validation check for each cell
-        const options = DROPDOWN_OPTIONS[colKey] || DROPDOWN_OPTIONS[formatColumnTitle(colKey)];
-        if (options && clipboardValue !== '' && !options.includes(clipboardValue)) {
-           skipCount++;
-           return;
+     const newChanges = { ...currentChanges };
+     const tabChanges = { ...(newChanges[componentTab] || {}) };
+     let skipCount = 0;
+
+     gridRows.forEach((rowCells, rOffset) => {
+       const targetRow = visibleData[startRowIndex + rOffset];
+       if (!targetRow) return;
+       const rid = targetRow._rid;
+       const rowChanges = { ...(tabChanges[rid] || {}) };
+       rowCells.forEach((cellVal, cOffset) => {
+         const colKey = allCols[startColIndex + cOffset];
+         if (!colKey) return;
+         const val = cellVal.trim();
+         const options = DROPDOWN_OPTIONS[colKey] || DROPDOWN_OPTIONS[formatColumnTitle(colKey)];
+         if (options && val !== '' && !options.includes(val)) {
+            skipCount++;
+            return;
+         }
+         rowChanges[colKey] = val;
+       });
+       tabChanges[rid] = rowChanges;
+     });
+     newChanges[componentTab] = tabChanges;
+     
+     if (skipCount > 0) {
+        showNotification(`Paste complete. ${skipCount} invalid dropdown values skipped.`, 'error');
+     }
+     return newChanges;
+   }, [componentTab, componentData, getComponentUniqueId, formatColumnTitle, showNotification, getComponentTabColumns]);
+
+   const handleBulkPaste = React.useCallback(() => {
+     if (clipboardValue === null || selectedCells.length === 0) return;
+     
+     // Find the top-left most cell in the selection to start the paste
+     const allCols = getComponentTabColumns(componentTab);
+     const parsedCells = selectedCells.map(c => {
+       const [rowId, colKey] = c.split('|');
+       const rowIdx = (componentData[componentTab] || []).findIndex((item, idx) => getComponentUniqueId(item, idx) === rowId);
+       const colIdx = allCols.indexOf(colKey);
+       return { rowId, colKey, rowIdx, colIdx };
+     }).filter(c => c.rowIdx !== -1 && c.colIdx !== -1);
+
+     if (parsedCells.length === 0) return;
+
+     // Sort to find the true top-left cell
+     parsedCells.sort((a,b) => (a.rowIdx - b.rowIdx) || (a.colIdx - b.colIdx));
+     const startCell = parsedCells[0];
+
+     setGridUnsavedChanges(prev => {
+        // If it looks like a range (contains tabs or newlines), use applyPastedData
+        if (clipboardValue.includes('\t') || clipboardValue.includes('\n')) {
+          return applyPastedData(clipboardValue, startCell.rowId, startCell.colKey, prev);
         }
 
-        const rowChanges = { ...(tabChanges[rowId] || {}) };
-        rowChanges[colKey] = clipboardValue;
-        tabChanges[rowId] = rowChanges;
-        pasteCount++;
-      });
-      
-      newChanges[componentTab] = tabChanges;
-      return newChanges;
-    });
-    
-    if (skipCount > 0) {
-       showNotification(`Pasted ${pasteCount} cells. Skipped ${skipCount} invalid values.`, 'error');
-    } else {
-       showNotification(`Pasted values into ${pasteCount} cells`, 'success');
-    }
-  }, [componentTab, clipboardValue, selectedCells, showNotification, formatColumnTitle]);
+        // Single value paste repeated across selection (original behavior)
+        const newChanges = { ...prev };
+        const tabChanges = { ...(newChanges[componentTab] || {}) };
+        let skipCount = 0;
+        selectedCells.forEach(cellId => {
+          const [rowId, colKey] = cellId.split('|');
+          const options = DROPDOWN_OPTIONS[colKey] || DROPDOWN_OPTIONS[formatColumnTitle(colKey)];
+          if (options && clipboardValue !== '' && !options.includes(clipboardValue)) {
+             skipCount++;
+             return;
+          }
+          const rowChanges = { ...(tabChanges[rowId] || {}) };
+          rowChanges[colKey] = clipboardValue;
+          tabChanges[rowId] = rowChanges;
+        });
+        newChanges[componentTab] = tabChanges;
+        if (skipCount > 0) showNotification(`${skipCount} values were incompatible with dropdown options and skipped.`, 'error');
+        return newChanges;
+     });
+   }, [componentTab, clipboardValue, selectedCells, applyPastedData, getComponentTabColumns, componentData, getComponentUniqueId, showNotification, formatColumnTitle]);
+
+   const getComponentTabColumns = React.useCallback((tab) => {
+     const rawData = componentData[tab] || [];
+     const excludeKeys = ['Name', 'name', 'title', 'Title', 'Vendor', 'vendor', 'Brand', 'brand', 'Tags', 'tags', 'id', 'ID', 'shopify_product_id', 'Product ID', 'Variant ID', 'tags', '_rid', '_isNew', '_rawIdx', '_editIdx'];
+     const allKeys = new Set();
+     rawData.forEach(row => Object.keys(row).forEach(k => { if (!excludeKeys.includes(k)) allKeys.add(k); }));
+     const specCols = Array.from(allKeys);
+     const order = componentColumnOrder?.[tab];
+     if (order && Array.isArray(order)) {
+       specCols.sort((a, b) => {
+         const aIdx = order.indexOf(a);
+         const bIdx = order.indexOf(b);
+         if (aIdx === -1 && bIdx === -1) return 0;
+         if (aIdx === -1) return 1;
+         if (bIdx === -1) return -1;
+         return aIdx - bIdx;
+       });
+     }
+     return ['Vendor', 'Name', ...specCols];
+   }, [componentData, componentColumnOrder]);
 
   const toggleComponentSelection = React.useCallback((rowId, e, list = []) => {
     const isShift = e && (e.shiftKey || (e.nativeEvent && e.nativeEvent.shiftKey));
@@ -753,50 +829,10 @@ export default function OpsDashboard() {
       }
   }, [componentTab, componentData, saveComponentChanges, handleRemoveAddedRow, getComponentUniqueId, showNotification]);
 
-  const handleGridPaste = React.useCallback((e, startRowId, startColKey, columns) => {
-    const clipboardData = e.clipboardData.getData('text');
-    const rows = clipboardData.split(/\r?\n/).filter(r => r.trim() !== '');
-    const gridRows = rows.map(r => r.split('\t'));
-    const startColIndex = columns.indexOf(startColKey);
-    const visibleData = (componentData[componentTab] || []).map((item, idx) => ({ ...item, _rid: getComponentUniqueId(item, idx) }));
-    const startRowIndex = visibleData.findIndex(r => r._rid === startRowId);
-    if (startRowIndex === -1 || startColIndex === -1) return;
-    
-    let skipCount = 0;
-
-    setGridUnsavedChanges(prev => {
-      const newChanges = { ...prev };
-      const tabChanges = { ...(newChanges[componentTab] || {}) };
-      gridRows.forEach((rowCells, rOffset) => {
-        const targetRow = visibleData[startRowIndex + rOffset];
-        if (!targetRow) return;
-        const rid = targetRow._rid;
-        const rowChanges = { ...(tabChanges[rid] || {}) };
-        rowCells.forEach((cellVal, cOffset) => {
-          const colKey = columns[startColIndex + cOffset];
-          if (!colKey) return;
-          
-          const val = cellVal.trim();
-          
-          // Validation: Check options
-          const options = DROPDOWN_OPTIONS[colKey] || DROPDOWN_OPTIONS[formatColumnTitle(colKey)];
-          if (options && val !== '' && !options.includes(val)) {
-             skipCount++;
-             return;
-          }
-
-          rowChanges[colKey] = val;
-        });
-        tabChanges[rid] = rowChanges;
-      });
-      newChanges[componentTab] = tabChanges;
-      return newChanges;
-    });
-
-    if (skipCount > 0) {
-       showNotification(`Paste completed. ${skipCount} invalid dropdown values were skipped.`, 'error');
-    }
-  }, [componentTab, componentData, getComponentUniqueId, formatColumnTitle, showNotification]);
+   const handleGridPaste = React.useCallback((e, startRowId, startColKey) => {
+     const tsvData = e.clipboardData.getData('text');
+     setGridUnsavedChanges(prev => applyPastedData(tsvData, startRowId, startColKey, prev));
+   }, [applyPastedData]);
 
   const handleEditComponent = (comp, idx) => {
     let componentToEdit = comp;
@@ -2865,7 +2901,7 @@ export default function OpsDashboard() {
                             setFocusedCell={setFocusedCell}
                             selectedCells={selectedCells}
                             setSelectedCells={setSelectedCells}
-                            onCopy={setClipboardValue}
+                            onCopy={handleClipboardCopy}
                             onPaste={handleBulkPaste}
                             editingCell={editingCell}
                             setEditingCell={setEditingCell}
