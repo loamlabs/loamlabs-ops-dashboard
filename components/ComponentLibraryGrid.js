@@ -107,6 +107,28 @@ const ComponentLibraryGrid = React.memo(({
   handleDeleteComponent
 }) => {
   const tableRef = useRef(null);
+  const scrollRef = useRef(null);
+
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const thead = tableRef.current?.querySelector('thead');
+      if (thead) {
+        const rect = thead.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        const isPinned = rect.top <= containerRect.top + 1;
+        if (window.STICKY_DEBUG) {
+           console.log(`[Sticky Debug] Scroll=${container.scrollTop}, HeadTop=${rect.top}, ContainerTop=${containerRect.top}, Pinned=${isPinned}`);
+        }
+      }
+    };
+
+    container.addEventListener('scroll', handleScroll);
+    window.STICKY_DEBUG = true; 
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const getBiologicalCols = () => {
     const rawData = componentData[componentTab] || [];
@@ -195,15 +217,24 @@ const ComponentLibraryGrid = React.memo(({
 
   return (
     <div 
-      className="bg-white rounded-[2rem] border border-zinc-200 shadow-sm overflow-hidden outline-none"
+      className="bg-white rounded-[2rem] border border-zinc-200 shadow-sm overflow-hidden outline-none relative"
       onKeyDown={handleKeyDown}
       tabIndex={0}
     >
-      <div className="overflow-x-auto overflow-y-auto max-h-[650px] relative scrollbar-thin rounded-2xl border border-zinc-100 shadow-inner">
-        <table className="min-w-full text-left text-sm whitespace-nowrap select-none border-collapse" ref={tableRef}>
-          <thead className="bg-zinc-50 sticky top-0 z-40 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+      <div 
+        ref={scrollRef}
+        className="overflow-x-auto overflow-y-auto max-h-[650px] relative scrollbar-thin rounded-2xl border border-zinc-100 shadow-inner"
+      >
+        <table 
+          className="min-w-full text-left text-sm whitespace-nowrap select-none border-separate border-spacing-0" 
+          ref={tableRef}
+        >
+          <thead className="bg-zinc-50 sticky top-0 z-[100] shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
             <tr>
-              <th className="p-4 px-6 w-12 bg-zinc-50 border-r border-zinc-100 sticky top-0 left-0 z-60">
+              <th 
+                style={{ position: 'sticky', top: 0, left: 0, zIndex: 110 }}
+                className="p-4 px-6 w-12 bg-zinc-50 border-r border-b border-zinc-100 shadow-sm"
+              >
                 <input 
                   type="checkbox" 
                   checked={selectedComponents.length === finalFilteredList.length && finalFilteredList.length > 0} 
@@ -216,22 +247,22 @@ const ComponentLibraryGrid = React.memo(({
               </th>
 
               <th 
-                style={{ width: 100, minWidth: 100, position: 'sticky', top: 0, left: '48px', zIndex: 60 }}
-                className="p-4 px-6 font-black text-[10px] uppercase text-zinc-400 tracking-widest bg-zinc-50 border-r border-zinc-100 shadow-sm"
+                style={{ width: 100, minWidth: 100, position: 'sticky', top: 0, left: '48px', zIndex: 110 }}
+                className="p-4 px-6 font-black text-[10px] uppercase text-zinc-400 tracking-widest bg-zinc-50 border-r border-b border-zinc-100 shadow-sm"
               >
                 Actions
               </th>
               
               <th 
-                style={{ width: 150, minWidth: 150, position: 'sticky', top: 0, left: '148px', zIndex: 60 }}
-                className="p-4 px-6 font-black text-[10px] uppercase text-zinc-400 tracking-widest bg-zinc-50 border-r border-zinc-100 group/h relative shadow-sm"
+                style={{ width: 150, minWidth: 150, position: 'sticky', top: 0, left: '148px', zIndex: 110 }}
+                className="p-4 px-6 font-black text-[10px] uppercase text-zinc-400 tracking-widest bg-zinc-50 border-r border-b border-zinc-100 group/h relative shadow-sm"
               >
                 Vendor
               </th>
  
               <th 
-                style={{ width: componentColumnWidths[componentTab + '_name'] || 300, minWidth: componentColumnWidths[componentTab + '_name'] || 300, position: 'sticky', top: 0, left: '298px', zIndex: 60 }}
-                className="p-4 px-6 font-black text-[10px] uppercase text-zinc-400 tracking-widest bg-zinc-50 border-r border-zinc-100 group/h relative shadow-sm"
+                style={{ width: componentColumnWidths[componentTab + '_name'] || 300, minWidth: componentColumnWidths[componentTab + '_name'] || 300, position: 'sticky', top: 0, left: '298px', zIndex: 110 }}
+                className="p-4 px-6 font-black text-[10px] uppercase text-zinc-400 tracking-widest bg-zinc-50 border-r border-b border-zinc-100 group/h relative shadow-sm"
               >
                 Name
                 <div onMouseDown={(e) => startResizing(e, componentTab + '_name')} className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-black/20 transition-colors z-30" />
@@ -241,10 +272,13 @@ const ComponentLibraryGrid = React.memo(({
                 <th 
                   key={col} 
                   style={{ 
+                    position: 'sticky',
+                    top: 0,
                     width: componentColumnWidths[componentTab + '_' + col] || 150, 
-                    minWidth: componentColumnWidths[componentTab + '_' + col] || 150 
+                    minWidth: componentColumnWidths[componentTab + '_' + col] || 150,
+                    zIndex: 100
                   }}
-                  className="p-4 font-black text-[10px] uppercase text-zinc-400 tracking-widest hover:bg-zinc-100 transition-colors relative group/h border-r border-zinc-50"
+                  className="p-4 font-black text-[10px] uppercase text-zinc-400 tracking-widest hover:bg-zinc-100 transition-colors relative group/h border-r border-b border-zinc-50 bg-zinc-50"
                 >
                   {formatColumnTitle(col)}
                   <div onMouseDown={(e) => startResizing(e, componentTab + '_' + col)} className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-black/20 transition-colors z-30 opacity-0 group-hover/h:opacity-100" />
@@ -263,11 +297,11 @@ const ComponentLibraryGrid = React.memo(({
               
               return (
                 <tr key={reactKey} className={(isValid ? 'odd:bg-white even:bg-zinc-100/30' : 'bg-red-50 hover:bg-red-100/50') + ' transition-colors group border-b border-zinc-100 last:border-0 ' + (isSelected ? 'ring-2 ring-inset ring-blue-400 bg-blue-50' : '')}>
-                  <td className="p-4 px-6 w-12 border-r border-zinc-100 sticky left-0 z-60 bg-zinc-50">
+                  <td className="p-4 px-6 w-12 border-r border-zinc-100 sticky left-0 z-80 bg-zinc-50">
                     <input type="checkbox" checked={isSelected} onChange={(e) => toggleComponentSelection(rowId, e.nativeEvent, finalFilteredList)} className="w-4 h-4 rounded border-zinc-300 accent-blue-600 cursor-pointer" />
                   </td>
 
-                  <td className="p-4 px-6 sticky left-[48px] z-60 bg-zinc-50 border-r border-zinc-100 text-right" onClick={e => e.stopPropagation()}>
+                  <td className="p-4 px-6 sticky left-[48px] z-80 bg-zinc-50 border-r border-zinc-100 text-right" onClick={e => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-2">
                        <button onClick={() => { handleEditComponent(row, i); }} title="Advanced Edit" className="p-2 bg-zinc-100 hover:bg-black hover:text-white text-zinc-400 rounded-lg transition-all"><Edit size={12} /></button>
                        <button onClick={() => handleDeleteComponent(row)} title="Trash Component" className="p-2 bg-zinc-100 hover:bg-red-500 hover:text-white text-zinc-400 rounded-lg transition-all"><Trash2 size={12} /></button>
@@ -275,7 +309,7 @@ const ComponentLibraryGrid = React.memo(({
                   </td>
 
                   <td 
-                    style={{ position: 'sticky', left: '148px', zIndex: 60 }}
+                    style={{ position: 'sticky', left: '148px', zIndex: 80 }}
                     className={"p-0 border-r border-zinc-100 " + (isValid ? (i % 2 === 0 ? 'bg-white' : 'bg-zinc-50') : 'bg-red-50') + " group-hover:bg-zinc-100 transition-colors shadow-[2px_0_5px_rgba(0,0,0,0.02)]"}
                   >
                     <EditableCell 
@@ -293,7 +327,7 @@ const ComponentLibraryGrid = React.memo(({
                   </td>
 
                   <td 
-                    style={{ width: componentColumnWidths[componentTab + '_name'] || 300, minWidth: componentColumnWidths[componentTab + '_name'] || 300, position: 'sticky', left: '298px', zIndex: 60 }}
+                    style={{ width: componentColumnWidths[componentTab + '_name'] || 300, minWidth: componentColumnWidths[componentTab + '_name'] || 300, position: 'sticky', left: '298px', zIndex: 80 }}
                     className={"p-0 border-r border-zinc-100 " + (isValid ? (i % 2 === 0 ? 'bg-white' : 'bg-zinc-50') : 'bg-red-50') + " group-hover:bg-zinc-100 transition-colors shadow-[2px_0_5px_rgba(0,0,0,0.05)] relative"}
                   >
                     <div className="flex items-center justify-between px-2">

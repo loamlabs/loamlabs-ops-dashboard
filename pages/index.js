@@ -487,7 +487,7 @@ export default function OpsDashboard() {
                       const specs = specKeys.map(k => `${k}:${item[k]}`).join('|');
                       const hash = `${name}_${vendor}_${specs}`.toLowerCase().replace(/[^a-z0-9]/g, '');
                       
-                      const stableRid = item._rid || baseId || `hash_${hash}`;
+                      const stableRid = item._rid || baseId || `hash_${hash}_${idx}`;
                       return { ...item, _rid: stableRid, _rawIdx: idx };
                   });
                   
