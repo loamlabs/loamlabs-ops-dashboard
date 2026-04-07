@@ -120,6 +120,32 @@ export default function OpsDashboard() {
   const [gridAddedRows, setGridAddedRows] = useState({ hubs: [], rims: [], spokes: [], nipples: [] });
   const [focusedCell, setFocusedCell] = useState(null); 
   const [editingCell, setEditingCell] = useState(null); 
+
+  const handleDeleteComponent = React.useCallback(async (item) => {
+      const rowId = item._rid || getComponentUniqueId(item);
+      const isNew = !!item._isNew;
+      
+      if (isNew) {
+          handleRemoveAddedRow(rowId);
+          return;
+      }
+
+      const name = item.Name || item.name || item.title || "Unknown";
+      if (!confirm(`Delete ${name}? This cannot be undone.`)) return;
+
+      const rawData = componentData[componentTab] || [];
+      const updatedArray = rawData.filter(i => {
+          const rid = i._rid || getComponentUniqueId(i);
+          return rid !== rowId;
+      });
+
+      const success = await saveComponentChanges(updatedArray, componentTab);
+      if (success) {
+          showNotification(`Successfully deleted ${name}`, 'success');
+      } else {
+          showNotification(`Failed to delete ${name}`, 'error');
+      }
+  }, [componentTab, componentData, saveComponentChanges]);
   const [metaEditFields, setMetaEditFields] = useState({});
   const [metafieldRegistry, setMetafieldRegistry] = useState([
     { key: 'inventory_alert_threshold', label: 'Inventory Alert Threshold', categories: ['RIM', 'HUB', 'SPOKE', 'NIPPLE', 'VALVESTEM', 'ACCESSORY'], target: 'variant', type: 'integer' },
@@ -474,16 +500,32 @@ export default function OpsDashboard() {
           const res = await fetch(`/api/components?cb=${cb}`, { headers: { 'x-dashboard-auth': auth } });
           if (res.ok) {
               const data = await res.json();
-              // Hydrate missing _rid fields to ensure stable identity
               const hydrated = {};
+              
               Object.keys(data).forEach(tab => {
-                  hydrated[tab] = (data[tab] || []).map((item, idx) => {
-                      if (item._rid) return item;
-                      // Fallback: If it has zero unique IDs, we MUST generate an _rid and SAVE it back later
+                  const rawList = data[tab] || [];
+                  const uniqueSet = new Map();
+                  
+                  rawList.forEach((item, idx) => {
+                      // 1. Generate a content fingerprint if _rid is missing
                       const baseId = item.id || item.shopify_product_id || item.ID || item['Product ID'];
-                      return { ...item, _rid: item._rid || baseId || `comp_${tab}_${idx}_${Date.now().toString(36)}` };
+                      const name = item.Name || item.name || item.title || "NoName";
+                      const vendor = item.Vendor || item.vendor || item.Brand || item.brand || "NoVendor";
+                      // Deterministic hash of name + vendor + 2 specs
+                      const specs = Object.entries(item).filter(([k]) => !['id','_rid','_rawIdx','ID','shopify_product_id'].includes(k)).slice(0, 3).map(e => e[1]).join('|');
+                      const hash = `${name}_${vendor}_${specs}`.toLowerCase().replace(/[^a-z0-9]/g, '');
+                      
+                      const stableRid = item._rid || baseId || `hash_${hash}`;
+                      
+                      // 2. Deduplicate: First one with this ID wins
+                      if (!uniqueSet.has(stableRid)) {
+                          uniqueSet.set(stableRid, { ...item, _rid: stableRid });
+                      }
                   });
+                  
+                  hydrated[tab] = Array.from(uniqueSet.values());
               });
+              
               setComponentData(hydrated);
               setComponentsLoaded(true);
           }
@@ -604,20 +646,20 @@ export default function OpsDashboard() {
     }
   }, [componentTab, gridUnsavedChanges, gridAddedRows, componentData, getComponentUniqueId, saveComponentChanges, showNotification]);
 
-  const handleAddNewRow = React.useCallback((count = 1) => {
-    const tab = componentTab;
+  const handleAddNewRow = (count = 1) => {
+    const added = gridAddedRows[componentTab] || [];
     const newRows = Array.from({ length: count }).map((_, i) => ({
       _rid: `new_${Date.now()}_${i}`,
       Name: 'New Component',
-      Vendor: 'LoamLabs',
+      Vendor: '',
       _isNew: true
     }));
     setGridAddedRows(prev => ({
       ...prev,
-      [tab]: [...newRows, ...(prev[tab] || [])]
+      [componentTab]: [...newRows, ...added]
     }));
     showNotification(`Added ${count} blank row(s)`, 'success');
-  }, [componentTab, showNotification]);
+  };
 
   const handleGridEdit = React.useCallback((rowId, colKey, newValue) => {
     setGridUnsavedChanges(prev => {
@@ -665,7 +707,6 @@ export default function OpsDashboard() {
   }, [componentTab]);
 
   const handleGridPaste = React.useCallback((e, startRowId, startColKey, columns) => {
-    e.preventDefault();
     const clipboardData = e.clipboardData.getData('text');
     const rows = clipboardData.split(/\r?\n/).filter(r => r.trim() !== '');
     const gridRows = rows.map(r => r.split('\t'));
@@ -694,14 +735,12 @@ export default function OpsDashboard() {
   }, [componentTab, componentData, getComponentUniqueId]);
 
   const handleEditComponent = (comp, idx) => {
-    // If it's a new row that hasn't been saved yet, it's still in gridAddedRows
     let componentToEdit = comp;
     if (comp._isNew) {
         const added = gridAddedRows[componentTab] || [];
         const found = added.find(r => r._rid === comp._rid);
         if (found) componentToEdit = found;
     }
-    // Else it is either a legacy component or a newly SAVED component (which no longer has _isNew)
     setEditingComponent({ ...componentToEdit, _editIdx: idx });
     setIsDuplicateMode(false);
     setConfirmedFields([]);
@@ -725,11 +764,6 @@ export default function OpsDashboard() {
 
   // --- CORE HOOKS ---
 
-
-
-  // Load unsaved changes from session storage on mount
-
-  // Load unsaved changes from session storage on mount
   useEffect(() => {
     try {
       const saved = sessionStorage.getItem('loamops_grid_unsaved_v1');
@@ -739,7 +773,6 @@ export default function OpsDashboard() {
     } catch(e) {}
   }, []);
 
-  // Sync to session storage on change
   useEffect(() => {
     sessionStorage.setItem('loamops_grid_unsaved_v1', JSON.stringify(gridUnsavedChanges));
   }, [gridUnsavedChanges]);
@@ -748,7 +781,6 @@ export default function OpsDashboard() {
     sessionStorage.setItem('loamops_grid_added_v1', JSON.stringify(gridAddedRows));
   }, [gridAddedRows]);
 
-  // Prevent accidental navigation
   useEffect(() => {
     const handleBeforeUnload = (e) => {
       const hasChanges = Object.keys(gridUnsavedChanges).some(tab => Object.keys(gridUnsavedChanges[tab]).length > 0);
@@ -762,11 +794,9 @@ export default function OpsDashboard() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [gridUnsavedChanges, gridAddedRows]);
 
-
-
   const spokePolish = (val) => {
     if (!val) return val;
-    return val; // Removed problematic 'h' suffix entirely as requested
+    return val;
   };
 
   useEffect(() => {
@@ -833,41 +863,53 @@ export default function OpsDashboard() {
   }, [draggedColumn, componentData, componentTab, componentColumnOrder]);
 
   const uniqueVendors = React.useMemo(() => {
-    const activeList = (componentData[componentTab] || []).map((item, idx) => ({ ...item, _rawIdx: idx }));
+    if (!componentTab || !componentData[componentTab]) return [];
+    const activeList = componentData[componentTab];
     const vends = activeList.map(item => item.Vendor || item.vendor || item.Brand || item.brand).filter(v => typeof v === 'string' && v.trim() !== '');
     return [...new Set(vends)].sort((a,b) => a.localeCompare(b));
   }, [componentData, componentTab]);
 
   const finalFilteredList = React.useMemo(() => {
-    const activeList = (componentData[componentTab] || []).map((item, idx) => ({ ...item, _rawIdx: idx }));
+    if (!componentTab || !componentData[componentTab]) return [];
+    
+    const activeList = componentData[componentTab].map((item, idx) => ({ ...item, _rawIdx: idx }));
     const addedRows = gridAddedRows[componentTab] || [];
     const combinedList = [...activeList, ...addedRows];
 
+    const seen = new Set();
+    const uniqueList = combinedList.filter(item => {
+        const id = item._rid || getComponentUniqueId(item);
+        if (seen.has(id)) return false;
+        seen.add(id);
+        return true;
+    });
+
     let preFilteredList = componentVendorFilter === 'All' 
-      ? combinedList 
-      : combinedList.filter(item => (item.Vendor || item.vendor || item.Brand || item.brand) === componentVendorFilter);
+      ? uniqueList 
+      : uniqueList.filter(item => {
+          const v = item.Vendor || item.vendor || item.Brand || item.brand;
+          return v === componentVendorFilter;
+      });
 
     if (showMissingOnly) {
-      preFilteredList = preFilteredList.filter(item => {
-        try {
-          const validation = getComponentValidation(item, componentTab);
-          return !validation.isValid;
-        } catch (e) {
-          return false;
-        }
-      });
+      preFilteredList = preFilteredList.filter(item => !getComponentValidation(item, componentTab).isValid);
     }
 
-    return [...preFilteredList].sort((a, b) => {
-      // Prioritize new rows at the top
+    return [...preFilteredList].sort((a,b) => {
       if (a._isNew && !b._isNew) return -1;
       if (!a._isNew && b._isNew) return 1;
       
-      const aN = (a.Name || a.name || a.title || a.Title || '').toLowerCase();
-      const bN = (b.Name || b.name || b.title || b.Title || '').toLowerCase();
+      const vA = (a.Vendor || a.vendor || a.Brand || a.brand || "").trim();
+      const vB = (b.Vendor || b.vendor || b.Brand || b.brand || "").trim();
+      
+      if (vA === "" && vB !== "") return -1;
+      if (vA !== "" && vB === "") return 1;
+
+      const aN = (a.Name || a.name || a.title || "Unknown").toLowerCase();
+      const bN = (b.Name || b.name || b.title || "Unknown").toLowerCase();
       return aN.localeCompare(bN);
     });
-  }, [componentData, componentTab, gridAddedRows, componentVendorFilter, showMissingOnly, getComponentValidation]);
+  }, [componentData, componentTab, gridAddedRows, componentVendorFilter, showMissingOnly, getComponentValidation, getComponentUniqueId]);
 
   const handleCreateNewComponent = React.useCallback((tab) => {
     const activeList = componentData[tab] || [];
@@ -1072,25 +1114,6 @@ export default function OpsDashboard() {
     setLoading(false);
   };
 
-  // --- DISCREPANCY NOTIFICATION LOGIC ---
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
   const bulkApprovePrices = async () => {
     setLoading(true);
     try {
@@ -1230,7 +1253,6 @@ export default function OpsDashboard() {
     const idsFromVariants = rules.filter(r => selectedLabVariants.includes(String(r.shopify_variant_id))).map(r => r.id);
     const allIds = [...new Set([...idsFromProducts, ...idsFromVariants])];
     runSelectiveSync(allIds);
-    // Note: runSelectiveSync will clear selectedRules, but we need to clear lab selections too
     if (allIds.length > 0) {
       setSelectedLabProducts([]);
       setSelectedLabVariants([]);
@@ -1318,7 +1340,6 @@ export default function OpsDashboard() {
     setMetaEditFields({});
     setShowMetaEditModal(true);
     
-    // Multi-fetch prepopulator
     const targetProductIds = new Set(selectedLabProducts);
     selectedLabVariants.forEach(vId => {
       const p = allUniqueRules.find(r => String(r.shopify_variant_id) === String(vId));
@@ -1621,7 +1642,6 @@ export default function OpsDashboard() {
         
         {activeTab === 'vendors' ? (
           <>
-            {/* --- REGISTRY HEADER --- */}
             <div className="flex items-center justify-between mb-8">
               <div>
                 <h1 className="text-4xl font-black tracking-tight text-zinc-900 uppercase italic">Registry</h1>
@@ -1644,7 +1664,6 @@ export default function OpsDashboard() {
               </div>
             </div>
 
-            {/* --- VENDOR FILTER BAR --- */}
             <div className="mb-10">
               <div className="flex items-center justify-between mb-4">
                 <label className="text-[10px] font-black uppercase text-zinc-400 tracking-[0.2em] italic">Filter by Vendor</label>
@@ -1675,7 +1694,6 @@ export default function OpsDashboard() {
               </div>
             </div>
             
-            {/* --- SYNC CONFIG FILTER BAR --- */}
             <div className="mb-10">
               <div className="flex items-center justify-between mb-4">
                 <label className="text-[10px] font-black uppercase text-zinc-400 tracking-[0.2em] italic">Auto-Update Filter</label>
@@ -1884,7 +1902,6 @@ export default function OpsDashboard() {
           </>
         ) : activeTab === 'bti_sync' ? (
           <>
-            {/* --- BTI REGISTRY HEADER --- */}
             <div className="flex items-center justify-between mb-8">
               <div>
                 <h1 className="text-4xl font-black tracking-tight text-zinc-900 uppercase italic">BTI Sync Management</h1>
@@ -1899,7 +1916,6 @@ export default function OpsDashboard() {
               </div>
             </div>
 
-            {/* --- BTI FILTER BAR --- */}
             <div className="mb-10">
               <div className="flex items-center justify-between mb-4">
                 <label className="text-[10px] font-black uppercase text-zinc-400 tracking-[0.2em] italic">Filter by Vendor</label>
@@ -1961,7 +1977,6 @@ export default function OpsDashboard() {
               </div>
             </div>
 
-            {/* --- BTI TABLE --- */}
             {(() => {
               const filteredRules = rules.filter(rule => {
                 const matchesVendor = selectedVendors.length === 0 || selectedVendors.includes(rule.vendor_name);
@@ -2039,7 +2054,6 @@ export default function OpsDashboard() {
                 </div>
               </div>
              
-             {/* --- VENDOR FILTER BAR --- */}
              <div className="mb-10">
                <div className="flex items-center justify-between mb-4">
                  <label className="text-[10px] font-black uppercase text-zinc-400 tracking-[0.2em] italic">Filter by Vendor</label>
@@ -2070,7 +2084,6 @@ export default function OpsDashboard() {
                </div>
              </div>
              
-             {/* --- COMPONENT CATEGORY FILTER --- */}
              <div className="mb-10">
                <div className="flex items-center justify-between mb-4">
                  <label className="text-[10px] font-black uppercase text-zinc-400 tracking-[0.2em] italic">Filter by Tag</label>
@@ -2122,9 +2135,6 @@ export default function OpsDashboard() {
                           checked={selectedLabProducts.length > 0} 
                           onChange={(e) => {
                             if (!e.target.checked) setSelectedLabProducts([]);
-                            else {
-                                // Select all currently filtered products
-                            }
                           }}
                         />
                       </th>
@@ -2137,7 +2147,6 @@ export default function OpsDashboard() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-50">
-                    {/* Grouping variants into Product rows (Respecting Vendor Filter + Tag Filter + Sorting) */}
                     {(() => {
                       const filtered = Object.values(allUniqueRules.filter(r => {
                         const matchesVendor = selectedVendors.length === 0 || selectedVendors.includes(r.vendor_name);
@@ -2173,7 +2182,6 @@ export default function OpsDashboard() {
                           <tr>
                             <td colSpan="6" className="p-20 text-center">
                               <div className="flex flex-col items-center gap-4">
-                                {/* DATALISTS FOR AUTO-SUGGEST */}
                                 {Object.entries(COMPONENT_SUGGESTIONS).map(([key, options]) => (
                                    <datalist id={`list-${key.replace(/\s+/g, '-')}`} key={key}>
                                       {options.map(opt => <option key={opt} value={opt} />)}
@@ -2748,6 +2756,7 @@ export default function OpsDashboard() {
                             getComponentValidation={getComponentValidation}
                             toggleComponentSelection={toggleComponentSelection}
                             handleRemoveAddedRow={handleRemoveAddedRow}
+                            handleDeleteComponent={handleDeleteComponent}
                             DROPDOWN_OPTIONS={DROPDOWN_OPTIONS}
                             handleEditComponent={handleEditComponent}
                             saveComponentChanges={saveComponentChanges}
