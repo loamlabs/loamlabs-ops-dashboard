@@ -437,7 +437,7 @@ const ComponentLibraryGrid = React.memo(({
                             <EditableCell 
                               rowId={rowId}
                               colKey="Name"
-                              value={unsaved[colKey] !== undefined ? unsaved[colKey] : (row.Name || row.name || row.title || row.Title || '')}
+                              value={unsaved['Name'] !== undefined ? unsaved['Name'] : (row.Name || row.name || row.title || row.Title || '')}
                               isFocused={focusedCell?.rowId === rowId && focusedCell?.colKey === 'Name'}
                               isSelected={selectedCells.includes(`${rowId}|Name`)}
                               isEditing={editingCell?.rowId === rowId && editingCell?.colKey === 'Name'}
