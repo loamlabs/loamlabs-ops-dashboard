@@ -121,6 +121,7 @@ export default function OpsDashboard() {
   const [focusedCell, setFocusedCell] = useState(null); 
   const [selectedCells, setSelectedCells] = useState([]); 
   const [editingCell, setEditingCell] = useState(null); 
+  const [clipboardValue, setClipboardValue] = useState(null);
 
    const [metaEditFields, setMetaEditFields] = useState({});
   const [metafieldRegistry, setMetafieldRegistry] = useState([
@@ -645,6 +646,27 @@ export default function OpsDashboard() {
       };
     });
   }, [componentTab]);
+
+  const handleBulkPaste = React.useCallback(() => {
+    if (clipboardValue === null || selectedCells.length === 0) return;
+    
+    setGridUnsavedChanges(prev => {
+      const newChanges = { ...prev };
+      const tabChanges = { ...(newChanges[componentTab] || {}) };
+      
+      selectedCells.forEach(cellId => {
+        const [rowId, colKey] = cellId.split('|');
+        const rowChanges = { ...(tabChanges[rowId] || {}) };
+        rowChanges[colKey] = clipboardValue;
+        tabChanges[rowId] = rowChanges;
+      });
+      
+      newChanges[componentTab] = tabChanges;
+      return newChanges;
+    });
+    
+    showNotification(`Pasted values into ${selectedCells.length} cells`, 'success');
+  }, [componentTab, clipboardValue, selectedCells, showNotification]);
 
   const toggleComponentSelection = React.useCallback((rowId, e, list = []) => {
     const isShift = e && (e.shiftKey || (e.nativeEvent && e.nativeEvent.shiftKey));
@@ -2760,6 +2782,8 @@ export default function OpsDashboard() {
                             setFocusedCell={setFocusedCell}
                             selectedCells={selectedCells}
                             setSelectedCells={setSelectedCells}
+                            onCopy={setClipboardValue}
+                            onPaste={handleBulkPaste}
                             editingCell={editingCell}
                             setEditingCell={setEditingCell}
                             componentSaving={componentSaving}

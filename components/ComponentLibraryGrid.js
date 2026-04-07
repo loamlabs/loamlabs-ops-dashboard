@@ -112,6 +112,8 @@ const ComponentLibraryGrid = React.memo(({
   setSelectedCells,
   editingCell,
   setEditingCell,
+  onCopy,
+  onPaste,
   componentSaving,
   handleRemoveAddedRow,
   handleDeleteComponent
@@ -217,7 +219,30 @@ const ComponentLibraryGrid = React.memo(({
     }
   };
 
+  const getCellValue = (rowId, colKey) => {
+    const row = finalFilteredList.find(r => (r._rid || getComponentUniqueId(r)) === rowId);
+    if (!row) return '';
+    const unsaved = (gridUnsavedChanges[componentTab] || {})[rowId] || {};
+    const val = unsaved[colKey] !== undefined ? unsaved[colKey] : row[colKey];
+    return val === null || val === undefined ? '' : String(val);
+  };
+
   const handleKeyDown = (e) => {
+    const isMeta = e.ctrlKey || e.metaKey;
+    
+    if (isMeta && e.key === 'c') {
+       if (focusedCell) {
+          const val = getCellValue(focusedCell.rowId, focusedCell.colKey);
+          onCopy(val);
+       }
+       return;
+    }
+
+    if (isMeta && e.key === 'v') {
+       onPaste();
+       return;
+    }
+
     if (editingCell) {
       if (e.key === 'Enter' || e.key === 'Tab') {
         e.preventDefault();
