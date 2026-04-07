@@ -119,53 +119,56 @@ const ComponentLibraryGrid = React.memo(({
   handleDeleteComponent,
   componentColumnOrder
 }) => {
-  const [startWidth, setStartWidth] = useState(0);
-  const scrollRef = useRef(null);
-  const tableRef = useRef(null);
-
-  // --- AUTO-SCROLL LOGIC ---
-  useEffect(() => {
-    if (!focusedCell || !scrollRef.current) return;
-    
-    const { colKey } = focusedCell;
-    const allCols = getBiologicalCols();
-    const colIndex = allCols.indexOf(colKey);
-    if (colIndex === -1) return;
-
-    // Sticky columns: Checkbox(48) + Actions(100) + Vendor(150) + Name(300)
-    // The spec columns start after the Name column. 
-    // We only need to auto-scroll for columns that aren't the sticky ones.
-    const stickyWidth = 48 + 100 + 150 + (componentColumnWidths[componentTab + '_name'] || 300);
-    
-    // Calculate the start position of this column
-    let colStart = 48 + 100 + 150 + (componentColumnWidths[componentTab + '_name'] || 300);
-    for (let i = 2; i < colIndex; i++) {
-      const key = allCols[i];
-      colStart += (componentColumnWidths[componentTab + '_' + key] || 150);
-    }
-    const colWidth = (componentColumnWidths[componentTab + '_' + colKey] || 150);
-    const colEnd = colStart + colWidth;
-
-    const currentScroll = scrollRef.current.scrollLeft;
-    const viewportWidth = scrollRef.current.offsetWidth;
-    const visibleStart = currentScroll + stickyWidth;
-    const visibleEnd = currentScroll + viewportWidth;
-
-    // If cell is to the left of visible area (hidden by sticky cols)
-    if (colStart < visibleStart && colIndex >= 2) {
-      scrollRef.current.scrollTo({
-        left: colStart - stickyWidth,
-        behavior: 'smooth'
-      });
-    } 
-    // If cell is to the right of visible area
-    else if (colEnd > visibleEnd) {
-      scrollRef.current.scrollTo({
-        left: colEnd - viewportWidth,
-        behavior: 'smooth'
-      });
-    }
-  }, [focusedCell, componentTab, componentColumnWidths]);
+   const [startWidth, setStartWidth] = useState(0);
+   const [pivotCell, setPivotCell] = useState(null);
+   const scrollRef = useRef(null);
+   const tableRef = useRef(null);
+ 
+   // --- AUTO-SCROLL LOGIC ---
+   useEffect(() => {
+     if (!focusedCell || !scrollRef.current) return;
+     
+     const { colKey } = focusedCell;
+     const allCols = getBiologicalCols();
+     const colIndex = allCols.indexOf(colKey);
+     if (colIndex === -1) return;
+ 
+     // Sticky columns: Checkbox(48) + Actions(100) + Vendor(150) + Name(300)
+     // The spec columns start after the Name column. 
+     // We only need to auto-scroll for columns that aren't the sticky ones.
+     const stickyWidth = 48 + 100 + 150 + (componentColumnWidths[componentTab + '_name'] || 300);
+     
+     // Calculate the start position of this column
+     let colStart = 48 + 100 + 150 + (componentColumnWidths[componentTab + '_name'] || 300);
+     for (let i = 2; i < colIndex; i++) {
+       const key = allCols[i];
+       colStart += (componentColumnWidths[componentTab + '_' + key] || 150);
+     }
+     const colWidth = (componentColumnWidths[componentTab + '_' + colKey] || 150);
+     const colEnd = colStart + colWidth;
+ 
+     const currentScroll = scrollRef.current.scrollLeft;
+     const viewportWidth = scrollRef.current.offsetWidth;
+     const visibleStart = currentScroll + stickyWidth;
+     const visibleEnd = currentScroll + viewportWidth;
+ 
+     const BUFF = 40; // Pixels buffer for scrolling
+ 
+     // If cell is to the left of visible area (hidden by sticky cols)
+     if (colStart < visibleStart && colIndex >= 2) {
+       scrollRef.current.scrollTo({
+         left: colStart - stickyWidth - BUFF,
+         behavior: 'auto'
+       });
+     } 
+     // If cell is to the right of visible area
+     else if (colEnd > visibleEnd - BUFF) {
+       scrollRef.current.scrollTo({
+         left: colEnd - viewportWidth + BUFF,
+         behavior: 'auto'
+       });
+     }
+   }, [focusedCell, componentTab, componentColumnWidths]);
 
   const getBiologicalCols = () => {
     const rawData = componentData[componentTab] || [];
@@ -227,14 +230,17 @@ const ComponentLibraryGrid = React.memo(({
     const isShift = e.shiftKey;
 
     if (isShift && focusedCell) {
-      const range = getRectangularRange(focusedCell, { rowId, colKey });
+      const range = getRectangularRange(pivotCell || focusedCell, { rowId, colKey });
       setSelectedCells(range);
+      if (!pivotCell) setPivotCell(focusedCell);
     } else if (isMeta) {
       setSelectedCells(prev => prev.includes(cellId) ? prev.filter(c => c !== cellId) : [...prev, cellId]);
       setFocusedCell({ rowId, colKey });
+      setPivotCell({ rowId, colKey });
     } else {
       setSelectedCells([cellId]);
       setFocusedCell({ rowId, colKey });
+      setPivotCell({ rowId, colKey });
       
       // Feature Upgrade: If it's a dropdown column, start editing immediately on click
       const options = DROPDOWN_OPTIONS[colKey] || DROPDOWN_OPTIONS[formatColumnTitle(colKey)];
@@ -244,46 +250,54 @@ const ComponentLibraryGrid = React.memo(({
     }
   };
 
-  const navigateGrid = (direction) => {
-    if (!focusedCell) return;
-    
-    const { rowId, colKey } = focusedCell;
-    const rowIndex = finalFilteredList.findIndex(r => (r._rid || getComponentUniqueId(r)) === rowId);
-    const allCols = getBiologicalCols();
-    const colIndex = allCols.indexOf(colKey);
-    
-    if (rowIndex === -1 || colIndex === -1) return;
-
-    let newRowIdx = rowIndex;
-    let newColIdx = colIndex;
-
-    switch (direction) {
-      case 'ArrowUp': newRowIdx = Math.max(0, rowIndex - 1); break;
-      case 'ArrowDown': newRowIdx = Math.min(finalFilteredList.length - 1, rowIndex + 1); break;
-      case 'ArrowLeft': newColIdx = Math.max(0, colIndex - 1); break;
-      case 'ArrowRight': newColIdx = Math.min(allCols.length - 1, colIndex + 1); break;
-      case 'Tab': 
-        newColIdx = colIndex + 1;
-        if (newColIdx >= allCols.length) {
-          newColIdx = 0;
-          newRowIdx = Math.min(finalFilteredList.length - 1, rowIndex + 1);
-        }
-        break;
-      case 'Enter':
-        newRowIdx = Math.min(finalFilteredList.length - 1, rowIndex + 1);
-        break;
-    }
-
-    const nextRow = finalFilteredList[newRowIdx];
-    if (nextRow) {
-      const nextRowId = nextRow._rid || getComponentUniqueId(nextRow);
-      const nextColKey = allCols[newColIdx];
-      const nextCellId = `${nextRowId}|${nextColKey}`;
-      
-      setFocusedCell({ rowId: nextRowId, colKey: nextColKey });
-      setSelectedCells([nextCellId]);
-    }
-  };
+   const navigateGrid = (direction, shiftKey = false) => {
+     if (!focusedCell) return;
+     
+     const { rowId, colKey } = focusedCell;
+     const rowIndex = finalFilteredList.findIndex(r => (r._rid || getComponentUniqueId(r)) === rowId);
+     const allCols = getBiologicalCols();
+     const colIndex = allCols.indexOf(colKey);
+     
+     if (rowIndex === -1 || colIndex === -1) return;
+ 
+     let newRowIdx = rowIndex;
+     let newColIdx = colIndex;
+ 
+     switch (direction) {
+       case 'ArrowUp': newRowIdx = Math.max(0, rowIndex - 1); break;
+       case 'ArrowDown': newRowIdx = Math.min(finalFilteredList.length - 1, rowIndex + 1); break;
+       case 'ArrowLeft': newColIdx = Math.max(0, colIndex - 1); break;
+       case 'ArrowRight': newColIdx = Math.min(allCols.length - 1, colIndex + 1); break;
+       case 'Tab': 
+         newColIdx = colIndex + 1;
+         if (newColIdx >= allCols.length) {
+           newColIdx = 0;
+           newRowIdx = Math.min(finalFilteredList.length - 1, rowIndex + 1);
+         }
+         break;
+       case 'Enter':
+         newRowIdx = Math.min(finalFilteredList.length - 1, rowIndex + 1);
+         break;
+     }
+ 
+     const nextRow = finalFilteredList[newRowIdx];
+     if (nextRow) {
+       const nextRowId = nextRow._rid || getComponentUniqueId(nextRow);
+       const nextColKey = allCols[newColIdx];
+       const nextCellId = `${nextRowId}|${nextColKey}`;
+       
+       setFocusedCell({ rowId: nextRowId, colKey: nextColKey });
+       
+       if (shiftKey && (pivotCell || focusedCell)) {
+          const range = getRectangularRange(pivotCell || focusedCell, { rowId: nextRowId, colKey: nextColKey });
+          setSelectedCells(range);
+          if (!pivotCell) setPivotCell(focusedCell);
+       } else {
+          setPivotCell({ rowId: nextRowId, colKey: nextColKey });
+          setSelectedCells([nextCellId]);
+       }
+     }
+   };
 
   const getCellValue = (rowId, colKey) => {
     const row = finalFilteredList.find(r => (r._rid || getComponentUniqueId(r)) === rowId);
@@ -325,17 +339,17 @@ const ComponentLibraryGrid = React.memo(({
       if (e.key === 'Enter' || e.key === 'Tab') {
         e.preventDefault();
         setEditingCell(null);
-        setTimeout(() => navigateGrid(e.key), 50);
+        setTimeout(() => navigateGrid(e.key, e.shiftKey), 50);
       }
       return;
     }
 
     if (e.key.startsWith('Arrow')) {
       e.preventDefault();
-      navigateGrid(e.key);
+      navigateGrid(e.key, e.shiftKey);
     } else if (e.key === 'Tab') {
       e.preventDefault();
-      navigateGrid('Tab');
+      navigateGrid('Tab', e.shiftKey);
     } else if (e.key === 'Enter') {
       e.preventDefault();
       if (focusedCell) setEditingCell(focusedCell);
