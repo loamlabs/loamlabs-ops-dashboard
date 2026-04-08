@@ -22,11 +22,12 @@ const DROPDOWN_OPTIONS = {
 };
 
 const MANDATORY_FIELDS = {
-  rims: ['Name', 'Vendor', 'Option 1 Name', 'Option 1 Value', 'Option 2 Name', 'Option 2 Value', 'Wheel Spec Position', 'Rim Erd', 'Weight G (p)'],
-  hubs: ['Name', 'Vendor', 'Option 1 Name', 'Option 1 Value', 'Hub Type', 'Weight G (v)', 'Wheel Spec Position'],
-  spokes: ['Name', 'Vendor', 'Spoke Type', 'Spoke Cross Section Area Mm2', 'Spoke Model Group', 'Weight G (p)', 'Spoke Diameter Spec', 'Spoke Rounding Rule'],
-  nipples: ['Name', 'Vendor', 'Option 1 Name', 'Option 1 Value', 'Weight G (p)']
+  rims: ['Title', 'Vendor', 'Option 1 Name', 'Option 1 Value', 'Option 2 Name', 'Option 2 Value', 'Wheel Spec Position', 'Rim Erd', 'Weight G (p)'],
+  hubs: ['Title', 'Vendor', 'Option 1 Name', 'Option 1 Value', 'Hub Type', 'Weight G (v)', 'Wheel Spec Position'],
+  spokes: ['Title', 'Vendor', 'Spoke Type', 'Spoke Cross Section Area Mm2', 'Spoke Model Group', 'Weight G (p)', 'Spoke Diameter Spec', 'Spoke Rounding Rule'],
+  nipples: ['Title', 'Vendor', 'Option 1 Name', 'Option 1 Value', 'Weight G (p)']
 };
+
 
 function HealthCard({ title, count, subtitle, icon }) {
     return (
@@ -341,7 +342,8 @@ export default function OpsDashboard() {
     const baseId = item.id || item.shopify_product_id || item.ID || item['Product ID'] || item['Variant ID'];
     if (baseId) return String(baseId);
     // Priority 3: Use row index only as a last resort during initial render (this should be rare after hydration)
-    const name = (item.Name || item.name || item.title || "Unknown").trim();
+    const name = (item.Title || item.Name || item.name || item.title || "Unknown").trim();
+
     const vendor = (item.Vendor || item.vendor || item.Brand || item.brand || "Unknown").trim();
     const cleanName = `${vendor}_${name}`.toLowerCase().replace(/[^a-z0-9]/g, '');
     return `${cleanName}_${item._rawIdx !== undefined ? item._rawIdx : index}`;
@@ -371,9 +373,10 @@ export default function OpsDashboard() {
     let normTarget = key.toLowerCase().replace(/[^a-z0-9]/g, '');
     
     if (normTarget === 'name' || normTarget === 'displayname' || normTarget === 'title') {
-       const exactName = component.Name || component.name || component.title || component.Title;
+       const exactName = component.Title || component.Name || component.name || component.title || component.Title;
        if (exactName) return exactName;
     }
+
     if (normTarget === 'vendor' || normTarget === 'brand') {
        const exactVendor = component.Vendor || component.vendor || component.Brand || component.brand;
        if (exactVendor) return exactVendor;
@@ -462,14 +465,20 @@ export default function OpsDashboard() {
      const BURIED_FIELDS = [
         'historical_order_count', 'historical order count', 'Weight G (v)', 'Weight (V)', 
         'RIM SIZE', 'RIM ERD', 'Hole Count', 'Color', 'Rim Spoke Hole Offset', 
-        'ProductURL', 'Title', 'ID', 'Variant ID', 'Product ID'
+        'ProductURL', 'ID', 'Variant ID', 'Product ID'
      ];
      const BAN_LIST_NORM = BURIED_FIELDS.map(k => k.toLowerCase().replace(/[^a-z0-9]/g, ''));
 
      const processItem = (item) => {
         const newItem = { ...item };
         
-        // 1. Dynamic Registry Mapping: Migrate Shopify keys to Human Labels
+        // 1. Unified Identity: Map all Title/Name variations to 'Title'
+        const currentTitle = newItem.Title || newItem.title || newItem.Name || newItem.name;
+        if (currentTitle) {
+           newItem.Title = currentTitle;
+        }
+
+        // 2. Dynamic Registry Mapping: Migrate Shopify keys to Human Labels
         metafieldRegistry.forEach(reg => {
            const officialLabel = reg.label;
            const rawKey = reg.key;
@@ -484,7 +493,7 @@ export default function OpsDashboard() {
            }
         });
 
-        // 2. Manual Legacy Mappings (Hardcoded overlaps)
+        // 3. Manual Legacy Mappings (Hardcoded overlaps)
         const manualMappings = {
            'Rim Size': ['rim_size', 'RIM SIZE', 'Rim size'],
            'Rim Erd': ['rim_erd', 'RIM ERD', 'Rim erd'],
@@ -504,12 +513,13 @@ export default function OpsDashboard() {
            });
         });
 
-        // 3. NUCLEAR PURGE: Explicitly seek out and destroy all ghost fields
+        // 4. NUCLEAR PURGE: Explicitly seek out and destroy all ghost fields
         Object.keys(newItem).forEach(k => {
            const normK = k.toLowerCase().replace(/[^a-z0-9]/g, '');
            if (BAN_LIST_NORM.includes(normK)) {
               delete newItem[k];
            }
+           if (k === 'Name' || k === 'name') delete newItem[k]; // Retire Name key
         });
 
         // Identity Cleanup
@@ -518,6 +528,7 @@ export default function OpsDashboard() {
 
         return newItem;
       };
+
 
      if (Array.isArray(data)) return data.map(processItem);
      const newData = {};
@@ -627,11 +638,11 @@ export default function OpsDashboard() {
                   const seenRids = new Set();
                   const hydratedList = rawList.map((item, idx) => {
                        const baseId = item.id || item.ID || item.shopify_product_id || item['Product ID'];
-                       const name = item.Name || item.name || item.title || "NoName";
+                       const title = item.Title || item.title || item.Name || item.name || "NoTitle";
                        const vendor = item.Vendor || item.vendor || item.Brand || item.brand || "NoVendor";
                        const specKeys = Object.keys(item).filter(k => !['_rid', '_rawIdx', '_editIdx', '_isNew', 'id', 'ID', 'shopify_product_id', 'Product ID', 'Variant ID'].includes(k)).sort();
                        const specs = specKeys.map(k => `${k}:${item[k]}`).join('|');
-                       const hash = `${name}_${vendor}_${specs}`.toLowerCase().replace(/[^a-z0-9]/g, '');
+                       const hash = `${title}_${vendor}_${specs}`.toLowerCase().replace(/[^a-z0-9]/g, '');
                        
                        let rid = item._rid;
                        // If RID is numeric (looks like a Shopify ID), prioritize the internal hash for separation
@@ -859,8 +870,8 @@ export default function OpsDashboard() {
          const componentsForPid = candidates.filter(c => getCleanShopifyId(getComponentValue(c, 'shopify_product_id')) === pid);
          
          for (const comp of componentsForPid) {
-             const compName = getComponentValue(comp, 'Name') || comp.Name || 'Unnamed';
-             console.group(`[Discovery] Scanning: ${compName}`);
+             const compTitle = getComponentValue(comp, 'Title') || comp.Title || 'Unnamed';
+             console.group(`[Discovery] Scanning: ${compTitle}`);
              
              // --- BEST-FIT MATCHING ENGINE ---
              const norm = (val) => String(val || "").toLowerCase().replace(/["'\\]/g, '').trim();
@@ -913,7 +924,7 @@ export default function OpsDashboard() {
 
                 proposals.push({
                    rid: comp._rid || comp.id,
-                   name: compName,
+                   title: compTitle,
                    productTitle: title,
                    variantTitle: match.title,
                    newVariantId: match.id,
@@ -964,7 +975,7 @@ export default function OpsDashboard() {
       const BURIED_FIELDS = [
          'historical_order_count', 'historical order count', 'Weight G (v)', 'Weight (V)', 
          'RIM SIZE', 'RIM ERD', 'Hole Count', 'Color', 'Rim Spoke Hole Offset', 
-         'ProductURL', 'Title', 'ID', 'Variant ID', 'Product ID'
+         'ProductURL', 'Title', 'ID', 'Variant ID', 'Product ID', 'Name', 'name'
       ];
       const BAN_LIST_NORM = BURIED_FIELDS.map(k => k.toLowerCase().replace(/[^a-z0-9]/g, ''));
 
@@ -1038,10 +1049,11 @@ export default function OpsDashboard() {
     const added = gridAddedRows[componentTab] || [];
     const newRows = Array.from({ length: count }).map((_, i) => ({
       _rid: `new_${Date.now()}_${i}`,
-      Name: 'New Component',
+      Title: 'New Component',
       Vendor: '',
       _isNew: true
     }));
+
     setGridAddedRows(prev => ({
       ...prev,
       [componentTab]: [...newRows, ...added]
@@ -1072,12 +1084,12 @@ export default function OpsDashboard() {
      
      // NUCLEAR BAN LIST - Everything is normalized to lowercase alphanumeric for comparison
      const BAN_LIST = [
-        'Name', 'Vendor', 'Brand', 'id', 'ID', 'shopify_product_id', 'shopify_variant_id', 
+        'Title', 'Vendor', 'Brand', 'id', 'ID', 'shopify_product_id', 'shopify_variant_id', 
         'Product ID', 'Variant ID', 'tags', 'RID', 'RAWIDX', '_rid', '_rawIdx', '_isNew', '_editIdx', 
         '_internal_database_id', 'RIM SIZE', 'RIM ERD', 'WEIGHT G (V)', 'Weight (V)', 'rim_size', 
         'rim_erd', 'weight_g', 'Rim Size', 'Rim Erd', 
-        'Weight G (v)', 'Hole Count', 'Color', 'Rim Spoke Hole Offset', 'ProductURL', 'Title',
-        'historical_order_count', 'historical order count'
+        'Weight G (v)', 'Hole Count', 'Color', 'Rim Spoke Hole Offset', 'ProductURL',
+        'historical_order_count', 'historical order count', 'Name', 'name'
      ].map(k => k.toLowerCase().replace(/[^a-z0-9]/g, ''));
 
      const allKeys = new Set();
@@ -1115,7 +1127,7 @@ export default function OpsDashboard() {
          return aIdx - bIdx;
        });
      }
-     return ['Vendor', 'Name', ...specCols];
+     return ['Vendor', 'Title', ...specCols];
    }, [componentData, componentColumnOrder]);
 
    const applyPastedData = React.useCallback((tsvData, startRowId, startColKey, currentChanges) => {

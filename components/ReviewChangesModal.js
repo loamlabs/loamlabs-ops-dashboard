@@ -67,11 +67,13 @@ const ReviewChangesModal = ({ isOpen, onClose, onConfirm, changes, originalData,
                    const BANNED_DISPLAY = [
                       'historical_order_count', 'weight g (v)', 'weight (v)', '_rid', 
                       'shopify_product_id', 'shopify_variant_id', '_internal_database_id',
-                      'ProductURL', 'Title', 'ID', 'Variant ID', 'Product ID'
+                      'ProductURL', 'Name', 'name'
                    ];
 
                    const fieldChanges = Object.entries(changes[rid]).filter(([k]) => {
                       const normK = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+                      // Skip identity fields that are now standardized
+                      if (normK === 'title' || normK === 'vendor') return true; 
                       return !BANNED_DISPLAY.some(b => b.toLowerCase().replace(/[^a-z0-9]/g, '') === normK);
                    });
 
@@ -80,7 +82,7 @@ const ReviewChangesModal = ({ isOpen, onClose, onConfirm, changes, originalData,
                    return (
                      <div key={rid} className="bg-amber-50 rounded-2xl border border-amber-100 overflow-hidden">
                        <div className="bg-amber-100/30 p-3 text-xs font-bold text-amber-900 border-b border-amber-100 flex justify-between items-center">
-                         <span>{original.Name || original.name || original.title || 'Unnamed Component'}</span>
+                         <span>{original.Title || original.Name || original.name || original.title || 'Unnamed Component'}</span>
                          <span className="text-[10px] opacity-50 uppercase tracking-widest">{original.Vendor || original.brand || 'No Vendor'}</span>
                        </div>
                        <div className="p-3 space-y-2">
@@ -98,6 +100,7 @@ const ReviewChangesModal = ({ isOpen, onClose, onConfirm, changes, originalData,
                      </div>
                    );
                 })}
+
 
               </div>
             </div>
