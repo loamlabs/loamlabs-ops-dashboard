@@ -445,11 +445,12 @@ export default function OpsDashboard() {
     
     // Shopify ID Normalization - USE RAW ACCESS for Edit Drawers to avoid fallback loops
     if (normTarget === 'shopifyproductid' || normTarget === 'productid') {
-       // CRITICAL: Stop falling back to generic 'ID' or 'id' fields to prevent auto-populating from database keys
-       return component.shopify_product_id || component['Product ID'] || '';
+       // CRITICAL: Stop falling back to generic 'ID' or 'id' fields. 
+       // These are internal database keys and NOT Shopify identity keys.
+       return component.shopify_product_id || '';
     }
     if (normTarget === 'shopifyvariantid' || normTarget === 'variantid') {
-       return component.shopify_variant_id || component['Variant ID'] || '';
+       return component.shopify_variant_id || '';
     }
 
     return '';
@@ -485,8 +486,14 @@ export default function OpsDashboard() {
         });
 
         // IDENTITY PURGE: Remove legacy ID fields that cause collision with Shopify mappings
-        if (newItem.ID) delete newItem.ID;
-        if (newItem.id && !newItem.hasOwnProperty('_rid')) delete newItem.id;
+        if (newItem.ID) {
+           if (!newItem._internal_database_id) newItem._internal_database_id = newItem.ID;
+           delete newItem.ID;
+        }
+        if (newItem.id && !newItem.hasOwnProperty('_rid')) {
+           if (!newItem._internal_database_id) newItem._internal_database_id = newItem.id;
+           delete newItem.id;
+        }
         if (newItem['Product ID']) delete newItem['Product ID'];
         if (newItem['Variant ID']) delete newItem['Variant ID'];
 
@@ -1029,8 +1036,8 @@ export default function OpsDashboard() {
      const excludeKeys = [
         'Name', 'name', 'title', 'Title', 'Vendor', 'vendor', 'Brand', 'brand', 
         'id', 'ID', 'shopify_product_id', 'shopify_variant_id', 'Product ID', 'Variant ID', 
-        'tags', 'RID', 'RAWIDX', '_rid', '_rawIdx', '_isNew', '_editIdx',
-        'RIM SIZE', 'RIM ERD', 'WEIGHT G (V)', 'rim_size', 'rim_erd', 'weight_g' // Explicitly block ghost keys
+        'tags', 'RID', 'RAWIDX', '_rid', '_rawIdx', '_isNew', '_editIdx', '_internal_database_id',
+        'RIM SIZE', 'RIM ERD', 'WEIGHT G (V)', 'Weight (V)', 'rim_size', 'rim_erd', 'weight_g', 'Option 1 Value', 'Option1 Value' // Explicitly block ghost keys
      ];
      const allKeys = new Set();
      rawData.forEach(row => Object.keys(row).forEach(k => { if (!excludeKeys.includes(k)) allKeys.add(k); }));
@@ -1798,9 +1805,10 @@ export default function OpsDashboard() {
                        const raw = String(v || "").trim();
                        if (raw === "" || raw === "null" || raw === "undefined" || raw === "(empty)") return "";
                        
-                       // Nuclear Quote Normalization
-                       // Covers: Straight ("), Left Smart (“), Right Smart (”), Straight ('), Left Smart (‘), Right Smart (’), Prime (′), Double Prime (″)
-                       const clean = raw.replace(/["”″“′'‘’]/g, '').trim();
+                       // Robust Normalization for Shopify List Metafields & Smart Quotes
+                       // Strips: [ ] \ (Brackets and Escaping from serialized JSON arrays)
+                       // Strips: " ” ″ “ ′ ' ‘ ’ (All Straight and Smart Quotes)
+                       const clean = raw.replace(/[\[\]\\\"”″“′'‘’]/g, '').trim();
                        
                        const n = Number(clean);
                        if (!isNaN(n) && clean !== "") {
