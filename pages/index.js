@@ -421,11 +421,11 @@ export default function OpsDashboard() {
     // RESTORED: Safe Fuzzy Lookup (with Nuclear Shield)
     // This allows finding fields like "Metafield: custom.weight_g" while blocking "WEIGHT G (V)"
     const BAN_LIST = [
-        'ID', 'shopify_product_id', 'shopify_variant_id', 'Product ID', 'Variant ID', 
+        'id', 'ID', 'shopify_product_id', 'shopify_variant_id', 'Product ID', 'Variant ID', 
         '_rid', '_isNew', '_rawIdx', '_editIdx', '_internal_database_id', 
         'RIM SIZE', 'RIM ERD', 'WEIGHT G (V)', 'Weight (V)', 'rim_size', 'rim_erd', 'weight_g', 
         'Rim Size', 'Rim Erd', 'Weight G (v)', 'Hole Count', 
-        'Color', 'Rim Spoke Hole Offset', 'ProductURL', 'Title'
+        'Color', 'Rim Spoke Hole Offset', 'ProductURL', 'historical_order_count', 'Title'
      ].map(k => k.toLowerCase().replace(/[^a-z0-9]/g, ''));
 
     const fuzzyKey = Object.keys(component).find(k => {
@@ -462,11 +462,12 @@ export default function OpsDashboard() {
      const processItem = (item) => {
         const newItem = { ...item };
         const mappings = {
-           'Rim Size': ['rim_size', 'RIM SIZE', 'Rim size'], // REMOVED Option1 Value to respect user request
+           'Rim Size': ['rim_size', 'RIM SIZE', 'Rim size'],
            'Rim Erd': ['rim_erd', 'RIM ERD', 'Rim erd'],
-           'Weight G (v)': ['weight', 'Weight (V)', 'Weight G(v)', 'weight_g'],
+           'weight_g': ['weight', 'Weight (V)', 'Weight G(v)', 'Weight G (v)', 'Weight G (V)', 'Weight G(V)'],
            'Hole Count': ['holes', 'HOLES', 'Hole count', 'Spoke Count'],
-           'Color': ['color', 'COLOR', 'variant_color']
+           'Color': ['color', 'COLOR', 'variant_color'],
+           '_buried': ['historical_order_count', 'historical order count']
         };
 
         Object.entries(mappings).forEach(([official, aliases]) => {
@@ -1050,7 +1051,8 @@ export default function OpsDashboard() {
         'Product ID', 'Variant ID', 'tags', 'RID', 'RAWIDX', '_rid', '_rawIdx', '_isNew', '_editIdx', 
         '_internal_database_id', 'RIM SIZE', 'RIM ERD', 'WEIGHT G (V)', 'Weight (V)', 'rim_size', 
         'rim_erd', 'weight_g', 'Rim Size', 'Rim Erd', 
-        'Weight G (v)', 'Hole Count', 'Color', 'Rim Spoke Hole Offset', 'ProductURL', 'Title'
+        'Weight G (v)', 'Hole Count', 'Color', 'Rim Spoke Hole Offset', 'ProductURL', 'Title',
+        'historical_order_count', 'historical order count'
      ].map(k => k.toLowerCase().replace(/[^a-z0-9]/g, ''));
 
      const allKeys = new Set();
