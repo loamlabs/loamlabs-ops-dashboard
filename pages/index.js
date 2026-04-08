@@ -856,7 +856,7 @@ export default function OpsDashboard() {
     }, [componentTab, componentData, password, showNotification]);
 
    const handleSyncSpecsFromShopify = async () => {
-      const selectedIds = selectedComponents[componentTab] || [];
+      const selectedIds = selectedComponents || [];
       if (selectedIds.length === 0) {
          showNotification("Please select items in the grid first.", "error");
          return;
@@ -1373,25 +1373,33 @@ export default function OpsDashboard() {
   }, [selectedComponents, componentData, componentTab, getComponentUniqueId, saveComponentChanges]);
 
   const handleOpenMassEdit = React.useCallback(() => {
-     const activeList = componentData[componentTab] || [];
-     const selectedItems = activeList.filter((item, i) => selectedComponents.includes(getComponentUniqueId(item, i)));
-    
-     const initialValues = {};
-     if (selectedItems.length > 0) {
-       const keys = Array.from(new Set(selectedItems.flatMap(item => Object.keys(item))));
-       keys.forEach(key => {
-         const uniqueValues = new Set(selectedItems.map(item => {
-            const val = item[key];
-            return (val === null || val === undefined) ? '' : val;
-         }));
-         if (uniqueValues.size === 1) {
-           initialValues[key] = Array.from(uniqueValues)[0];
-         }
-       });
+     try {
+        const activeList = componentData[componentTab] || [];
+        const selectedItems = activeList.filter((item, i) => selectedComponents.includes(getComponentUniqueId(item, i)));
+       
+        const initialValues = {};
+        // OPTIMIZATION: If selection is very large (> 100 items), skip common-value calculation 
+        // to prevent client-side "hanging" or crashes during heavy O(N*M) mapping.
+        if (selectedItems.length > 0 && selectedItems.length <= 100) {
+          const keys = Array.from(new Set(selectedItems.flatMap(item => Object.keys(item))));
+          keys.forEach(key => {
+            const uniqueValues = new Set(selectedItems.map(item => {
+               const val = item[key];
+               return (val === null || val === undefined) ? '' : val;
+            }));
+            if (uniqueValues.size === 1) {
+              initialValues[key] = Array.from(uniqueValues)[0];
+            }
+          });
+        }
+        
+        setBulkEditComponent(initialValues);
+        setIsBulkEditDrawerOpen(true);
+     } catch (err) {
+        console.error("Mass Edit Activation Error:", err);
+        showNotification("Failed to prepare mass edit. Try selecting fewer items.", "error");
      }
-     setBulkEditComponent(initialValues);
-     setIsBulkEditDrawerOpen(true);
-   }, [componentData, componentTab, selectedComponents, getComponentUniqueId]);
+    }, [componentData, componentTab, selectedComponents, getComponentUniqueId, showNotification]);
 
   const handleBulkEdit = React.useCallback(async () => {
     if (Object.keys(bulkEditComponent).length === 0 || selectedComponents.length === 0) return;
