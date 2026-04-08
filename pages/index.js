@@ -439,7 +439,11 @@ export default function OpsDashboard() {
 
        // C. Weight Specific Fallback
        if (normTarget.includes('weight')) {
-          const wMatch = keys.find(k => k.toLowerCase().replace(/[^a-z0-9]/g, '').includes('weight'));
+          const wMatch = keys.find(k => {
+             const normK = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+             const val = component[k];
+             return normK.includes('weight') && val !== undefined && val !== null && String(val).trim() !== '';
+          });
           if (wMatch) return component[wMatch];
        }
 
