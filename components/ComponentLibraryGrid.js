@@ -527,6 +527,16 @@ const ComponentLibraryGrid = React.memo(({
                             </div>
                           </div>
                         )}
+                        {syncMismatches[rowId] && syncMismatches[rowId].length > 0 && (
+                          <div 
+                            className="flex-shrink-0 ml-1 cursor-help" 
+                            title={`SYNC MISMATCH: ${syncMismatches[rowId].join(', ')}`}
+                          >
+                            <div className="bg-orange-500 text-white rounded-full p-1.5 shadow-lg border border-orange-400">
+                                <ShieldAlert size={10} />
+                            </div>
+                          </div>
+                        )}
                     </div>
                   </td>
 

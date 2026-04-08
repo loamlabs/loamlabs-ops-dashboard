@@ -743,25 +743,42 @@ export default function OpsDashboard() {
             // MATCHING ENGINE (Category-Aware)
             let matchIdx = -1;
             const match = localVariantPool.find((v, idx) => {
-               const norm = (val) => String(val || "").toLowerCase().replace(/["'\\]/g, '').trim();
-               const vOpts = Object.values(v.options).map(norm);
-               
-               // 1. RIM LOGIC: Size + Hub Count
-               if (tab === 'rims') {
-                  const cSize = norm(getComponentValue(comp, 'Rim Size'));
-                  const cHoles = norm(getComponentValue(comp, 'Hole Count')).replace(/\D/g, '');
-                  
-                  const sizeMatch = vOpts.some(vo => vo.includes(cSize));
-                  const holeMatch = vOpts.some(vo => vo.replace(/\D/g, '') === cHoles);
-                  if (sizeMatch && holeMatch) { matchIdx = idx; return true; }
-               }
-               
-               // 2. HUB LOGIC: Spoke Count Only (First Color)
-               if (tab === 'hubs') {
-                  const cHoles = norm(getComponentValue(comp, 'Hole Count')).replace(/\D/g, '');
-                  const holeMatch = vOpts.some(vo => vo.replace(/\D/g, '') === cHoles);
-                  if (holeMatch) { matchIdx = idx; return true; }
-               }
+                const norm = (val) => String(val || "").toLowerCase().replace(/["'\\]/g, '').trim();
+                const vOpts = Object.values(v.options).map(norm);
+                
+                // Helper to find a color-like value in the component
+                const getCompColor = () => {
+                   const c1nt = (getComponentValue(comp, 'Option 1 Name') || "").toLowerCase();
+                   const c2nt = (getComponentValue(comp, 'Option 2 Name') || "").toLowerCase();
+                   if (c1nt.includes('color')) return norm(getComponentValue(comp, 'Option 1 Value'));
+                   if (c2nt.includes('color')) return norm(getComponentValue(comp, 'Option 2 Value'));
+                   // Fuzzy check for common color columns
+                   return norm(getComponentValue(comp, 'Color') || getComponentValue(comp, 'Finish'));
+                };
+
+                // 1. RIM LOGIC: Size + Hub Count + Color
+                if (tab === 'rims') {
+                   const cSize = norm(getComponentValue(comp, 'Rim Size'));
+                   const cHoles = norm(getComponentValue(comp, 'Hole Count')).replace(/\D/g, '');
+                   const cColor = getCompColor();
+                   
+                   const sizeMatch = vOpts.some(vo => vo.includes(cSize));
+                   const holeMatch = vOpts.some(vo => vo.replace(/\D/g, '') === cHoles);
+                   const colorMatch = !cColor || vOpts.some(vo => vo === cColor || vo.includes(cColor));
+
+                   if (sizeMatch && holeMatch && colorMatch) { matchIdx = idx; return true; }
+                }
+                
+                // 2. HUB LOGIC: Spoke Count + Color
+                if (tab === 'hubs') {
+                   const cHoles = norm(getComponentValue(comp, 'Hole Count')).replace(/\D/g, '');
+                   const cColor = getCompColor();
+
+                   const holeMatch = vOpts.some(vo => vo.replace(/\D/g, '') === cHoles);
+                   const colorMatch = !cColor || vOpts.some(vo => vo === cColor || vo.includes(cColor));
+
+                   if (holeMatch && colorMatch) { matchIdx = idx; return true; }
+                }
 
                // 3. SPOKE LOGIC: "-" Length Variant
                if (tab === 'spokes') {
@@ -1200,7 +1217,7 @@ export default function OpsDashboard() {
       const bN = (b.Name || b.name || b.title || "Unknown").toLowerCase();
       return aN.localeCompare(bN);
     });
-  }, [componentData, componentTab, gridAddedRows, componentVendorFilter, showMissingOnly, getComponentValidation, getComponentUniqueId]);
+  }, [componentData, componentTab, gridAddedRows, componentVendorFilter, showMissingOnly, showMismatchesOnly, syncMismatches, getComponentValidation, getComponentUniqueId]);
 
   const handleCreateNewComponent = React.useCallback((tab) => {
     const activeList = componentData[tab] || [];
