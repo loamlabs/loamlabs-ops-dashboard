@@ -716,13 +716,16 @@ export default function OpsDashboard() {
          if (!res.ok) continue;
          const { variants, title } = await res.json();
          
+         // --- FIX: Create a pool of available variants to ensure 1-to-1 matching ---
+         let localVariantPool = [...variants];
          const componentsForPid = candidates.filter(c => getComponentValue(c, 'shopify_product_id') === pid);
          
          for (const comp of componentsForPid) {
             console.group(`[Discovery] Scanning: ${comp.Name || 'Unnamed Component'}`);
             
             // MATCHING ENGINE (Category-Aware)
-            const match = variants.find(v => {
+            let matchIdx = -1;
+            const match = localVariantPool.find((v, idx) => {
                const norm = (val) => String(val || "").toLowerCase().replace(/["'\\]/g, '').trim();
                const vOpts = Object.values(v.options).map(norm);
                
@@ -733,33 +736,32 @@ export default function OpsDashboard() {
                   
                   const sizeMatch = vOpts.some(vo => vo.includes(cSize));
                   const holeMatch = vOpts.some(vo => vo.replace(/\D/g, '') === cHoles);
-                  
-                  if (sizeMatch && holeMatch) return true;
+                  if (sizeMatch && holeMatch) { matchIdx = idx; return true; }
                }
                
                // 2. HUB LOGIC: Spoke Count Only (First Color)
                if (tab === 'hubs') {
                   const cHoles = norm(getComponentValue(comp, 'Hole Count')).replace(/\D/g, '');
                   const holeMatch = vOpts.some(vo => vo.replace(/\D/g, '') === cHoles);
-                  if (holeMatch) return true;
+                  if (holeMatch) { matchIdx = idx; return true; }
                }
 
                // 3. SPOKE LOGIC: "-" Length Variant
                if (tab === 'spokes') {
                   const lengthMatch = vOpts.some(vo => vo === '-');
-                  if (lengthMatch) return true;
+                  if (lengthMatch) { matchIdx = idx; return true; }
                }
 
                // 4. NIPPLE LOGIC: First Available
                if (tab === 'nipples') {
-                  return true; // Pick the first
+                  { matchIdx = idx; return true; }
                }
 
                return false;
             });
 
             if (match) {
-               console.log("✅ MATCH FOUND:", match.title, "ID:", match.id);
+               console.log("✅ MATCH FOUND (Uniqueness Guaranteed):", match.title, "ID:", match.id);
                proposals.push({
                   rid: comp._rid || comp.id,
                   name: comp.Name || comp.Vendor || 'Unknown',
@@ -768,8 +770,11 @@ export default function OpsDashboard() {
                   newVariantId: match.id,
                   fullGid: match.full_id
                });
+               
+               // Remove this variant from the pool so it can't be claimed by another row
+               if (matchIdx !== -1) localVariantPool.splice(matchIdx, 1);
             } else {
-               console.log("❌ NO MATCH. Shopify Options:", variants.map(v => v.title));
+               console.log("❌ NO AVAILABLE MATCH. Remaining Options in Pool:", localVariantPool.map(v => v.title));
             }
             console.groupEnd();
          }
@@ -1540,6 +1545,24 @@ export default function OpsDashboard() {
                       const parts = key.split(':'); // metafield:custom:key:type
                       const mKey = parts[2];
                       shopifyVal = data.metafields?.find(m => m.key === mKey)?.value;
+                   }
+
+                   // --- NEW: Map human-readable keys back to Shopify ---
+                   // Use metafieldRegistry to find the human labels (e.g., 'Rim Erd' -> 'custom.rim_erd')
+                   const regField = metafieldRegistry.find(m => m.label === key || (m.label && m.label.toLowerCase() === key.toLowerCase()));
+                   if (regField) {
+                      isMetafield = true;
+                      if (regField.target === 'variant') {
+                         shopifyVal = sVariant.metafields?.find(m => m.key === regField.key)?.value;
+                      } else {
+                         shopifyVal = data.metafields?.find(m => m.key === regField.key)?.value;
+                      }
+                   }
+
+                   // Special Case: Wheel Spec Position (usually a constant variant prop or metafield)
+                   if (key === 'Wheel Spec Position') {
+                      isMetafield = true;
+                      shopifyVal = sVariant.metafields?.find(m => m.key === 'wheel_spec_position')?.value || sVariant.wheel_spec_position;
                    }
 
                    if (isMetafield) {
