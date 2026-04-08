@@ -418,34 +418,8 @@ export default function OpsDashboard() {
     });
     if (foundKey && (component[foundKey] || component[foundKey] === 0 || component[foundKey] === '0')) return component[foundKey];
 
-    const fuzzyKey = Object.keys(component).find(k => {
-        const nk = k.toLowerCase().replace(/[^a-z0-9]/g, '');
-        const val = component[k];
-        return nk.includes(normTarget) && !nk.includes('option') && (val || val === 0 || val === '0');
-    });
-    if (fuzzyKey) return component[fuzzyKey];
-    
-    if (normTarget === 'rimsize' || normTarget === 'diameter' || normTarget === 'size') {
-        const d = component['Rim Size'] || component['size'] || component['Size'] || component['Diameter'];
-        if (d) return d;
-        // Fallback to Option columns
-        const o1n = (component['Option 1 Name'] || component['Option1 Name'] || "").toLowerCase();
-        const o2n = (component['Option 2 Name'] || component['Option2 Name'] || "").toLowerCase();
-        if (o1n.includes('size') || o1n.includes('diameter')) return component['Option 1 Value'] || component['Option1 Value'];
-        if (o2n.includes('size') || o2n.includes('diameter')) return component['Option 2 Value'] || component['Option2 Value'];
-    }
-
-    if (normTarget === 'holecount' || normTarget === 'holes' || normTarget === 'spokecount') {
-        const h = component['Hole Count'] || component['Spoke Count'] || component['holes'];
-        if (h) return h;
-        // Fallback to Option columns
-        const o1n = (component['Option 1 Name'] || component['Option1 Name'] || "").toLowerCase();
-        const o2n = (component['Option 2 Name'] || component['Option2 Name'] || "").toLowerCase();
-        if (o1n.includes('hole') || o1n.includes('spoke')) return component['Option 1 Value'] || component['Option1 Value'];
-        if (o2n.includes('hole') || o2n.includes('spoke')) return component['Option 2 Value'] || component['Option2 Value'];
-    }
-
-    if (normTarget.includes('weight')) return component['Weight G (p)'] || component['Weight G (v)'] || component.weight || '';
+    // REMOVED: Broad "weight" fallback that was picking up ghost fields
+    // if (normTarget.includes('weight')) return component['Weight G (p)'] || component['Weight G (v)'] || component.weight || '';
     
     if (normTarget === 'wheelspecposition') return component['Wheel Spec Position'] || '';
     if (normTarget === 'rimerd') return component['Rim Erd'] || component.rim_erd || component['RIM ERD'] || '';
