@@ -381,10 +381,17 @@ export default function OpsDashboard() {
 
   const getComponentValue = React.useCallback((component, key) => {
     if (!component) return '';
-    let normTarget = key.toLowerCase().replace(/[^a-z0-9]/g, '');
     
+    // 1. Direct Match (Always prioritize the exact key in the JSON)
+    if (component[key] !== undefined && component[key] !== null && String(component[key]).trim() !== '') {
+       return component[key];
+    }
+
+    const normTarget = key.toLowerCase().replace(/[^a-z0-9]/g, '');
+    
+    // 2. Identity Mapping (Standardize Display for Header Columns)
     if (normTarget === 'name' || normTarget === 'displayname' || normTarget === 'title') {
-       const exactName = component.Title || component.Name || component.name || component.title || component.Title;
+       const exactName = component.Title || component.title || component.Name || component.name || component.Title;
        if (exactName) return exactName;
     }
 
@@ -393,163 +400,69 @@ export default function OpsDashboard() {
        if (exactVendor) return exactVendor;
     }
 
-    if (component[key] !== undefined && component[key] !== null && component[key] !== '') return component[key];
-    
-    if (normTarget.includes('weightg')) {
-       const findWeight = (type) => {
-          return Object.keys(component).find(k => {
-             const nk = k.toLowerCase();
-             if (!nk.includes('weightg')) return false;
-             if (type === 'v' && (nk.includes('variant') || nk.includes('(v)'))) return true;
-             if (type === 'p' && (!nk.includes('variant') && (nk.includes('product') || nk.includes('(p)') || (nk.includes('metafield: custom') && !nk.includes('variant'))))) return true;
-             return false;
-          });
-       };
-
-       if (normTarget.endsWith('p')) {
-          const k = findWeight('p');
-          if (k && (component[k] || component[k] === 0)) return component[k];
-       } else if (normTarget.endsWith('v')) {
-          const k = findWeight('v');
-          if (k && (component[k] || component[k] === 0)) return component[k];
-       } else {
-          const keys = Object.keys(component).filter(k => k.toLowerCase().includes('weightg'));
-          for (let k of keys) {
-             if (component[k] || component[k] === 0 || component[k] === '0') return component[k];
-          }
-       }
-    }
-
-    const foundKey = Object.keys(component).find(k => {
-        let cleanKey = k.toLowerCase().replace(/^variant metafield: /i, '');
-        cleanKey = cleanKey.replace(/^metafield: /i, '');
-        cleanKey = cleanKey.replace(/^custom\./i, '');
-        cleanKey = cleanKey.replace(/\[.*?\]/g, '');
-        const nk = cleanKey.replace(/[^a-z0-9]/g, '');
-        if ((nk.includes('optionname') || nk.includes('optionvalue')) && !normTarget.includes('option')) return false;
-        return nk === normTarget;
-    });
-    if (foundKey && (component[foundKey] || component[foundKey] === 0 || component[foundKey] === '0')) return component[foundKey];
-
-    // RESTORED: Safe Fuzzy Lookup (with Nuclear Shield)
-    // This allows finding fields like "Metafield: custom.weight_g" while blocking "WEIGHT G (V)"
-    const BAN_LIST = [
-        'id', 'ID', 'shopify_product_id', 'shopify_variant_id', 'Product ID', 'Variant ID', 
-        '_rid', '_isNew', '_rawIdx', '_editIdx', '_internal_database_id', 
-        'RIM SIZE', 'RIM ERD', 'WEIGHT G (V)', 'Weight (V)', 'rim_size', 'rim_erd', 'weight_g', 
-        'Rim Size', 'Rim Erd', 'Weight G (v)', 'Hole Count', 
-        'Color', 'Rim Spoke Hole Offset', 'ProductURL', 'historical_order_count', 'Title'
-     ].map(k => k.toLowerCase().replace(/[^a-z0-9]/g, ''));
-
-    const fuzzyKey = Object.keys(component).find(k => {
-        const normK = k.toLowerCase().replace(/[^a-z0-9]/g, '');
-        if (BAN_LIST.includes(normK)) return false; // NUCLEAR SHIELD: Skip buried ghost fields
-        
-        const val = component[k];
-        return normK.includes(normTarget) && !normK.includes('option') && (val || val === 0 || val === '0');
-    });
-    if (fuzzyKey) return component[fuzzyKey];
-
-    // REMOVED: Broad "weight" fallback that was picking up ghost fields
-    // if (normTarget.includes('weight')) return component['Weight G (p)'] || component['Weight G (v)'] || component.weight || '';
-    
-    if (normTarget === 'wheelspecposition') return component['Wheel Spec Position'] || '';
-    if (normTarget === 'rimerd') return component['Rim Erd'] || component.rim_erd || component['RIM ERD'] || '';
-    
-    // Shopify ID Normalization - USE RAW ACCESS for Edit Drawers to avoid fallback loops
     if (normTarget === 'shopifyproductid' || normTarget === 'productid') {
-       // CRITICAL: Stop falling back to generic 'ID' or 'id' fields. 
-       // These are internal database keys and NOT Shopify identity keys.
-       return component.shopify_product_id || '';
+       return component.shopify_product_id || component.id || component.ID || component['Product ID'] || '';
     }
     if (normTarget === 'shopifyvariantid' || normTarget === 'variantid') {
-       return component.shopify_variant_id || '';
+       return component.shopify_variant_id || component['Variant ID'] || '';
+    }
+
+    // 3. Registry Mapping (UI Translation Layer)
+    // If the grid asks for "Rim Erd" (label), we look for "rim_erd" (key) in the JSON
+    const regEntry = metafieldRegistry.find(r => 
+       r.label.toLowerCase().replace(/[^a-z0-9]/g, '') === normTarget ||
+       r.key.toLowerCase().replace(/[^a-z0-9]/g, '') === normTarget
+    );
+
+    if (regEntry) {
+       const rawShopifyKey = regEntry.key;
+       // Check for the clean registry key
+       if (component[rawShopifyKey] !== undefined && component[rawShopifyKey] !== null) return component[rawShopifyKey];
+       
+       // Check for technical Shopify strings (prefix/suffix variants) in the JSON
+       const existingKeys = Object.keys(component);
+       const technicalKey = existingKeys.find(k => {
+           const rawNK = k.toLowerCase();
+           const cleanNK = rawNK.replace(/[^a-z0-9]/g, '');
+           const normRegK = rawShopifyKey.toLowerCase().replace(/[^a-z0-9]/g, '');
+           return rawNK.includes(`custom.${rawShopifyKey.toLowerCase()}`) ||
+                  (rawNK.includes('metafield:') && rawNK.includes(rawShopifyKey.toLowerCase())) ||
+                  (cleanNK.includes(normRegK) && (rawNK.includes('custom.') || rawNK.includes('metafield:')));
+       });
+       if (technicalKey) return component[technicalKey];
+    }
+    
+    // 4. Fallback for Weight (Generic search)
+    if (normTarget.includes('weightg')) {
+        const findWeight = (type) => {
+           return Object.keys(component).find(k => {
+              const nk = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+              return nk.includes('weight') && (type === 'v' ? (nk.includes('variant') || nk.includes('v')) : (nk.includes('product') || nk.includes('p')));
+           });
+        };
+        const wKey = findWeight(normTarget.includes('v') ? 'v' : 'p');
+        if (wKey && (component[wKey] || component[wKey] === 0)) return component[wKey];
     }
 
     return '';
-  }, []);
+  }, [metafieldRegistry]);
+
 
   const unifyComponentKeys = React.useCallback((data) => {
      if (!data || typeof data !== 'object') return data;
      
-     // NUCLEAR BAN LIST - Everything is normalized to lowercase alphanumeric for comparison
-     const BURIED_FIELDS = [
-        'historical_order_count', 'historical order count', 'Weight G (v)', 'Weight (V)', 
-        'RIM SIZE', 'RIM ERD', 'Hole Count', 'Color', 'Rim Spoke Hole Offset', 
-        'ProductURL', 'ID', 'Variant ID', 'Product ID'
-     ];
-     const BAN_LIST_NORM = BURIED_FIELDS.map(k => k.toLowerCase().replace(/[^a-z0-9]/g, ''));
-
      const processItem = (item) => {
+        // --- PASSIVE JANITOR ---
+        // We NO LONGER delete or rename anything. 
+        // We only prepare the object for the Grid's internal tracking.
         const newItem = { ...item };
-        
-        // 1. Unified Identity: Map all Title/Name variations to 'Title'
-        const currentTitle = newItem.Title || newItem.title || newItem.Name || newItem.name;
-        if (currentTitle) {
-           newItem.Title = currentTitle;
-        }
 
-        // 2. Dynamic Registry Mapping: Migrate Shopify keys to Human Labels
-        metafieldRegistry.forEach(reg => {
-           const officialLabel = reg.label;
-           const rawKey = reg.key;
-           
-           // ROBUST KEY SEARCH: Look for rawKey OR any technical Shopify key that contains it
-           const existingKeys = Object.keys(newItem);
-           const technicalKey = existingKeys.find(k => {
-              const nk = k.toLowerCase();
-              return nk === rawKey.toLowerCase() || 
-                     nk.includes(`custom.${rawKey.toLowerCase()}`) ||
-                     (nk.includes('metafield:') && nk.includes(rawKey.toLowerCase()));
-           });
-
-           if (technicalKey && newItem[technicalKey] !== undefined && newItem[technicalKey] !== null && String(newItem[technicalKey]).trim() !== "" && newItem[technicalKey] !== "(empty)") {
-              // Migrate to human label if label is empty
-              if (newItem[officialLabel] === undefined || newItem[officialLabel] === null || String(newItem[officialLabel]).trim() === "" || newItem[officialLabel] === "(empty)") {
-                 newItem[officialLabel] = newItem[technicalKey];
-              }
-              // Eradicate technical key
-              delete newItem[technicalKey];
-           }
-        });
-
-
-        // 3. Manual Legacy Mappings (Hardcoded overlaps)
-        const manualMappings = {
-           'Rim Size': ['rim_size', 'RIM SIZE', 'Rim size'],
-           'Rim Erd': ['rim_erd', 'RIM ERD', 'Rim erd'],
-           'Weight G (v)': ['weight', 'Weight (V)', 'Weight G(v)', 'Weight G (v)', 'Weight G (V)', 'Weight G(V)'],
-           'Hole Count': ['holes', 'HOLES', 'Hole count', 'Spoke Count'],
-           'Color': ['color', 'COLOR', 'variant_color']
-        };
-
-        Object.entries(manualMappings).forEach(([official, aliases]) => {
-           aliases.forEach(alias => {
-              if (newItem[alias] !== undefined && newItem[alias] !== null && String(newItem[alias]).trim() !== "" && newItem[alias] !== "(empty)") {
-                 if (newItem[official] === undefined || newItem[official] === null || String(newItem[official]).trim() === "" || newItem[official] === "(empty)") {
-                    newItem[official] = newItem[alias];
-                 }
-              }
-              delete newItem[alias];
-           });
-        });
-
-        // 4. NUCLEAR PURGE: Explicitly seek out and destroy all ghost fields
-        Object.keys(newItem).forEach(k => {
-           const normK = k.toLowerCase().replace(/[^a-z0-9]/g, '');
-           if (BAN_LIST_NORM.includes(normK)) {
-              delete newItem[k];
-           }
-           if (k === 'Name' || k === 'name') delete newItem[k]; // Retire Name key
-        });
-
-        // Identity Cleanup
-        if (newItem.ID) { if (!newItem._internal_database_id) newItem._internal_database_id = newItem.ID; delete newItem.ID; }
-        if (newItem.id && !newItem.hasOwnProperty('_rid')) { if (!newItem._internal_database_id) newItem._internal_database_id = newItem.id; delete newItem.id; }
+        // Identity Cleanup (Internal only, does not affect permanent keys)
+        if (newItem.ID && !newItem.shopify_product_id) newItem.shopify_product_id = newItem.ID;
+        if (newItem.id && !newItem.shopify_product_id) newItem.shopify_product_id = newItem.id;
 
         return newItem;
       };
-
 
      if (Array.isArray(data)) return data.map(processItem);
      const newData = {};
@@ -557,7 +470,7 @@ export default function OpsDashboard() {
         newData[tab] = Array.isArray(items) ? items.map(processItem) : items;
      });
      return newData;
-  }, [metafieldRegistry]);
+  }, []);
 
 
   const getComponentValidation = React.useCallback((component, tab) => {
@@ -1026,8 +939,17 @@ export default function OpsDashboard() {
                const rawShopVal = variant.metafields?.find(sm => sm.key === m.key)?.value;
                const shopVal = cleanShopifyValue(rawShopVal);
                if (shopVal !== undefined && shopVal !== null && shopVal !== "") {
-                  const gridTargetKey = m.label; 
-                  newSpecs[gridTargetKey] = shopVal;
+                  // CRITICAL FIX: Write to the TECHNICAL key from your JSON
+                  const technicalKey = m.key;
+                  
+                  // Find the exact key variant used in the JSON if possible
+                  const existingKeys = Object.keys(comp);
+                  const targetKey = existingKeys.find(k => 
+                     k.toLowerCase().includes(technicalKey.toLowerCase()) || 
+                     m.label.toLowerCase().includes(k.toLowerCase())
+                  ) || technicalKey;
+
+                  newSpecs[targetKey] = shopVal;
                }
             });
 
@@ -1091,14 +1013,37 @@ export default function OpsDashboard() {
     }
 
     setGridUnsavedChanges(prev => {
-      const tabChanges = prev[componentTab] || {};
-      const rowChanges = tabChanges[rowId] || {};
-      return {
-        ...prev,
-        [componentTab]: { ...tabChanges, [rowId]: { ...rowChanges, [colKey]: newValue } }
-      };
+       const tabChanges = prev[componentTab] || {};
+       const rowChanges = tabChanges[rowId] || {};
+       
+       // --- DATA INTEGRITY FIX ---
+       // Find the technical key in the underlying object to update
+       const rowData = (componentData[componentTab] || []).find(c => (c._rid || c.id) === rowId) || 
+                       (gridAddedRows[componentTab] || []).find(c => (c._rid || c.id) === rowId);
+
+       let finalKey = colKey;
+       const regEntry = metafieldRegistry.find(r => r.label === colKey || r.key === colKey);
+       
+       if (regEntry && rowData) {
+          const techK = regEntry.key;
+          const existingKeys = Object.keys(rowData);
+          finalKey = existingKeys.find(k => 
+             k.toLowerCase() === techK.toLowerCase() ||
+             k.toLowerCase().includes(`custom.${techK.toLowerCase()}`) ||
+             (k.toLowerCase().includes('metafield:') && k.toLowerCase().includes(techK.toLowerCase()))
+          ) || techK;
+       }
+
+       return {
+          ...prev,
+          [componentTab]: {
+             ...tabChanges,
+             [rowId]: { ...rowChanges, [finalKey]: newValue }
+          }
+       };
     });
-  }, [componentTab, formatColumnTitle, showNotification]);
+  }, [componentTab, componentData, gridAddedRows, metafieldRegistry, formatColumnTitle, showNotification]);
+
 
    const getComponentTabColumns = React.useCallback((tab) => {
      const rawData = componentData[tab] || [];
