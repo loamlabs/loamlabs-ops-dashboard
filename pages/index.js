@@ -400,7 +400,7 @@ export default function OpsDashboard() {
     
     // Shopify ID Normalization for UI & Discovery
     if (normTarget === 'shopifyproductid' || normTarget === 'productid') {
-       return component.shopify_product_id || component['Product ID'] || component.id || component.ID || component._rid || '';
+       return component.shopify_product_id || component['Product ID'] || component.id || component.ID || '';
     }
     if (normTarget === 'shopifyvariantid' || normTarget === 'variantid') {
        return component.shopify_variant_id || component['Variant ID'] || '';
@@ -507,21 +507,22 @@ export default function OpsDashboard() {
                   const rawList = data[tab] || [];
                   const seenRids = new Set();
                   const hydratedList = rawList.map((item, idx) => {
-                      const baseId = item.id || item.shopify_product_id || item.ID || item['Product ID'];
-                      const name = item.Name || item.name || item.title || "NoName";
-                      const vendor = item.Vendor || item.vendor || item.Brand || item.brand || "NoVendor";
-                      const specKeys = Object.keys(item).filter(k => !['_rid', '_rawIdx', '_editIdx', '_isNew', 'id', 'ID', 'shopify_product_id', 'Product ID', 'Variant ID'].includes(k)).sort();
-                      const specs = specKeys.map(k => `${k}:${item[k]}`).join('|');
-                      const hash = `${name}_${vendor}_${specs}`.toLowerCase().replace(/[^a-z0-9]/g, '');
-                      
-                      let rid = item._rid || baseId || `hash_${hash}`;
-                      if (seenRids.has(rid)) {
-                         rid = `${rid}_${idx}`;
-                      }
-                      seenRids.add(rid);
+                       const baseId = item.id || item.ID || item.shopify_product_id || item['Product ID'];
+                       const name = item.Name || item.name || item.title || "NoName";
+                       const vendor = item.Vendor || item.vendor || item.Brand || item.brand || "NoVendor";
+                       const specKeys = Object.keys(item).filter(k => !['_rid', '_rawIdx', '_editIdx', '_isNew', 'id', 'ID', 'shopify_product_id', 'Product ID', 'Variant ID'].includes(k)).sort();
+                       const specs = specKeys.map(k => `${k}:${item[k]}`).join('|');
+                       const hash = `${name}_${vendor}_${specs}`.toLowerCase().replace(/[^a-z0-9]/g, '');
+                       
+                       // RID is internal and unique; always priority hash if already present, else use baseId or generate new hash
+                       let rid = item._rid || `rid_${hash}`;
+                       if (seenRids.has(rid)) {
+                          rid = `${rid}_${idx}`;
+                       }
+                       seenRids.add(rid);
 
-                      return { ...item, _rid: rid, _rawIdx: idx };
-                  });
+                       return { ...item, shopify_product_id: baseId, _rid: rid, _rawIdx: idx };
+                   });
                   
                   hydrated[tab] = hydratedList;
               });
@@ -677,7 +678,12 @@ export default function OpsDashboard() {
      setIsDiscoveringVariants(true);
      const tab = componentTab;
      const items = componentData[tab] || [];
-     const candidates = items.filter(item => getComponentValue(item, 'shopify_product_id') && !getComponentValue(item, 'shopify_variant_id'));
+     const candidates = items.filter(item => {
+        const pid = getComponentValue(item, 'shopify_product_id');
+        const vid = getComponentValue(item, 'shopify_variant_id');
+        // Only trigger for items with real numeric IDs (ignore hashes)
+        return pid && /^\d+$/.test(String(pid)) && !vid;
+     });
      
      if (candidates.length === 0) {
         showNotification("No components found matching Discovery criteria (Has Product ID, No Variant ID).", "info");
@@ -3309,7 +3315,37 @@ export default function OpsDashboard() {
                                     />
                                  </div>
                               </div>
- 
+
+                              {/* SHOPIFY LINKAGE SECTION */}
+                              <div className="space-y-4 mb-4 bg-emerald-50/30 p-6 rounded-3xl border border-emerald-100/50">
+                                 <label className="text-[10px] font-black uppercase tracking-widest text-emerald-600 block italic">Shopify Automation Link</label>
+                                 <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-1">
+                                       <div className="text-[8px] font-black uppercase text-zinc-400 ml-1">Shopify Product ID</div>
+                                       <input 
+                                          type="text" 
+                                          placeholder="Numeric ID only..."
+                                          value={getComponentValue(editingComponent, 'shopify_product_id')}
+                                          onChange={(e) => setEditingComponent({...editingComponent, shopify_product_id: e.target.value})}
+                                          className="w-full p-3 rounded-xl outline-none border-2 border-transparent bg-white focus:border-emerald-500 transition-all font-mono text-xs font-bold shadow-sm"
+                                       />
+                                    </div>
+                                    <div className="space-y-1">
+                                       <div className="text-[8px] font-black uppercase text-zinc-400 ml-1">Shopify Variant ID</div>
+                                       <input 
+                                          type="text" 
+                                          placeholder="Auto-synced..."
+                                          value={getComponentValue(editingComponent, 'shopify_variant_id')}
+                                          onChange={(e) => setEditingComponent({...editingComponent, shopify_variant_id: e.target.value})}
+                                          className="w-full p-3 rounded-xl outline-none border-2 border-transparent bg-white focus:border-emerald-500 transition-all font-mono text-xs font-bold shadow-sm"
+                                       />
+                                    </div>
+                                 </div>
+                                 <p className="text-[8px] font-bold text-zinc-400 uppercase leading-relaxed px-1">
+                                    These IDs power the <span className="text-emerald-600 font-black">Link Variants</span> engine. Items without Product IDs are skipped.
+                                 </p>
+                              </div>
+
                               {/* SPECIFICATION FIELDS */}
                               <div className="space-y-4">
                                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block italic">Technical Specifications</label>
