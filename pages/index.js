@@ -801,17 +801,29 @@ export default function OpsDashboard() {
                    const cHoles = norm(getComponentValue(comp, 'Hole Count')).replace(/\D/g, '');
                    const cColor = getCompColor();
                    
+                   console.log(`[Diagnostic] Rim specs extracted from grid -> Size: "${cSize}", Holes: "${cHoles}", Color: "${cColor}"`);
+
                    // Require basic specs to be non-empty to avoid blind matching
-                   if (!cSize || !cHoles) return false;
+                   if (!cSize || !cHoles) {
+                      console.warn(`   ⚠️ Missing critical spec (Size or Holes) for ${compName}`);
+                      return false;
+                   }
 
                    const sizeMatch = vOpts.some(vo => vo === cSize);
                    const holeMatch = vOpts.some(vo => vo.replace(/\D/g, '') === cHoles);
-                   const colorMatch = !cColor || vOpts.some(vo => vo === cColor || vo.includes(cColor));
+                   const colorMatch = !cColor || vOpts.some(vo => {
+                      const vColor = vo.toLowerCase();
+                      return vColor === cColor || vColor.includes(cColor) || cColor.includes(vColor);
+                   });
 
                    if (sizeMatch && holeMatch && colorMatch) { 
                       console.log(`✅ MATCH FOUND for ${compName}: ${v.title}`);
                       matchIdx = idx; 
                       return true; 
+                   } else {
+                      if (!sizeMatch) console.log(`   ❌ Size Mismatch: Grid(${cSize}) vs PoolOpts(${vOpts.join(', ')})`);
+                      if (!holeMatch) console.log(`   ❌ Hole Mismatch: Grid(${cHoles}) vs PoolOpts(${vOpts.map(o => o.replace(/\D/g, '')).join(', ')})`);
+                      if (!colorMatch) console.log(`   ❌ Color Mismatch: Grid(${cColor}) vs PoolOpts(${vOpts.join(', ')})`);
                    }
                    return false;
                 }
@@ -822,20 +834,23 @@ export default function OpsDashboard() {
                    const cHoles = norm(cHolesVal).replace(/\D/g, '');
                    const cColor = getCompColor();
                    
-                   if (!cHoles) {
-                      console.warn(`[Discovery] Hub missing Hole Count for ${compName}`);
-                   }
+                   console.log(`[Diagnostic] Hub specs extracted from grid -> Holes: "${cHoles}", Color: "${cColor}" (Tab: ${tab})`);
 
                    const holeMatch = vOpts.some(vo => vo.replace(/\D/g, '') === cHoles);
                    const colorMatch = !cColor || vOpts.some(vo => {
                       const vColor = vo.toLowerCase();
-                      return vColor === cColor || vColor.includes(cColor) || cColor.includes(vColor);
+                      const match = vColor === cColor || vColor.includes(cColor) || cColor.includes(vColor);
+                      return match;
                    });
 
                    if (holeMatch && colorMatch) { 
                       console.log(`✅ MATCH FOUND for ${compName}: ${v.title}`);
                       matchIdx = idx; 
                       return true; 
+                   } else {
+                      // Optional: log why it failed
+                      if (!holeMatch) console.log(`   ❌ Hole Mismatch: Grid(${cHoles}) vs PoolOpts(${vOpts.map(o => o.replace(/\D/g, '')).join(', ')})`);
+                      if (!colorMatch) console.log(`   ❌ Color Mismatch: Grid(${cColor}) vs PoolOpts(${vOpts.join(', ')})`);
                    }
                    return false;
                 }
