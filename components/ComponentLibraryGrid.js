@@ -19,7 +19,8 @@ const EditableCell = React.memo(({
   onChange, 
   onKeyDown, 
   onPaste,
-  onDoubleClick
+  onDoubleClick,
+  hasMismatch = false
 }) => {
   const inputRef = useRef(null);
 
@@ -68,7 +69,8 @@ const EditableCell = React.memo(({
     w-full h-full min-h-[2.5rem] flex items-center px-4 cursor-cell transition-all 
     ${isFocused ? 'ring-2 ring-inset ring-blue-500 z-20 bg-white' : ''} 
     ${isSelected && !isFocused ? 'bg-blue-100/50 z-10' : ''}
-    ${!isSelected && !isFocused ? 'group-hover:bg-zinc-50' : ''}
+    ${!isSelected && !isFocused ? (hasMismatch ? 'bg-orange-50/80 hover:bg-orange-100/80' : 'group-hover:bg-zinc-50') : ''}
+    ${hasMismatch ? 'border-b-2 border-orange-400' : ''}
   `.trim();
 
   return (
@@ -78,7 +80,8 @@ const EditableCell = React.memo(({
       onPaste={onPaste}
       className={cellClasses}
     >
-      <span className={`truncate text-[11px] ${isSelected || isFocused ? 'font-medium text-blue-900' : ''}`}>
+      <span className={`truncate text-[11px] flex items-center gap-2 ${isSelected || isFocused ? 'font-medium text-blue-900' : (hasMismatch ? 'text-orange-700 font-bold' : '')}`}>
+        {hasMismatch && <ShieldAlert size={10} className="text-orange-500 animate-pulse" />}
         {getDisplayValue() || (isFocused ? '' : '(empty)')}
       </span>
     </div>
@@ -117,7 +120,8 @@ const ComponentLibraryGrid = React.memo(({
   componentSaving,
   handleRemoveAddedRow,
   handleDeleteComponent,
-  componentColumnOrder
+  componentColumnOrder,
+  syncMismatches = {}
 }) => {
    const [startWidth, setStartWidth] = useState(0);
    const [pivotCell, setPivotCell] = useState(null);
@@ -551,6 +555,7 @@ const ComponentLibraryGrid = React.memo(({
                           onChange={(newVal) => handleGridEdit(rowId, col, newVal)}
                           onDoubleClick={() => setEditingCell({ rowId, colKey: col })}
                           onPaste={(e) => handleGridPaste(e, rowId, col, biologicalCols)}
+                          hasMismatch={syncMismatches[rowId]?.includes(col)}
                         />
                       </td>
                     );

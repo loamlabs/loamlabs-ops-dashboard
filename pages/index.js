@@ -139,7 +139,9 @@ export default function OpsDashboard() {
      }
    }, []);
 
-   const [metaEditFields, setMetaEditFields] = useState({});
+    const [isAuditing, setIsAuditing] = useState(false);
+    const [syncMismatches, setSyncMismatches] = useState({}); // { [rid]: [fieldKey1, fieldKey2] }
+    const [showMismatchesOnly, setShowMismatchesOnly] = useState(false);
   const [metafieldRegistry, setMetafieldRegistry] = useState([
     { key: 'inventory_alert_threshold', label: 'Inventory Alert Threshold', categories: ['RIM', 'HUB', 'SPOKE', 'NIPPLE', 'VALVESTEM', 'ACCESSORY'], target: 'variant', type: 'integer' },
     { key: 'hub_manual_cross_value', label: 'Hub Manual Cross Value', categories: ['HUB'], target: 'variant', type: 'decimal' },
@@ -1155,6 +1157,13 @@ export default function OpsDashboard() {
       preFilteredList = preFilteredList.filter(item => !getComponentValidation(item, componentTab).isValid);
     }
 
+    if (showMismatchesOnly) {
+      preFilteredList = preFilteredList.filter(item => {
+        const rid = item._rid || getComponentUniqueId(item);
+        return syncMismatches[rid] && syncMismatches[rid].length > 0;
+      });
+    }
+
     return [...preFilteredList].sort((a,b) => {
       if (a._isNew && !b._isNew) return -1;
       if (!a._isNew && b._isNew) return 1;
@@ -1472,6 +1481,93 @@ export default function OpsDashboard() {
     } catch(e) { console.error(e); showNotification('Network error.', 'error'); }
     setLoading(false);
   };
+
+    const handleAuditShopifySync = async () => {
+       const tabData = componentData[componentTab] || [];
+       const candidates = tabData.filter(c => getComponentValue(c, 'shopify_product_id') && getComponentValue(c, 'shopify_variant_id'));
+       
+       if (candidates.length === 0) {
+          showNotification("No linked components in this tab to audit.", 'info');
+          return;
+       }
+
+       setIsAuditing(true);
+       const newMismatches = { ...syncMismatches };
+       let scanned = 0;
+       let mismatchCount = 0;
+
+       try {
+          const auth = localStorage.getItem('loam_ops_auth');
+          
+          // Group by Product ID for batching
+          const grouped = candidates.reduce((acc, c) => {
+             const pid = getComponentValue(c, 'shopify_product_id');
+             if (!acc[pid]) acc[pid] = [];
+             acc[pid].push(c);
+             return acc;
+          }, {});
+
+          for (const [pid, comps] of Object.entries(grouped)) {
+             const res = await fetch(`/api/get-product-variants?productId=${pid}`, {
+                headers: { 'x-dashboard-auth': auth }
+             });
+             if (!res.ok) continue;
+             
+             const data = await res.json();
+             const shopifyVariants = data.variants || [];
+
+             for (const comp of comps) {
+                const vid = String(getComponentValue(comp, 'shopify_variant_id'));
+                const sVariant = shopifyVariants.find(v => String(v.id) === vid);
+                if (!sVariant) continue;
+
+                scanned++;
+                const compMismatches = [];
+                const rid = comp._rid || comp.id;
+
+                // Dynamic Metafield Comparison
+                Object.keys(comp).forEach(key => {
+                   let shopifyVal = null;
+                   let isMetafield = false;
+
+                   if (key.startsWith('variant:metafield:')) {
+                      isMetafield = true;
+                      const parts = key.split(':'); // variant:metafield:custom:key:type
+                      const mKey = parts[3];
+                      shopifyVal = sVariant.metafields?.find(m => m.key === mKey)?.value;
+                   } else if (key.startsWith('metafield:')) {
+                      isMetafield = true;
+                      const parts = key.split(':'); // metafield:custom:key:type
+                      const mKey = parts[2];
+                      shopifyVal = data.metafields?.find(m => m.key === mKey)?.value;
+                   }
+
+                   if (isMetafield) {
+                      const cVal = String(comp[key] || "").trim();
+                      const sVal = String(shopifyVal || "").trim();
+                      if (cVal !== sVal) {
+                         compMismatches.push(key);
+                      }
+                   }
+                });
+
+                if (compMismatches.length > 0) {
+                   newMismatches[rid] = compMismatches;
+                   mismatchCount++;
+                } else {
+                   delete newMismatches[rid];
+                }
+             }
+          }
+
+          setSyncMismatches(newMismatches);
+          showNotification(`Audit Complete. Scanned: ${scanned}. Mismatches: ${mismatchCount}.`, mismatchCount > 0 ? 'warning' : 'success');
+       } catch (e) {
+          console.error(e);
+          showNotification("Audit failed: " + e.message, 'error');
+       }
+       setIsAuditing(false);
+    };
 
   const handleAutoImport = async () => {
     const input = prompt("Enter Vendor Name ('Berd'), a specific Shopify Product ID ('7615286575192'), or 'ALL' for a full scan:");
@@ -2988,6 +3084,13 @@ export default function OpsDashboard() {
                            >
                              {isDiscoveringVariants ? <Loader2 size={12} className="animate-spin"/> : <Zap size={12}/>} Link Variants
                            </button>
+                           <button 
+                             onClick={handleAuditShopifySync} 
+                             disabled={isAuditing}
+                             className="px-4 py-3 hover:bg-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all text-zinc-500 hover:text-orange-600 flex items-center gap-2 group"
+                           >
+                             {isAuditing ? <Loader2 size={12} className="animate-spin"/> : <ShieldCheck size={12}/>} Sync Audit
+                           </button>
                         </div>
                         <button onClick={() => handleAddNewRow(1)} className="bg-zinc-100 hover:bg-zinc-200 text-zinc-600 px-6 py-4 rounded-2xl font-black uppercase tracking-widest text-xs transition-all border border-zinc-200 flex items-center gap-2">
                            <Plus size={16}/> Add Blank Row
@@ -3000,15 +3103,25 @@ export default function OpsDashboard() {
 
                 <div className="mb-10">
                    <div className="flex gap-4 mb-8 border-b-2 border-zinc-100 pb-2">
-                      {['rims', 'hubs', 'spokes', 'nipples'].map(tab => (
-                         <button 
-                            key={tab} 
-                            onClick={() => { setComponentTab(tab); setComponentVendorFilter('All'); setShowMissingOnly(false); }} 
-                            className={`px-6 py-3 font-black text-[10px] uppercase tracking-widest transition-all ${componentTab === tab ? 'text-black border-b-2 border-black -mb-[10px] bg-zinc-100 rounded-t-xl' : 'text-zinc-400 hover:text-zinc-600'}`}
-                         >
-                            {tab} ({componentData[tab]?.length || 0})
-                         </button>
-                      ))}
+                      {['rims', 'hubs', 'spokes', 'nipples'].map(tab => {
+                         const tabMismatches = (componentData[tab] || []).filter(c => {
+                            const rid = c._rid || getComponentUniqueId(c);
+                            return syncMismatches[rid] && syncMismatches[rid].length > 0;
+                         }).length;
+
+                         return (
+                            <button 
+                               key={tab} 
+                               onClick={() => { setComponentTab(tab); setComponentVendorFilter('All'); setShowMissingOnly(false); setShowMismatchesOnly(false); }} 
+                               className={`relative px-6 py-3 font-black text-[10px] uppercase tracking-widest transition-all ${componentTab === tab ? 'text-black border-b-2 border-black -mb-[10px] bg-zinc-100 rounded-t-xl' : 'text-zinc-400 hover:text-zinc-600'}`}
+                            >
+                               {tab} ({componentData[tab]?.length || 0})
+                               {tabMismatches > 0 && (
+                                  <div className="absolute -right-1 top-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white animate-pulse shadow-sm"></div>
+                               )}
+                            </button>
+                         );
+                      })}
                    </div>
                    
                    {uniqueVendors.length > 0 && (
@@ -3038,8 +3151,14 @@ export default function OpsDashboard() {
                                  <label className="text-[10px] font-black uppercase text-zinc-400 tracking-[0.2em] italic">Data Integrity Filters</label>
                                </div>
                                <div className="flex items-center gap-2 p-1 bg-zinc-100/50 rounded-2xl border border-zinc-100 w-fit">
-                                  <button onClick={() => setShowMissingOnly(false)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${!showMissingOnly ? "bg-white text-black shadow-sm" : "text-zinc-400 hover:text-zinc-600"}`}>All Components</button>
-                                  <button onClick={() => setShowMissingOnly(true)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${showMissingOnly ? "bg-red-500 text-white shadow-lg" : "text-zinc-400 hover:text-red-500"}`}>Missing Data</button>
+                                  <button onClick={() => { setShowMissingOnly(false); setShowMismatchesOnly(false); }} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${(!showMissingOnly && !showMismatchesOnly) ? "bg-white text-black shadow-sm" : "text-zinc-400 hover:text-zinc-600"}`}>All</button>
+                                  <button onClick={() => { setShowMissingOnly(true); setShowMismatchesOnly(false); }} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${showMissingOnly ? "bg-red-500 text-white shadow-lg" : "text-zinc-400 hover:text-red-500"}`}>Missing Info</button>
+                                  <button onClick={() => { setShowMismatchesOnly(true); setShowMissingOnly(false); }} className={`relative px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${showMismatchesOnly ? "bg-orange-500 text-white shadow-lg" : "text-zinc-400 hover:text-orange-500"}`}>
+                                     Sync Mismatches
+                                     {Object.keys(syncMismatches).length > 0 && !showMismatchesOnly && (
+                                        <div className="absolute -right-1 -top-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white animate-bounce shadow-sm"></div>
+                                     )}
+                                  </button>
                                </div>
                                {showMissingOnly && <div className="px-4 mt-2 text-[9px] font-bold text-red-500 flex items-center gap-1 uppercase italic animate-pulse"><AlertTriangle size={12} /> Enrollment Errors Detected</div>}
                             </div>
@@ -3092,6 +3211,7 @@ export default function OpsDashboard() {
                             setEditingCell={setEditingCell}
                             componentSaving={componentSaving}
                             componentColumnOrder={componentColumnOrder}
+                            syncMismatches={syncMismatches}
                          />
                       )}
                    </div>
