@@ -811,7 +811,7 @@ export default function OpsDashboard() {
 
    const getComponentTabColumns = React.useCallback((tab) => {
      const rawData = componentData[tab] || [];
-     const excludeKeys = ['Name', 'name', 'title', 'Title', 'Vendor', 'vendor', 'Brand', 'brand', 'Tags', 'tags', 'id', 'ID', 'shopify_product_id', 'Product ID', 'Variant ID', 'tags', '_rid', '_isNew', '_rawIdx', '_editIdx'];
+     const excludeKeys = ['Name', 'name', 'title', 'Title', 'Vendor', 'vendor', 'Brand', 'brand', 'id', 'ID', 'shopify_product_id', 'Product ID', 'Variant ID', 'tags', 'RID', 'RAWIDX', '_rid', '_rawIdx', '_isNew', '_editIdx'];
      const allKeys = new Set();
      rawData.forEach(row => Object.keys(row).forEach(k => { if (!excludeKeys.includes(k)) allKeys.add(k); }));
      const specCols = Array.from(allKeys);
@@ -1089,7 +1089,7 @@ export default function OpsDashboard() {
   const handleDrop = React.useCallback((targetCol) => {
     if (!draggedColumn || draggedColumn === targetCol) return;
     const activeList = componentData[componentTab] || [];
-    const excludeKeys = ['Name', 'name', 'title', 'Title', 'Vendor', 'vendor', 'Brand', 'brand', 'Tags', 'tags', 'id', 'ID', 'shopify_product_id', 'Product ID', 'Variant ID', 'tags'];
+    const excludeKeys = ['Name', 'name', 'title', 'Title', 'Vendor', 'vendor', 'Brand', 'brand', 'id', 'ID', 'shopify_product_id', 'Product ID', 'Variant ID', 'tags', 'RID', 'RAWIDX', '_rid', '_rawIdx', '_isNew', '_editIdx'];
     const rawColumns = Object.keys(activeList[0] || {}).filter(k => !excludeKeys.includes(k));
     let currentCols = componentColumnOrder[componentTab] || rawColumns;
     const srcIdx = currentCols.indexOf(draggedColumn);
@@ -3138,12 +3138,42 @@ export default function OpsDashboard() {
                                 ))}
                              </div>
 
+                              {/* SHOPIFY LINKAGE SECTION */}
+                              <div className="space-y-4 mb-4 bg-emerald-50/30 p-6 rounded-3xl border border-emerald-100/50">
+                                 <label className="text-[10px] font-black uppercase tracking-widest text-emerald-600 block italic">Shopify Automation Link (Discovery)</label>
+                                 <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-1">
+                                       <div className="text-[8px] font-black uppercase text-zinc-400 ml-1">Shopify Product ID</div>
+                                       <input 
+                                          type="text" 
+                                          placeholder="Numeric ID only..."
+                                          value={getComponentValue(editingComponent, "shopify_product_id")}
+                                          onChange={(e) => setEditingComponent({...editingComponent, shopify_product_id: e.target.value})}
+                                          className="w-full p-3 rounded-xl outline-none border-2 border-transparent bg-white focus:border-emerald-500 transition-all font-mono text-xs font-bold shadow-sm"
+                                       />
+                                    </div>
+                                    <div className="space-y-1">
+                                       <div className="text-[8px] font-black uppercase text-zinc-400 ml-1">Shopify Variant ID</div>
+                                       <input 
+                                          type="text" 
+                                          placeholder="Auto-synced..."
+                                          value={getComponentValue(editingComponent, "shopify_variant_id")}
+                                          onChange={(e) => setEditingComponent({...editingComponent, shopify_variant_id: e.target.value})}
+                                          className="w-full p-3 rounded-xl outline-none border-2 border-transparent bg-white focus:border-emerald-500 transition-all font-mono text-xs font-bold shadow-sm"
+                                       />
+                                    </div>
+                                 </div>
+                                 <p className="text-[8px] font-bold text-zinc-400 uppercase leading-relaxed px-1">
+                                    These IDs power the <span className="text-emerald-600 font-black">Link Variants</span> engine. Items without Product IDs are skipped.
+                                 </p>
+                              </div>
+
                              {/* SPECIFICATION FIELDS */}
                              <div className="space-y-4">
                                 <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block italic">Technical Specifications</label>
                                 {(() => {
                                    const activeList = (componentData[componentTab] || []).map((item, idx) => ({ ...item, _rawIdx: idx }));
-                                   const excludeKeys = ['Name', 'name', 'title', 'Title', 'Vendor', 'vendor', 'Brand', 'brand', 'Tags', 'tags', 'id', 'ID', 'shopify_product_id', 'Product ID', 'Variant ID', 'tags'];
+                                   const excludeKeys = ['Name', 'name', 'title', 'Title', 'Vendor', 'vendor', 'Brand', 'brand', 'id', 'ID', 'shopify_product_id', 'Product ID', 'Variant ID', 'tags', 'RID', 'RAWIDX', '_rid', '_rawIdx', '_isNew', '_editIdx'];
                                    const specFields = [...new Set(activeList.slice(0, 10).flatMap(item => Object.keys(item)))].filter(k => !excludeKeys.includes(k));
                                    
                                    return specFields.map(key => {
@@ -3214,7 +3244,41 @@ export default function OpsDashboard() {
                           </div>
                        </div>
 
-                       <div className="p-8 bg-zinc-50 border-t border-zinc-100 flex items-center gap-4">
+                                                     {/* SYSTEM METADATA */}
+                              <div className="px-8 pb-8">
+                                 <div className="pt-8 border-t border-zinc-100">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-300 block italic mb-4">System Metadata (Internal Reference)</label>
+                                    <div className="grid grid-cols-2 gap-4 opacity-40 hover:opacity-100 transition-opacity">
+                                       <div className="bg-zinc-50 p-4 rounded-2xl border border-zinc-100/50">
+                                          <div className="text-[7px] font-black uppercase text-zinc-400 mb-1 tracking-tighter">Internal RID</div>
+                                          <div className="font-mono text-[9px] truncate text-zinc-500" title={editingComponent._rid || editingComponent.RID}>{editingComponent._rid || editingComponent.RID || 'N/A'}</div>
+                                       </div>
+                                       <div className="bg-zinc-50 p-4 rounded-2xl border border-zinc-100/50">
+                                          <div className="text-[7px] font-black uppercase text-zinc-400 mb-1 tracking-tighter">Raw List Index</div>
+                                          <div className="font-mono text-[9px] text-zinc-500">{editingComponent._rawIdx ?? editingComponent.RAWIDX ?? 'New'}</div>
+                                       </div>
+                                    </div>
+                                 </div>
+                              </div>
+
+                                     {/* SYSTEM METADATA */}
+                              <div className="px-8 pb-8">
+                                 <div className="pt-8 border-t border-zinc-100">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-300 block italic mb-4">System Metadata (Internal Reference)</label>
+                                    <div className="grid grid-cols-2 gap-4 opacity-40 hover:opacity-100 transition-opacity text-zinc-400">
+                                       <div className="bg-zinc-50 p-4 rounded-2xl border border-zinc-100/50">
+                                          <div className="text-[7px] font-black uppercase text-zinc-300 mb-1 tracking-tighter">Internal RID</div>
+                                          <div className="font-mono text-[9px] truncate" title={editingComponent._rid || editingComponent.RID}>{editingComponent._rid || editingComponent.RID || 'N/A'}</div>
+                                       </div>
+                                       <div className="bg-zinc-50 p-4 rounded-2xl border border-zinc-100/50">
+                                          <div className="text-[7px] font-black uppercase text-zinc-300 mb-1 tracking-tighter">Raw List Index</div>
+                                          <div className="font-mono text-[9px]">{editingComponent._rawIdx ?? editingComponent.RAWIDX ?? 'New'}</div>
+                                       </div>
+                                    </div>
+                                 </div>
+                              </div>
+
+                              <div className="p-8 bg-zinc-50 border-t border-zinc-100 flex items-center gap-4">
                           <button 
                              onClick={() => setIsComponentDrawerOpen(false)}
                              className="flex-grow py-5 bg-white border-2 border-zinc-200 text-zinc-400 font-black uppercase tracking-widest text-xs rounded-2xl hover:border-zinc-400 hover:text-zinc-600 transition-all"
@@ -3223,7 +3287,7 @@ export default function OpsDashboard() {
                           </button>
                           {(() => {
                              const activeList = (componentData[componentTab] || []).map((item, idx) => ({ ...item, _rawIdx: idx }));
-                             const excludeKeys = ['Name', 'name', 'title', 'Title', 'Vendor', 'vendor', 'Brand', 'brand', 'Tags', 'tags', 'id', 'ID', 'shopify_product_id', 'Product ID'];
+                             const excludeKeys = ['Name', 'name', 'title', 'Title', 'Vendor', 'vendor', 'Brand', 'brand', 'id', 'ID', 'shopify_product_id', 'Product ID', 'Variant ID', 'tags', 'RID', 'RAWIDX', '_rid', '_rawIdx', '_isNew', '_editIdx'];
                              const requiredKeys = ['Name', 'Vendor', ...Object.keys(activeList[0] || {}).filter(k => !excludeKeys.includes(k))];
                              const allConfirmed = !isDuplicateMode || requiredKeys.every(k => confirmedFields.includes(k));
                              
@@ -3351,7 +3415,7 @@ export default function OpsDashboard() {
                                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block italic">Technical Specifications</label>
                                  {(() => {
                                     const activeList = (componentData[componentTab] || []);
-                                    const excludeKeys = ['Name', 'name', 'title', 'Title', 'Vendor', 'vendor', 'Brand', 'brand', 'Tags', 'tags', 'id', 'ID', 'shopify_product_id', 'Product ID', 'Variant ID', 'tags'];
+                                    const excludeKeys = ['Name', 'name', 'title', 'Title', 'Vendor', 'vendor', 'Brand', 'brand', 'id', 'ID', 'shopify_product_id', 'Product ID', 'Variant ID', 'tags', 'RID', 'RAWIDX', '_rid', '_rawIdx', '_isNew', '_editIdx'];
                                     const specFields = Array.from(new Set(activeList.slice(0, 10).flatMap(item => Object.keys(item)))).filter(k => !excludeKeys.includes(k));
                                     
                                     return specFields.map(key => {
