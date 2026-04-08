@@ -145,14 +145,14 @@ export default function OpsDashboard() {
   const [metafieldRegistry, setMetafieldRegistry] = useState([
     { key: 'inventory_alert_threshold', label: 'Inventory Alert Threshold', categories: ['RIM', 'HUB', 'SPOKE', 'NIPPLE', 'VALVESTEM', 'ACCESSORY'], target: 'variant', type: 'integer' },
     { key: 'hub_manual_cross_value', label: 'Hub Manual Cross Value', categories: ['HUB'], target: 'variant', type: 'decimal' },
-    { key: 'weight_g', label: 'Weight (Variant)', categories: ['RIM', 'HUB', 'SPOKE', 'NIPPLE', 'VALVESTEM', 'ACCESSORY'], target: 'variant', type: 'decimal' },
-    { key: 'weight', label: 'Weight (Variant Aliased)', categories: ['RIM', 'HUB', 'SPOKE', 'NIPPLE', 'VALVESTEM', 'ACCESSORY'], target: 'variant', type: 'decimal' },
+    { key: 'weight_g', label: 'Weight G (v)', categories: ['RIM', 'HUB', 'SPOKE', 'NIPPLE', 'VALVESTEM', 'ACCESSORY'], target: 'variant', type: 'decimal' },
+    { key: 'weight', label: 'Weight G (v) Aliased', categories: ['RIM', 'HUB', 'SPOKE', 'NIPPLE', 'VALVESTEM', 'ACCESSORY'], target: 'variant', type: 'decimal' },
     { key: 'length_adjust_mm', label: 'Length Adjust mm', categories: ['SPOKE'], target: 'variant', type: 'decimal' },
-    { key: 'wheel_spec_position', label: 'Position', categories: ['HUB'], target: 'variant', type: 'single_line_text_field', isConstant: true },
+    { key: 'wheel_spec_position', label: 'Wheel Spec Position', categories: ['HUB'], target: 'variant', type: 'single_line_text_field', isConstant: true },
     { key: 'wheel_spec_brake_interface', label: 'Brake Interface', categories: ['HUB'], target: 'variant', type: 'single_line_text_field', isConstant: true },
     { key: 'wheel_spec_hub_spacing', label: 'Hub Spacing', categories: ['HUB'], target: 'variant', type: 'single_line_text_field', isConstant: true },
     { key: 'wheel_spec_rim_size', label: 'Rim Size', categories: ['RIM'], target: 'variant', type: 'single_line_text_field', isConstant: true },
-    { key: 'rim_erd', label: 'Rim ERD', categories: ['RIM'], target: 'variant', type: 'decimal', isConstant: true },
+    { key: 'rim_erd', label: 'Rim Erd', categories: ['RIM'], target: 'variant', type: 'decimal', isConstant: true },
     { key: 'valve_min_rim_depth_mm', label: 'Valve Min Rim Depth mm', categories: ['VALVESTEM'], target: 'variant', type: 'integer', isConstant: true },
     { key: 'valve_max_rim_depth_mm', label: 'Valve Max Rim Depth mm', categories: ['VALVESTEM'], target: 'variant', type: 'integer', isConstant: true },
     { key: 'internal_width_mm', label: 'Internal Width mm', categories: ['RIM'], target: 'variant', type: 'integer', isConstant: true },
@@ -163,7 +163,7 @@ export default function OpsDashboard() {
     { key: 'historical_order_count', label: 'Historical Order Count', categories: ['RIM', 'HUB', 'SPOKE', 'NIPPLE', 'VALVESTEM', 'ACCESSORY'], target: 'variant', type: 'integer' },
     { key: 'bti_part_number', label: 'BTI Part Number', categories: ['RIM', 'HUB', 'SPOKE', 'NIPPLE', 'VALVESTEM', 'ACCESSORY'], target: 'variant', type: 'single_line_text_field' },
     { key: 'inventory_sync_key', label: 'Inventory Sync Key', categories: ['RIM', 'HUB', 'SPOKE', 'NIPPLE', 'VALVESTEM', 'ACCESSORY'], target: 'variant', type: 'single_line_text_field' },
-    { key: 'product_weight_g', label: 'Weight (Product)', categories: ['RIM', 'HUB', 'SPOKE', 'NIPPLE', 'VALVESTEM', 'ACCESSORY'], target: 'product', type: 'decimal' },
+    { key: 'product_weight_g', label: 'Weight G (p)', categories: ['RIM', 'HUB', 'SPOKE', 'NIPPLE', 'VALVESTEM', 'ACCESSORY'], target: 'product', type: 'decimal' },
     { key: 'included_valve_variant_id', label: 'Included Valve Variant ID', categories: ['VALVESTEM'], target: 'product', type: 'single_line_text_field' },
     { key: 'integrated_hub_name', label: 'Integrated Hub Name', categories: ['HUB'], target: 'product', type: 'single_line_text_field' },
     { key: 'google_shopping_link', label: 'Google Shopping Canonical Link', categories: ['RIM', 'HUB', 'SPOKE', 'NIPPLE', 'VALVESTEM', 'ACCESSORY'], target: 'product', type: 'url' },
@@ -1548,8 +1548,10 @@ export default function OpsDashboard() {
               const shopifyVariants = data.variants || [];
 
               for (const comp of comps) {
-                 const name = comp.Name || comp.name || 'Unnamed';
+                 // Use getComponentValue for the name to avoid "Unnamed" logs
+                 const name = getComponentValue(comp, 'Name') || getComponentValue(comp, 'title') || 'Unknown Component';
                  console.group(`🔍 Item: ${name}`);
+                 
                  const vid = String(getComponentValue(comp, 'shopify_variant_id'));
                  const sVariant = shopifyVariants.find(v => String(v.id) === vid);
                  
@@ -1560,71 +1562,67 @@ export default function OpsDashboard() {
                  }
 
                  console.log("Found Shopify Variant:", sVariant.title);
-                 console.log("Variant Metafields:", sVariant.metafields);
+                 console.log("Variant Metafields Count:", sVariant.metafields?.length || 0);
 
                  scanned++;
                  const compMismatches = [];
                  const rid = comp._rid || comp.id;
 
-                 // Dynamic Metafield Comparison
-                 Object.keys(comp).forEach(key => {
+                 // --- NEW: Registry-Driven Strict Audit (No Guessing) ---
+                 metafieldRegistry.forEach(regField => {
+                    // 1. Get value from Grid (Explicitly using the Column Label)
+                    const cValRaw = comp[regField.label];
+                    if (cValRaw === undefined) return; // Field was not found in this component's data
+
+                    const cVal = String(cValRaw || "").trim();
                     let shopifyVal = null;
-                    let isMetafield = false;
-                    let source = "none";
+                    let source = "metafield";
 
-                    if (key.startsWith('variant:metafield:')) {
-                       isMetafield = true;
-                       source = "prefix_variant";
-                       const parts = key.split(':'); 
-                       const mKey = parts[3];
-                       shopifyVal = sVariant.metafields?.find(m => m.key === mKey)?.value;
-                    } else if (key.startsWith('metafield:')) {
-                       isMetafield = true;
-                       source = "prefix_product";
-                       const parts = key.split(':'); 
-                       const mKey = parts[2];
-                       shopifyVal = data.metafields?.find(m => m.key === mKey)?.value;
+                    // 2. Get value from Shopify (Explicitly using the Registry Key)
+                    if (regField.target === 'variant') {
+                       shopifyVal = sVariant.metafields?.find(m => m.key === regField.key)?.value;
+                    } else {
+                       shopifyVal = data.metafields?.find(m => m.key === regField.key)?.value;
                     }
 
-                    // --- NEW: Map human-readable keys back to Shopify ---
-                    const regField = metafieldRegistry.find(m => m.label === key || (m.label && m.label.toLowerCase() === key.toLowerCase()));
-                    if (regField) {
-                       isMetafield = true;
-                       source = `registry_${regField.target}`;
-                       if (regField.target === 'variant') {
-                          shopifyVal = sVariant.metafields?.find(m => m.key === regField.key)?.value;
-                       } else {
-                          shopifyVal = data.metafields?.find(m => m.key === regField.key)?.value;
-                       }
-                    }
-
-                    if (key === 'Wheel Spec Position') {
-                       isMetafield = true;
-                       source = "special_position";
-                       shopifyVal = sVariant.metafields?.find(m => m.key === 'wheel_spec_position')?.value || sVariant.wheel_spec_position;
-                    }
-
-                    if (isMetafield) {
-                       const cVal = String(comp[key] || "").trim();
-                       const sVal = String(shopifyVal || "").trim();
+                    // 3. Fallback: If metafield is empty, check Shopify Variant Options (for Constants like Position/Size)
+                    if (!shopifyVal && regField.target === 'variant') {
+                       // Position/Size are often variant options
+                       const optionValue = Object.entries(sVariant.options || {}).find(([optName, optVal]) => 
+                          optName.toLowerCase().includes(regField.key.replace(/_/g, ' ')) || 
+                          regField.label.toLowerCase().includes(optName.toLowerCase())
+                       )?.[1];
                        
-                       const normalize = (v) => {
-                          if (!v) return "";
-                          const n = parseFloat(v);
-                          return !isNaN(n) ? String(n) : String(v).toLowerCase();
-                       };
-
-                       const ncVal = normalize(cVal);
-                       const nsVal = normalize(sVal);
-
-                       if (ncVal !== nsVal) {
-                          console.log(`❌ MISMATCH on [${key}] (Source: ${source})`);
-                          console.log(`   Lib Val: "${cVal}" (Norm: "${ncVal}")`);
-                          console.log(`   Sho Val: "${sVal}" (Norm: "${nsVal}")`);
-                          compMismatches.push(key);
-                       } else {
-                          // console.log(`✅ MATCH on [${key}]`);
+                       if (optionValue) {
+                          shopifyVal = optionValue;
+                          source = "option";
                        }
+                    }
+
+                    // 4. Special Handling: Wheel Spec Position (Hardcoded strict map)
+                    if (regField.key === 'wheel_spec_position' && !shopifyVal) {
+                       shopifyVal = sVariant.options?.Position || sVariant.options?.['Wheel Spec Position'] || sVariant.wheel_spec_position;
+                       if (shopifyVal) source = "special_prop";
+                    }
+
+                    // 5. Strict Normalization and Comparison
+                    const normalize = (v) => {
+                       if (v === null || v === undefined || v === "") return "";
+                       // If numerical, strip trailing zeros (580.0 -> 580)
+                       const n = parseFloat(v);
+                       if (!isNaN(n)) return String(n);
+                       // Otherwise, lowercase and trim
+                       return String(v).toLowerCase().trim();
+                    };
+
+                    const ncVal = normalize(cVal);
+                    const nsVal = normalize(shopifyVal);
+
+                    if (ncVal !== nsVal) {
+                       console.log(`❌ MISMATCH on [${regField.label}] (${source})`);
+                       console.log(`   Grid: "${cVal}" (Norm: "${ncVal}")`);
+                       console.log(`   Shop: "${shopifyVal}" (Norm: "${nsVal}")`);
+                       compMismatches.push(regField.label);
                     }
                  });
 
