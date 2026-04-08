@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ComponentLibraryGrid from '../components/ComponentLibraryGrid';
-import { RefreshCcw, Search, Package, ShieldCheck, ShieldAlert, Plus, X, Info, Image as ImageIcon, Loader2, LogOut, ChevronUp, ChevronDown, ChevronRight, Trash2, AlertCircle, AlertTriangle, Zap, ZapOff, DollarSign, Tag, History, Activity, Beaker, Edit3, Edit, Settings, ExternalLink, BarChart, Database, CheckCircle, Layers } from 'lucide-react';
+import ReviewChangesModal from '../components/ReviewChangesModal';
+import { RefreshCcw, Search, Package, ShieldCheck, ShieldAlert, Plus, X, Info, Image as ImageIcon, Loader2, LogOut, ChevronUp, ChevronDown, ChevronRight, Trash2, AlertCircle, AlertTriangle, Zap, ZapOff, DollarSign, Tag, History, Activity, Beaker, Edit3, Edit, Settings, ExternalLink, BarChart, Database, CheckCircle, Layers, Clock } from 'lucide-react';
 
 const COMPONENT_SUGGESTIONS = {};
 
@@ -114,6 +115,14 @@ export default function OpsDashboard() {
   const [isDuplicateMode, setIsDuplicateMode] = useState(false);
   const [confirmedFields, setConfirmedFields] = useState([]);
   const [componentSaving, setComponentSaving] = useState(false);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [stagedUpdatedArray, setStagedUpdatedArray] = useState(null);
+  const [componentHistory, setComponentHistory] = useState([]);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [showVariantSyncModal, setShowVariantSyncModal] = useState(false);
+  const [proposedVariantUpdates, setProposedVariantUpdates] = useState([]);
+  const [isDiscoveringVariants, setIsDiscoveringVariants] = useState(false);
   const [notification, setNotification] = useState(null);
   const [gridUnsavedChanges, setGridUnsavedChanges] = useState({}); 
   const [gridAddedRows, setGridAddedRows] = useState({ hubs: [], rims: [], spokes: [], nipples: [] });
@@ -388,6 +397,15 @@ export default function OpsDashboard() {
     
     if (normTarget === 'wheelspecposition') return component['Wheel Spec Position'] || '';
     if (normTarget === 'rimerd') return component['Rim Erd'] || component.rim_erd || '';
+    
+    // Shopify ID Normalization for UI & Discovery
+    if (normTarget === 'shopifyproductid' || normTarget === 'productid') {
+       return component.shopify_product_id || component['Product ID'] || component.id || component.ID || component._rid || '';
+    }
+    if (normTarget === 'shopifyvariantid' || normTarget === 'variantid') {
+       return component.shopify_variant_id || component['Variant ID'] || '';
+    }
+
     if (normTarget.includes('weight')) return component['Weight G (p)'] || component['Weight G (v)'] || component.weight || '';
 
     return '';
@@ -590,43 +608,167 @@ export default function OpsDashboard() {
       setComponentSaving(false);
       return false;
     }
-  }, [componentTab, password, showNotification]);
+   }, [componentTab, password, showNotification]);
 
-  const handleCommitBatchSave = React.useCallback(async () => {
-    const tab = componentTab;
-    const unsaved = gridUnsavedChanges[tab] || {};
-    const added = gridAddedRows[tab] || [];
-    const currentData = [...(componentData[tab] || [])];
-    
-    // 1. Build the updated array using stable identification
-    let updatedArray = currentData.map((item, idx) => {
-      const rid = getComponentUniqueId(item, idx);
-      if (unsaved[rid]) return { ...item, ...unsaved[rid] };
-      return item;
-    });
-    
-    // 2. Map over added rows and apply any unsaved edits to them!
-    const finalAdded = added.map((item, idx) => {
-        const rid = item._rid; // New rows MUST have a _rid
-        if (rid && unsaved[rid]) return { ...item, ...unsaved[rid] };
-        return item;
-    });
-    
-    // 3. Append new rows
-    if (finalAdded.length > 0) updatedArray = [...updatedArray, ...finalAdded];
-    
-    // 4. Attempt to save
-    const success = await saveComponentChanges(updatedArray, tab);
-    
-    // 5. ONLY clear draft if the server confirmed success
-    if (success) {
-      setGridUnsavedChanges(prev => ({ ...prev, [tab]: {} }));
-      setGridAddedRows(prev => ({ ...prev, [tab]: [] }));
-      showNotification(`Batch sync complete for ${tab}!`, 'success');
-    } else {
-      showNotification(`Batch sync failed! Your edits are still in the grid.`, 'error');
-    }
-  }, [componentTab, gridUnsavedChanges, gridAddedRows, componentData, getComponentUniqueId, saveComponentChanges, showNotification]);
+   const fetchComponentHistory = React.useCallback(async () => {
+     setLoadingHistory(true);
+     try {
+       const auth = password || localStorage.getItem('loam_ops_auth');
+       const res = await fetch(`/api/component-history?tab=${componentTab}`, {
+         headers: { 'x-dashboard-auth': auth }
+       });
+       if (res.ok) {
+         const data = await res.json();
+         setComponentHistory(data);
+         setShowHistoryModal(true);
+       } else {
+         showNotification("Failed to fetch history", 'error');
+       }
+     } catch (e) {
+       showNotification("History Error", 'error');
+     } finally {
+       setLoadingHistory(false);
+     }
+   }, [componentTab, password, showNotification]);
+
+   const handleCommitBatchSave = React.useCallback(async () => {
+     const tab = componentTab;
+     const unsaved = gridUnsavedChanges[tab] || {};
+     const added = gridAddedRows[tab] || [];
+     const currentData = [...(componentData[tab] || [])];
+     
+     // 1. Build the updated array
+     let updatedArray = currentData.map((item, idx) => {
+       const rid = getComponentUniqueId(item, idx);
+       if (unsaved[rid]) return { ...item, ...unsaved[rid] };
+       return item;
+     });
+     
+     // 2. Map over added rows
+     const finalAdded = added.map((item, idx) => {
+         const rid = item._rid; 
+         if (rid && unsaved[rid]) return { ...item, ...unsaved[rid] };
+         return item;
+     });
+     
+     if (finalAdded.length > 0) updatedArray = [...updatedArray, ...finalAdded];
+     
+     // 3. Instead of saving, show the review modal!
+     if (Object.keys(unsaved).length === 0 && finalAdded.length === 0) {
+        showNotification("No changes to save", "info");
+        return;
+     }
+
+     setStagedUpdatedArray(updatedArray);
+     setShowReviewModal(true);
+   }, [componentTab, gridUnsavedChanges, gridAddedRows, componentData, getComponentUniqueId, showNotification]);
+
+   const handleFinalConfirmSave = React.useCallback(async () => {
+      setShowReviewModal(false);
+      const success = await saveComponentChanges(stagedUpdatedArray, componentTab);
+      if (success) {
+        setGridUnsavedChanges(prev => ({ ...prev, [componentTab]: {} }));
+        setGridAddedRows(prev => ({ ...prev, [componentTab]: [] }));
+        setStagedUpdatedArray(null);
+      }
+   }, [componentTab, stagedUpdatedArray, saveComponentChanges]);
+
+   const handleDiscoverVariantIds = React.useCallback(async () => {
+     setIsDiscoveringVariants(true);
+     const tab = componentTab;
+     const items = componentData[tab] || [];
+     const candidates = items.filter(item => getComponentValue(item, 'shopify_product_id') && !getComponentValue(item, 'shopify_variant_id'));
+     
+     if (candidates.length === 0) {
+        showNotification("No components found matching Discovery criteria (Has Product ID, No Variant ID).", "info");
+        setIsDiscoveringVariants(false);
+        return;
+     }
+
+     const uniqueProductIds = [...new Set(candidates.map(c => getComponentValue(c, 'shopify_product_id')))];
+     const proposals = [];
+     const auth = password || localStorage.getItem('loam_ops_auth');
+
+     try {
+       for (const pid of uniqueProductIds) {
+         const res = await fetch(`/api/get-product-variants?productId=${pid}`, {
+           headers: { 'x-dashboard-auth': auth }
+         });
+         if (!res.ok) continue;
+         const { variants, title } = await res.json();
+         
+         const componentsForPid = candidates.filter(c => getComponentValue(c, 'shopify_product_id') === pid);
+         
+         for (const comp of componentsForPid) {
+            // MATCHING ENGINE
+            const match = variants.find(v => {
+               const norm = (val) => String(val || "").toLowerCase().replace(/["']/g, '').trim();
+               const vOpts = Object.values(v.options).map(norm);
+               
+               if (comp['Option 1 Value'] && vOpts.includes(norm(comp['Option 1 Value']))) {
+                  if (comp['Option 2 Value']) {
+                     return vOpts.includes(norm(comp['Option 2 Value']));
+                  }
+                  return true;
+               }
+
+               let sizeMatch = true;
+               if (comp['Rim Size']) {
+                  const s = norm(comp['Rim Size']);
+                  sizeMatch = vOpts.some(vo => vo.includes(s) || (s === '700c' && vo.includes('29')) || (s === '29' && vo.includes('700c')));
+               }
+               
+               let holeMatch = true;
+               const holes = comp['Spoke Count'] || comp['Hole Count'];
+               if (holes) {
+                  const h = norm(holes).replace(/\D/g, '');
+                  holeMatch = vOpts.some(vo => vo.replace(/\D/g, '') === h);
+               }
+
+               return sizeMatch && holeMatch && (comp['Rim Size'] || holes);
+            });
+
+            if (match) {
+               proposals.push({
+                  rid: comp._rid || comp.id,
+                  name: comp.Name || comp.Vendor || 'Unknown',
+                  productTitle: title,
+                  variantTitle: match.title,
+                  newVariantId: match.id,
+                  fullGid: match.full_id
+               });
+            }
+         }
+       }
+       
+       if (proposals.length === 0) {
+          showNotification("Scanned Shopify but found 0 matches for these component specs.", "warning");
+       } else {
+          setProposedVariantUpdates(proposals);
+          setShowVariantSyncModal(true);
+       }
+     } catch (e) {
+       showNotification("Discovery Error: " + e.message, "error");
+     } finally {
+       setIsDiscoveringVariants(false);
+     }
+   }, [componentTab, componentData, password, showNotification]);
+
+   const applyVariantDiscovery = () => {
+      const tab = componentTab;
+      const updates = {};
+      proposedVariantUpdates.forEach(p => {
+         updates[p.rid] = { ...updates[p.rid], shopify_variant_id: p.newVariantId };
+      });
+      
+      setGridUnsavedChanges(prev => ({
+         ...prev,
+         [tab]: { ...(prev[tab] || {}), ...updates }
+      }));
+      
+      setShowVariantSyncModal(false);
+      showNotification(`Applied ${proposedVariantUpdates.length} proposed Variant IDs to the grid! Review and Sync to save permanently.`, "success");
+   };
 
   const handleAddNewRow = (count = 1) => {
     const added = gridAddedRows[componentTab] || [];
@@ -2789,6 +2931,7 @@ export default function OpsDashboard() {
              </div>
           </div>
         ) : activeTab === 'component_library' ? (
+           <>
            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
                <div className="flex items-center justify-between mb-8">
                    <div>
@@ -2798,12 +2941,28 @@ export default function OpsDashboard() {
                        </p>
                    </div>
                     <div className="flex items-center gap-3">
-                       <button onClick={() => handleAddNewRow(1)} className="bg-zinc-100 hover:bg-zinc-200 text-zinc-600 px-6 py-4 rounded-2xl font-black uppercase tracking-widest text-xs transition-all border border-zinc-200 flex items-center gap-2">
-                          <Plus size={16}/> Add Blank Row
-                       </button>
-                       <button onClick={() => handleCreateNewComponent(componentTab)} className="bg-black text-white px-6 py-4 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-zinc-800 transition-all shadow-xl flex items-center gap-2">
-                          <Edit3 size={16}/> New Component (Drawer)
-                       </button>
+                        <div className="flex bg-zinc-100 p-1 rounded-2xl gap-1">
+                           <button 
+                             onClick={fetchComponentHistory} 
+                             disabled={loadingHistory}
+                             className="px-4 py-3 hover:bg-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all text-zinc-500 hover:text-black flex items-center gap-2 group"
+                           >
+                             {loadingHistory ? <Loader2 size={12} className="animate-spin"/> : <Clock size={12}/>} History
+                           </button>
+                           <button 
+                             onClick={handleDiscoverVariantIds} 
+                             disabled={isDiscoveringVariants}
+                             className="px-4 py-3 hover:bg-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all text-zinc-500 hover:text-emerald-600 flex items-center gap-2 group"
+                           >
+                             {isDiscoveringVariants ? <Loader2 size={12} className="animate-spin"/> : <Zap size={12}/>} Link Variants
+                           </button>
+                        </div>
+                        <button onClick={() => handleAddNewRow(1)} className="bg-zinc-100 hover:bg-zinc-200 text-zinc-600 px-6 py-4 rounded-2xl font-black uppercase tracking-widest text-xs transition-all border border-zinc-200 flex items-center gap-2">
+                           <Plus size={16}/> Add Blank Row
+                        </button>
+                        <button onClick={() => handleCreateNewComponent(componentTab)} className="bg-black text-white px-6 py-4 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-zinc-800 transition-all shadow-xl flex items-center gap-2">
+                           <Edit3 size={16}/> New Component
+                        </button>
                     </div>
                 </div>
 
@@ -2949,9 +3108,8 @@ export default function OpsDashboard() {
                                 <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500/60 block italic">Primary Identity</label>
                                 {[
                                    { label: 'Display Name', key: 'Name' },
-                                   { label: 'Vendor / Brand', key: 'Vendor' },
-                                    { label: 'Product ID', key: 'Product ID' },
-                                    { label: 'Variant ID', key: 'Variant ID' } ].map(field => (
+                                   { label: 'Vendor / Brand', key: 'Vendor' }
+                                ].map(field => (
                                    <div key={field.key} className="flex gap-4">
                                       <div className="flex-grow">
                                          <div className="text-[9px] font-black uppercase text-zinc-500/60 mb-1 ml-1 tracking-widest">{field.label}{(field.key === 'Name' || field.key === 'Vendor') && <span className="text-red-500 ml-1 font-bold">*</span>}</div>
@@ -3221,12 +3379,11 @@ export default function OpsDashboard() {
                         </div>
                      </div>
                   </div>
-                )}
-
-            </div>
+               )}
+               </div>
+            </>
          ) : null}
 
-        {/* --- UNIVERSAL FLOATING BAR --- */}
         {((activeTab === 'product_lab' && (selectedLabProducts.length > 0 || selectedLabVariants.length > 0)) || (activeTab === 'vendors' && selectedRules.length > 0)) && (
            <div className="fixed bottom-6 left-[calc(16rem+1.5rem)] right-6 z-50 bg-black text-white p-4 rounded-[1.5rem] flex items-center justify-between shadow-2xl border border-zinc-800 animate-in slide-in-from-bottom-4 duration-300">
               <div className="flex items-center gap-3 flex-shrink-0">
@@ -3738,13 +3895,103 @@ export default function OpsDashboard() {
             );
          })()}
        </main>
+       {/* --- REVIEW CHANGES MODAL --- */}
+       <ReviewChangesModal 
+          isOpen={showReviewModal}
+          onClose={() => setShowReviewModal(false)}
+          onConfirm={handleFinalConfirmSave}
+          changes={gridUnsavedChanges[componentTab] || {}}
+          originalData={componentData[componentTab] || []}
+          addedRows={gridAddedRows[componentTab] || []}
+          category={componentTab}
+       />
+
+       {/* --- HISTORY MODAL --- */}
+       {showHistoryModal && (
+         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[999] flex items-center justify-center p-4 animate-in fade-in duration-200">
+           <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-xl max-h-[80vh] flex flex-col overflow-hidden border border-zinc-100">
+             <div className="p-8 border-b flex justify-between items-center bg-zinc-50/50">
+               <div>
+                 <h2 className="text-2xl font-black uppercase italic tracking-tighter">Commit History</h2>
+                 <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">{componentTab} Database Timeline</p>
+               </div>
+               <button onClick={() => setShowHistoryModal(false)} className="p-3 hover:bg-white rounded-2xl transition-all shadow-sm"><X/></button>
+             </div>
+             <div className="flex-grow overflow-y-auto p-8 space-y-4">
+               {componentHistory.length === 0 ? (
+                 <div className="text-center py-12 text-zinc-300 italic font-bold">No history found for this file.</div>
+               ) : componentHistory.map((c, idx) => (
+                 <a 
+                   key={idx} 
+                   href={c.url} 
+                   target="_blank" 
+                   rel="noopener noreferrer"
+                   className="block p-5 rounded-3xl border border-zinc-100 hover:border-zinc-300 hover:shadow-lg transition-all group"
+                 >
+                   <div className="flex justify-between items-start mb-2">
+                     <span className="text-[10px] font-black uppercase bg-zinc-900 text-white px-2 py-1 rounded-md tracking-tighter">#{c.sha.slice(0, 7)}</span>
+                     <span className="text-[10px] font-bold text-zinc-400">{new Date(c.date).toLocaleDateString()} {new Date(c.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                   </div>
+                   <p className="text-sm font-bold text-zinc-800 group-hover:text-black transition-colors">{c.message}</p>
+                   <div className="flex items-center gap-2 mt-3 pt-3 border-t border-zinc-50">
+                     <div className="w-5 h-5 bg-zinc-100 rounded-full flex items-center justify-center text-[8px] font-bold">{c.author[0]}</div>
+                     <span className="text-[9px] font-black uppercase text-zinc-400 tracking-widest">{c.author}</span>
+                   </div>
+                 </a>
+               ))}
+             </div>
+             <div className="p-8 border-t bg-zinc-50/50">
+               <button onClick={() => setShowHistoryModal(false)} className="w-full py-4 bg-black text-white font-bold rounded-[1.5rem] hover:bg-zinc-800 transition-all uppercase tracking-widest text-xs">Close Logs</button>
+             </div>
+           </div>
+         </div>
+       )}
+
+       {/* --- VARIANT SYNC MODAL --- */}
+       {showVariantSyncModal && (
+         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[999] flex items-center justify-center p-4 animate-in fade-in duration-200">
+           <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col overflow-hidden border border-zinc-100">
+             <div className="p-8 border-b flex justify-between items-center bg-emerald-50/50">
+               <div>
+                 <h2 className="text-2xl font-black uppercase italic tracking-tighter">Variant Matcher</h2>
+                 <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">Shopify Auto-Detection Results</p>
+               </div>
+               <button onClick={() => setShowVariantSyncModal(false)} className="p-3 hover:bg-white rounded-2xl transition-all shadow-sm"><X/></button>
+             </div>
+             
+             <div className="flex-grow overflow-y-auto p-8 border-b border-zinc-50">
+                <div className="bg-emerald-50 p-4 rounded-2xl mb-6 text-xs text-emerald-800 font-bold border border-emerald-100 flex items-center gap-3">
+                   <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center"><CheckCircle size={16}/></div>
+                   Successfully matched {proposedVariantUpdates.length} items using Specs-to-Options mapping.
+                </div>
+
+                <div className="space-y-3">
+                   {proposedVariantUpdates.map((p, idx) => (
+                      <div key={idx} className="bg-zinc-50 border border-zinc-100 rounded-2xl p-4 flex items-center justify-between group hover:border-emerald-200 transition-all">
+                         <div className="flex-grow">
+                            <div className="text-[10px] font-black uppercase text-zinc-400 mb-1">{p.productTitle}</div>
+                            <div className="text-sm font-black italic">{p.name}</div>
+                            <div className="flex items-center gap-2 mt-1">
+                               <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100 uppercase tracking-tight">Match: {p.variantTitle}</span>
+                               <span className="text-[9px] font-bold text-zinc-400">ID: {p.newVariantId}</span>
+                            </div>
+                         </div>
+                         <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Zap size={16} className="text-emerald-500"/>
+                         </div>
+                      </div>
+                   ))}
+                </div>
+             </div>
+
+             <div className="p-8 border-t bg-zinc-50/50 flex gap-4">
+               <button onClick={() => setShowVariantSyncModal(false)} className="flex-grow py-4 bg-white border border-zinc-200 text-zinc-600 font-bold rounded-[1.5rem] hover:bg-zinc-100 transition-all uppercase tracking-widest text-xs">Discard Matches</button>
+               <button onClick={applyVariantDiscovery} className="flex-grow py-4 bg-emerald-600 text-white font-bold rounded-[1.5rem] hover:bg-emerald-700 transition-all uppercase tracking-widest text-xs shadow-xl shadow-emerald-500/20">Apply IDs to Grid</button>
+             </div>
+           </div>
+         </div>
+       )}
+
     </div>
   );
 }
-
- 
- 
-
-
-
-
