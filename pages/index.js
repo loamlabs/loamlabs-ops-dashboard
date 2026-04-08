@@ -791,8 +791,15 @@ export default function OpsDashboard() {
                    const c2nt = (getComponentValue(comp, 'Option 2 Name') || "").toLowerCase();
                    if (c1nt.includes('color')) return norm(getComponentValue(comp, 'Option 1 Value'));
                    if (c2nt.includes('color')) return norm(getComponentValue(comp, 'Option 2 Value'));
-                   // Fuzzy check for common color columns
-                   return norm(getComponentValue(comp, 'Color') || getComponentValue(comp, 'Finish'));
+                   
+                   const standard = getComponentValue(comp, 'Color') || getComponentValue(comp, 'Finish');
+                   if (standard) return norm(standard);
+
+                   // Ultimate Fallback: Scour all keys for anything color-related
+                   const fuzzyKey = Object.keys(comp).find(k => k.toLowerCase().includes('color') || k.toLowerCase().includes('finish'));
+                   if (fuzzyKey) return norm(comp[fuzzyKey]);
+
+                   return "";
                 };
 
                 // 1. RIM LOGIC: Size + Hub Count + Color

@@ -28,11 +28,14 @@ export default async function handler(req, res) {
     
     // Convert short ID to GID if needed
     const gid = productId.startsWith('gid://') ? productId : `gid://shopify/Product/${productId}`;
+    console.log(`[API] Querying Shopify for GID: ${gid}`);
 
     const query = `
       query($id: ID!) {
         product(id: $id) {
           title
+          status
+          handle
           metafields(first: 50) {
             edges {
               node {
@@ -79,13 +82,17 @@ export default async function handler(req, res) {
 
     const data = await response.json();
     if (data.errors) {
-      return res.status(500).json({ error: 'Shopify API Error', details: data.errors });
+       console.error(`[API] Shopify GID ${gid} returned errors:`, JSON.stringify(data.errors));
+       return res.status(500).json({ error: 'Shopify API Error', details: data.errors });
     }
 
     const product = data.data?.product;
     if (!product) {
+      console.warn(`[API] Product ID ${productId} (GID: ${gid}) NOT FOUND in Shopify.`);
       return res.status(404).json({ error: 'Product not found in Shopify' });
     }
+    
+    console.log(`[API] Found Product: ${product.title} (Status: ${product.status})`);
 
     const variants = product.variants.edges.map(e => ({
       id: e.node.id.split('/').pop(),
