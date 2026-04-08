@@ -1039,31 +1039,39 @@ export default function OpsDashboard() {
 
    const getComponentTabColumns = React.useCallback((tab) => {
      const rawData = componentData[tab] || [];
-     const excludeKeys = [
-        'Name', 'name', 'title', 'Title', 'Vendor', 'vendor', 'Brand', 'brand', 
-        'id', 'ID', 'shopify_product_id', 'shopify_variant_id', 'Product ID', 'Variant ID', 
-        'tags', 'RID', 'RAWIDX', '_rid', '_rawIdx', '_isNew', '_editIdx', '_internal_database_id',
-        // GHOSTS (Case variants)
-        'RIM SIZE', 'RIM ERD', 'WEIGHT G (V)', 'Weight (V)', 'rim_size', 'rim_erd', 'weight_g', 'Option 1 Value', 'Option1 Value',
-        // UNIFIED OFFICIALS (We want these SPEC-ONLY, hidden from main grid)
-        'Rim Size', 'Rim Erd', 'Weight G (v)', 'Hole Count', 'Color', 'Rim Spoke Hole Offset'
-     ].map(k => k.toLowerCase().trim());
+     
+     // NUCLEAR BAN LIST - Everything is normalized to lowercase alphanumeric for comparison
+     const BAN_LIST = [
+        'Name', 'Vendor', 'Brand', 'id', 'ID', 'shopify_product_id', 'shopify_variant_id', 
+        'Product ID', 'Variant ID', 'tags', 'RID', 'RAWIDX', '_rid', '_rawIdx', '_isNew', '_editIdx', 
+        '_internal_database_id', 'RIM SIZE', 'RIM ERD', 'WEIGHT G (V)', 'Weight (V)', 'rim_size', 
+        'rim_erd', 'weight_g', 'Option 1 Value', 'Option1 Value', 'Rim Size', 'Rim Erd', 
+        'Weight G (v)', 'Hole Count', 'Color', 'Rim Spoke Hole Offset', 'ProductURL', 'Title'
+     ].map(k => k.toLowerCase().replace(/[^a-z0-9]/g, ''));
 
      const allKeys = new Set();
-     rawData.forEach((row, i) => {
+     const blockedKeys = [];
+
+     rawData.forEach((row) => {
         Object.keys(row).forEach(k => {
-           const cleanK = k.toLowerCase().trim();
-           if (!excludeKeys.includes(cleanK)) {
+           const normK = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+           if (!BAN_LIST.includes(normK)) {
               allKeys.add(k); 
            } else {
-              // Only log for the first row to avoid spamming
-              // if (i === 0) console.log(`[Column Debug] Excluded: "${k}" (matches restricted list)`);
+              if (!blockedKeys.includes(k)) blockedKeys.push(k);
            }
         });
      });
 
-     const specCols = Array.from(allKeys);
-     // console.log(`[Column Debug] Tab: ${tab} | Detected:`, Array.from(allKeys), "| Filtered:", specCols);
+     let specCols = Array.from(allKeys);
+     
+     // Secondary Nuclear Filter: Final pass on the array
+     specCols = specCols.filter(k => {
+        const normK = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+        return !BAN_LIST.includes(normK);
+     });
+
+     console.log(`🔍 [COL_DEBUG] Tab: ${tab} | Detected:`, Array.from(allKeys).length, "| Blocked:", blockedKeys, "| Final:", specCols);
 
      const order = componentColumnOrder?.[tab];
      if (order && Array.isArray(order)) {
