@@ -445,6 +445,7 @@ export default function OpsDashboard() {
     
     // Shopify ID Normalization - USE RAW ACCESS for Edit Drawers to avoid fallback loops
     if (normTarget === 'shopifyproductid' || normTarget === 'productid') {
+       // CRITICAL: Stop falling back to generic 'ID' or 'id' fields to prevent auto-populating from database keys
        return component.shopify_product_id || component['Product ID'] || '';
     }
     if (normTarget === 'shopifyvariantid' || normTarget === 'variantid') {
@@ -479,10 +480,16 @@ export default function OpsDashboard() {
               // NUCLEAR CLEANUP: Explicitly delete the zombie key from the object
               if (alias !== 'Option1 Value' && newItem.hasOwnProperty(alias)) {
                  delete newItem[alias];
-                 // console.log(`[Janitor] Purged zombie key: ${alias}`);
               }
            });
         });
+
+        // IDENTITY PURGE: Remove legacy ID fields that cause collision with Shopify mappings
+        if (newItem.ID) delete newItem.ID;
+        if (newItem.id && !newItem.hasOwnProperty('_rid')) delete newItem.id;
+        if (newItem['Product ID']) delete newItem['Product ID'];
+        if (newItem['Variant ID']) delete newItem['Variant ID'];
+
         return newItem;
      };
 
@@ -1019,7 +1026,12 @@ export default function OpsDashboard() {
 
    const getComponentTabColumns = React.useCallback((tab) => {
      const rawData = componentData[tab] || [];
-     const excludeKeys = ['Name', 'name', 'title', 'Title', 'Vendor', 'vendor', 'Brand', 'brand', 'id', 'ID', 'shopify_product_id', 'Product ID', 'Variant ID', 'tags', 'RID', 'RAWIDX', '_rid', '_rawIdx', '_isNew', '_editIdx'];
+     const excludeKeys = [
+        'Name', 'name', 'title', 'Title', 'Vendor', 'vendor', 'Brand', 'brand', 
+        'id', 'ID', 'shopify_product_id', 'shopify_variant_id', 'Product ID', 'Variant ID', 
+        'tags', 'RID', 'RAWIDX', '_rid', '_rawIdx', '_isNew', '_editIdx',
+        'RIM SIZE', 'RIM ERD', 'WEIGHT G (V)', 'rim_size', 'rim_erd', 'weight_g' // Explicitly block ghost keys
+     ];
      const allKeys = new Set();
      rawData.forEach(row => Object.keys(row).forEach(k => { if (!excludeKeys.includes(k)) allKeys.add(k); }));
      const specCols = Array.from(allKeys);

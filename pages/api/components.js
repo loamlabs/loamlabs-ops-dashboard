@@ -11,9 +11,14 @@ export default async function handler(req, res) {
         return res.status(500).json({ error: 'GitHub credentials missing from environment variables.' });
     }
 
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+
     if (req.method === 'GET') {
         const fetchFile = async (filename) => {
-            const url = `https://api.github.com/repos/${GITHUB_COMPONENTS_REPO}/contents/component-data/${filename}`;
+            const cb = Date.now();
+            const url = `https://api.github.com/repos/${GITHUB_COMPONENTS_REPO}/contents/component-data/${filename}?cb=${cb}`;
             const response = await fetch(url, {
                 headers: {
                     'Authorization': `Bearer ${GITHUB_COMPONENTS_PAT}`,
