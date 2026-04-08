@@ -765,7 +765,10 @@ export default function OpsDashboard() {
          const res = await fetch(`/api/get-product-variants?productId=${pid}`, {
            headers: { 'x-dashboard-auth': auth }
          });
-         if (!res.ok) continue;
+         if (!res.ok) {
+            console.error(`[Discovery] Shopify Error (Status ${res.status}) for Product ID: ${pid}`);
+            continue;
+         }
          const { variants, title } = await res.json();
          
          // --- FIX: Create a pool of available variants to ensure 1-to-1 matching ---
@@ -815,13 +818,26 @@ export default function OpsDashboard() {
                 
                 // 2. HUB LOGIC: Spoke Count + Color
                 if (tab === 'hubs') {
-                   const cHoles = norm(getComponentValue(comp, 'Hole Count')).replace(/\D/g, '');
+                   const cHolesVal = getComponentValue(comp, 'Hole Count') || getComponentValue(comp, 'Spoke Count');
+                   const cHoles = norm(cHolesVal).replace(/\D/g, '');
                    const cColor = getCompColor();
+                   
+                   if (!cHoles) {
+                      console.warn(`[Discovery] Hub missing Hole Count for ${compName}`);
+                   }
 
-                   const holeMatch = vOpts.some(vo => vo === cHoles);
-                   const colorMatch = !cColor || vOpts.some(vo => vo === cColor || vo.includes(cColor));
+                   const holeMatch = vOpts.some(vo => vo.replace(/\D/g, '') === cHoles);
+                   const colorMatch = !cColor || vOpts.some(vo => {
+                      const vColor = vo.toLowerCase();
+                      return vColor === cColor || vColor.includes(cColor) || cColor.includes(vColor);
+                   });
 
-                   if (holeMatch && colorMatch) { matchIdx = idx; return true; }
+                   if (holeMatch && colorMatch) { 
+                      console.log(`✅ MATCH FOUND for ${compName}: ${v.title}`);
+                      matchIdx = idx; 
+                      return true; 
+                   }
+                   return false;
                 }
 
                // 3. SPOKE LOGIC: "-" Length Variant
@@ -1666,14 +1682,22 @@ export default function OpsDashboard() {
 
            for (const [pid, comps] of Object.entries(grouped)) {
               console.group(`📦 Auditing Product ID: ${pid}`);
-              const res = await fetch(`/api/get-product-variants?productId=${pid}`, {
-                 headers: { 'x-dashboard-auth': auth }
-              });
-              if (!res.ok) {
-                 console.error("Failed to fetch Shopify variants for PID:", pid);
-                 console.groupEnd();
-                 continue;
-              }
+            
+            const cleanPid = getCleanShopifyId(pid);
+            if (!cleanPid || cleanPid === 'undefined' || cleanPid === 'null') {
+               console.warn(`[Discovery] Skipping group with invalid Product ID: ${pid}`);
+               console.groupEnd();
+               continue;
+            }
+
+            const res = await fetch(`/api/get-product-variants?productId=${cleanPid}`, {
+               headers: { 'x-dashboard-auth': auth }
+            });
+            if (!res.ok) {
+               console.error(`[Discovery] Shopify Error (Status ${res.status}) for PID:`, cleanPid);
+               console.groupEnd();
+               continue;
+            }
               
               const data = await res.json();
               console.log("Product Title:", data.title);
