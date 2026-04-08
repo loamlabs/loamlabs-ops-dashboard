@@ -63,8 +63,9 @@ const ReviewChangesModal = ({ isOpen, onClose, onConfirm, changes, originalData,
 
                   return (
                     <div key={rid} className="bg-amber-50 rounded-2xl border border-amber-100 overflow-hidden">
-                      <div className="bg-amber-100/30 p-3 text-xs font-bold text-amber-900 border-b border-amber-100">
-                        {original.Name || original.Vendor || rid}
+                      <div className="bg-amber-100/30 p-3 text-xs font-bold text-amber-900 border-b border-amber-100 flex justify-between items-center">
+                        <span>{original.Name || 'Unnamed'}</span>
+                        <span className="text-[10px] opacity-50 uppercase tracking-widest">{original.Vendor || 'No Vendor'}</span>
                       </div>
                       <div className="p-3 space-y-2">
                         {fieldChanges.map(([key, newVal]) => (

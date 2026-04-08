@@ -439,17 +439,52 @@ export default function OpsDashboard() {
     if (normTarget.includes('weight')) return component['Weight G (p)'] || component['Weight G (v)'] || component.weight || '';
     
     if (normTarget === 'wheelspecposition') return component['Wheel Spec Position'] || '';
-    if (normTarget === 'rimerd') return component['Rim Erd'] || component.rim_erd || '';
+    if (normTarget === 'rimerd') return component['Rim Erd'] || component.rim_erd || component['RIM ERD'] || '';
     
-    // Shopify ID Normalization for UI & Discovery
+    // Shopify ID Normalization - USE RAW ACCESS for Edit Drawers to avoid fallback loops
     if (normTarget === 'shopifyproductid' || normTarget === 'productid') {
-       return component.shopify_product_id || component['Product ID'] || component.id || component.ID || '';
+       return component.shopify_product_id || component['Product ID'] || '';
     }
     if (normTarget === 'shopifyvariantid' || normTarget === 'variantid') {
        return component.shopify_variant_id || component['Variant ID'] || '';
     }
 
     return '';
+  }, []);
+
+  const unifyComponentKeys = React.useCallback((data) => {
+     if (!data || typeof data !== 'object') return data;
+     
+     const processItem = (item) => {
+        const newItem = { ...item };
+        const mappings = {
+           'Rim Size': ['rim_size', 'RIM SIZE', 'Rim size', 'Option1 Value'],
+           'Rim Erd': ['rim_erd', 'RIM ERD', 'Rim erd'],
+           'Weight G (v)': ['weight', 'Weight (V)', 'Weight G(v)', 'weight_g'],
+           'Hole Count': ['holes', 'HOLES', 'Hole count', 'Spoke Count'],
+           'Color': ['color', 'COLOR', 'variant_color']
+        };
+
+        Object.entries(mappings).forEach(([official, aliases]) => {
+           aliases.forEach(alias => {
+              if (newItem[alias] !== undefined && newItem[alias] !== null && newItem[alias] !== '') {
+                 if (newItem[official] === undefined || newItem[official] === null || newItem[official] === '') {
+                    newItem[official] = newItem[alias];
+                 }
+                 // Only delete if it's a truly redundant "Ghost" column
+                 if (alias !== 'Option1 Value') delete newItem[alias];
+              }
+           });
+        });
+        return newItem;
+     };
+
+     if (Array.isArray(data)) return data.map(processItem);
+     const newData = {};
+     Object.entries(data).forEach(([tab, items]) => {
+        newData[tab] = Array.isArray(items) ? items.map(processItem) : items;
+     });
+     return newData;
   }, []);
 
   const getComponentValidation = React.useCallback((component, tab) => {
@@ -572,7 +607,9 @@ export default function OpsDashboard() {
                   hydrated[tab] = hydratedList;
               });
               
-              setComponentData(hydrated);
+              // JANITOR PASS: Unify ghost columns and standardise keys
+              const cleanData = unifyComponentKeys(hydrated);
+              setComponentData(cleanData);
               setComponentsLoaded(true);
           }
       } catch (e) { console.error('Fetch Component Error: ', e); }
@@ -616,7 +653,8 @@ export default function OpsDashboard() {
         showNotification("Save Error: No category selected", "error");
         return false;
     }
-    const sanitizedArray = newArray.map(item => {
+    const cleanArray = unifyComponentKeys(newArray);
+    const sanitizedArray = cleanArray.map(item => {
       const { tags, Tags, _rawIdx, _editIdx, ...rest } = item;
       return rest;
     });
@@ -787,11 +825,18 @@ export default function OpsDashboard() {
                  const vOpts = Object.values(v.options || {}).map(norm);
                  
                  if (tab === 'rims') {
-                    const cSize = norm(getComponentValue(comp, 'Rim Size'));
-                    const cHoles = norm(getComponentValue(comp, 'Hole Count')).replace(/\D/g, '');
-                    if (!cSize || !cHoles) return false;
-                    return vOpts.some(vo => vo === cSize) && vOpts.some(vo => vo.replace(/\D/g, '') === cHoles);
-                 }
+                     const cSizeRaw = getComponentValue(comp, 'Rim Size');
+                     const cSize = norm(cSizeRaw);
+                     const cHoles = norm(getComponentValue(comp, 'Hole Count')).replace(/\D/g, '');
+                     if (!cSize || !cHoles) {
+                        return false;
+                     }
+
+                     const sizeMatch = vOpts.some(vo => vo === cSize || vo.replace(/\D/g, '') === cSize.replace(/\D/g, ''));
+                     const holeMatch = vOpts.some(vo => vo.replace(/\D/g, '') === cHoles);
+                     
+                     return sizeMatch && holeMatch;
+                  }
                  
                  if (tab === 'hubs') {
                     const cHolesVal = getComponentValue(comp, 'Hole Count') || getComponentValue(comp, 'Spoke Count');
@@ -835,8 +880,10 @@ export default function OpsDashboard() {
                 const poolIdx = localVariantPool.indexOf(match);
                 if (poolIdx !== -1) localVariantPool.splice(poolIdx, 1);
              } else {
-                console.log("❌ NO AVAILABLE MATCH for technical specs.");
-             }
+                 const cSize = norm(getComponentValue(comp, 'Rim Size'));
+                 const cHoles = norm(getComponentValue(comp, 'Hole Count')).replace(/\D/g, '');
+                 console.log(`❌ NO AVAILABLE MATCH for technical specs. (Target: Size="${cSize}", Holes="${cHoles}")`);
+              }
 
              console.groupEnd();
           }
@@ -1731,8 +1778,13 @@ export default function OpsDashboard() {
                     const normalize = (v) => {
                        const cleanValue = cleanShopifyValue(v);
                        if (cleanValue === null || cleanValue === undefined || cleanValue === "") return "";
-                       const n = parseFloat(cleanValue);
-                       if (!isNaN(n)) return String(n);
+                       
+                       // Robust Numeric Comparison: "420.0" vs "420"
+                       const n = Number(cleanValue);
+                       if (!isNaN(n) && String(cleanValue).trim() !== "") {
+                          return String(n); // "420.0" -> "420", "420" -> "420"
+                       }
+                       
                        return String(cleanValue).toLowerCase().trim();
                     };
 
@@ -3508,7 +3560,7 @@ export default function OpsDashboard() {
                                        <input 
                                           type="text" 
                                           placeholder="Numeric ID only..."
-                                          value={getComponentValue(editingComponent, "shopify_product_id")}
+                                          value={editingComponent.shopify_product_id || ''}
                                           onChange={(e) => setEditingComponent({...editingComponent, shopify_product_id: e.target.value})}
                                           className="w-full p-3 rounded-xl outline-none border-2 border-transparent bg-white focus:border-emerald-500 transition-all font-mono text-xs font-bold shadow-sm"
                                        />
@@ -3518,7 +3570,7 @@ export default function OpsDashboard() {
                                        <input 
                                           type="text" 
                                           placeholder="Auto-synced..."
-                                          value={getComponentValue(editingComponent, "shopify_variant_id")}
+                                          value={editingComponent.shopify_variant_id || ''}
                                           onChange={(e) => setEditingComponent({...editingComponent, shopify_variant_id: e.target.value})}
                                           className="w-full p-3 rounded-xl outline-none border-2 border-transparent bg-white focus:border-emerald-500 transition-all font-mono text-xs font-bold shadow-sm"
                                        />
