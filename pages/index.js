@@ -146,7 +146,6 @@ export default function OpsDashboard() {
     { key: 'inventory_alert_threshold', label: 'Inventory Alert Threshold', categories: ['RIM', 'HUB', 'SPOKE', 'NIPPLE', 'VALVESTEM', 'ACCESSORY'], target: 'variant', type: 'integer' },
     { key: 'hub_manual_cross_value', label: 'Hub Manual Cross Value', categories: ['HUB'], target: 'variant', type: 'decimal' },
     { key: 'weight_g', label: 'Weight G (v)', categories: ['RIM', 'HUB', 'SPOKE', 'NIPPLE', 'VALVESTEM', 'ACCESSORY'], target: 'variant', type: 'decimal' },
-    { key: 'weight', label: 'Weight G (v) Aliased', categories: ['RIM', 'HUB', 'SPOKE', 'NIPPLE', 'VALVESTEM', 'ACCESSORY'], target: 'variant', type: 'decimal' },
     { key: 'length_adjust_mm', label: 'Length Adjust mm', categories: ['SPOKE'], target: 'variant', type: 'decimal' },
     { key: 'wheel_spec_position', label: 'Wheel Spec Position', categories: ['HUB'], target: 'variant', type: 'single_line_text_field', isConstant: true },
     { key: 'wheel_spec_brake_interface', label: 'Brake Interface', categories: ['HUB'], target: 'variant', type: 'single_line_text_field', isConstant: true },
@@ -160,7 +159,6 @@ export default function OpsDashboard() {
     { key: 'acc_rim_width_max', label: 'Accessory Compatible Rim Width MAX (mm)', categories: ['ACCESSORY'], target: 'variant', type: 'integer' },
     { key: 'hub_sp_offset_spoke_hole_left', label: 'Hub SP Offset Spoke Hole Left', categories: ['HUB'], target: 'variant', type: 'decimal' },
     { key: 'hub_sp_offset_spoke_hole_right', label: 'Hub SP Offset Spoke Hole Right', categories: ['HUB'], target: 'variant', type: 'decimal' },
-    { key: 'historical_order_count', label: 'Historical Order Count', categories: ['RIM', 'HUB', 'SPOKE', 'NIPPLE', 'VALVESTEM', 'ACCESSORY'], target: 'variant', type: 'integer' },
     { key: 'bti_part_number', label: 'BTI Part Number', categories: ['RIM', 'HUB', 'SPOKE', 'NIPPLE', 'VALVESTEM', 'ACCESSORY'], target: 'variant', type: 'single_line_text_field' },
     { key: 'inventory_sync_key', label: 'Inventory Sync Key', categories: ['RIM', 'HUB', 'SPOKE', 'NIPPLE', 'VALVESTEM', 'ACCESSORY'], target: 'variant', type: 'single_line_text_field' },
     { key: 'product_weight_g', label: 'Weight G (p)', categories: ['RIM', 'HUB', 'SPOKE', 'NIPPLE', 'VALVESTEM', 'ACCESSORY'], target: 'product', type: 'decimal' },
@@ -173,6 +171,7 @@ export default function OpsDashboard() {
     { key: 'model', label: 'Model', categories: ['RIM', 'HUB', 'NIPPLE', 'VALVESTEM', 'ACCESSORY'], target: 'product', type: 'single_line_text_field' },
     { key: 'pairing_key', label: 'Pairing Key', categories: ['RIM', 'HUB'], target: 'product', type: 'single_line_text_field' }
   ]);
+
   const [resizingCol, setResizingCol] = useState(null);
   const [startX, setStartX] = useState(0);
   const [startWidth, setStartWidth] = useState(0);
@@ -459,53 +458,66 @@ export default function OpsDashboard() {
   const unifyComponentKeys = React.useCallback((data) => {
      if (!data || typeof data !== 'object') return data;
      
+     // NUCLEAR BAN LIST - Everything is normalized to lowercase alphanumeric for comparison
+     const BURIED_FIELDS = [
+        'historical_order_count', 'historical order count', 'Weight G (v)', 'Weight (V)', 
+        'RIM SIZE', 'RIM ERD', 'Hole Count', 'Color', 'Rim Spoke Hole Offset', 
+        'ProductURL', 'Title', 'ID', 'Variant ID', 'Product ID'
+     ];
+     const BAN_LIST_NORM = BURIED_FIELDS.map(k => k.toLowerCase().replace(/[^a-z0-9]/g, ''));
+
      const processItem = (item) => {
         const newItem = { ...item };
-        const mappings = {
+        
+        // 1. Dynamic Registry Mapping: Migrate Shopify keys to Human Labels
+        metafieldRegistry.forEach(reg => {
+           const officialLabel = reg.label;
+           const rawKey = reg.key;
+           
+           // If the row has the raw Shopify key, migrate it to the grid label
+           if (newItem[rawKey] !== undefined && newItem[rawKey] !== null && String(newItem[rawKey]).trim() !== "" && newItem[rawKey] !== "(empty)") {
+              if (newItem[officialLabel] === undefined || newItem[officialLabel] === null || String(newItem[officialLabel]).trim() === "" || newItem[officialLabel] === "(empty)") {
+                 newItem[officialLabel] = newItem[rawKey];
+              }
+              // Always delete the raw key once we've migrated (or confirmed data exists in label)
+              delete newItem[rawKey];
+           }
+        });
+
+        // 2. Manual Legacy Mappings (Hardcoded overlaps)
+        const manualMappings = {
            'Rim Size': ['rim_size', 'RIM SIZE', 'Rim size'],
            'Rim Erd': ['rim_erd', 'RIM ERD', 'Rim erd'],
-           'weight_g': ['weight', 'Weight (V)', 'Weight G(v)', 'Weight G (v)', 'Weight G (V)', 'Weight G(V)'],
+           'Weight G (v)': ['weight', 'Weight (V)', 'Weight G(v)', 'Weight G (v)', 'Weight G (V)', 'Weight G(V)'],
            'Hole Count': ['holes', 'HOLES', 'Hole count', 'Spoke Count'],
-           'Color': ['color', 'COLOR', 'variant_color'],
-           '_buried': ['historical_order_count', 'historical order count']
+           'Color': ['color', 'COLOR', 'variant_color']
         };
 
-        Object.entries(mappings).forEach(([official, aliases]) => {
+        Object.entries(manualMappings).forEach(([official, aliases]) => {
            aliases.forEach(alias => {
-              // Capture value from ghost column
               if (newItem[alias] !== undefined && newItem[alias] !== null && String(newItem[alias]).trim() !== "" && newItem[alias] !== "(empty)") {
-                 // Migrate to official if official is empty
                  if (newItem[official] === undefined || newItem[official] === null || String(newItem[official]).trim() === "" || newItem[official] === "(empty)") {
                     newItem[official] = newItem[alias];
                  }
               }
-              // NUCLEAR CLEANUP: Explicitly delete the zombie key from the object NO MATTER WHAT
-              if (newItem.hasOwnProperty(alias)) {
-                 delete newItem[alias];
-              }
-           });
-           // Also delete whitespace variants if any
-           Object.keys(newItem).forEach(k => {
-              if (k.toLowerCase().trim() === official.toLowerCase().trim() && k !== official) {
-                 delete newItem[k];
-              }
+              delete newItem[alias];
            });
         });
 
-        // IDENTITY PURGE: Remove legacy ID fields that cause collision with Shopify mappings
-        if (newItem.ID) {
-           if (!newItem._internal_database_id) newItem._internal_database_id = newItem.ID;
-           delete newItem.ID;
-        }
-        if (newItem.id && !newItem.hasOwnProperty('_rid')) {
-           if (!newItem._internal_database_id) newItem._internal_database_id = newItem.id;
-           delete newItem.id;
-        }
-        if (newItem['Product ID']) delete newItem['Product ID'];
-        if (newItem['Variant ID']) delete newItem['Variant ID'];
+        // 3. NUCLEAR PURGE: Explicitly seek out and destroy all ghost fields
+        Object.keys(newItem).forEach(k => {
+           const normK = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+           if (BAN_LIST_NORM.includes(normK)) {
+              delete newItem[k];
+           }
+        });
+
+        // Identity Cleanup
+        if (newItem.ID) { if (!newItem._internal_database_id) newItem._internal_database_id = newItem.ID; delete newItem.ID; }
+        if (newItem.id && !newItem.hasOwnProperty('_rid')) { if (!newItem._internal_database_id) newItem._internal_database_id = newItem.id; delete newItem.id; }
 
         return newItem;
-     };
+      };
 
      if (Array.isArray(data)) return data.map(processItem);
      const newData = {};
@@ -513,7 +525,8 @@ export default function OpsDashboard() {
         newData[tab] = Array.isArray(items) ? items.map(processItem) : items;
      });
      return newData;
-  }, []);
+  }, [metafieldRegistry]);
+
 
   const getComponentValidation = React.useCallback((component, tab) => {
     if (!component) return { isValid: true, missingFields: [] };
@@ -947,6 +960,14 @@ export default function OpsDashboard() {
       const category = componentTab.toUpperCase().replace(/S$/, '');
       const activeTabRegistry = metafieldRegistry.filter(m => m.categories.includes(category));
 
+      // BAN LIST for sync protection
+      const BURIED_FIELDS = [
+         'historical_order_count', 'historical order count', 'Weight G (v)', 'Weight (V)', 
+         'RIM SIZE', 'RIM ERD', 'Hole Count', 'Color', 'Rim Spoke Hole Offset', 
+         'ProductURL', 'Title', 'ID', 'Variant ID', 'Product ID'
+      ];
+      const BAN_LIST_NORM = BURIED_FIELDS.map(k => k.toLowerCase().replace(/[^a-z0-9]/g, ''));
+
       try {
          for (const rid of selectedIds) {
             const comp = (componentData[componentTab] || []).find(c => (c._rid || c.id) === rid) || (gridAddedRows[componentTab] || []).find(c => (c._rid || c.id) === rid);
@@ -966,6 +987,10 @@ export default function OpsDashboard() {
             // Update specs based on registry
             const newSpecs = {};
             activeTabRegistry.forEach(m => {
+               // SKIP BANNED FIELDS
+               const normLabel = m.label.toLowerCase().replace(/[^a-z0-9]/g, '');
+               if (BAN_LIST_NORM.includes(normLabel)) return;
+
                const rawShopVal = variant.metafields?.find(sm => sm.key === m.key)?.value;
                const shopVal = cleanShopifyValue(rawShopVal);
                if (shopVal !== undefined && shopVal !== null && shopVal !== "") {

@@ -57,31 +57,48 @@ const ReviewChangesModal = ({ isOpen, onClose, onConfirm, changes, originalData,
               </h3>
               <div className="space-y-3">
                 {modifiedIds.map(rid => {
-                  const original = originalData.find(item => (item._rid || item.id) === rid);
-                  const fieldChanges = Object.entries(changes[rid]);
-                  if (!original) return null;
+                   // SEARCH BOTH EXISTING AND ADDED ROWS FOR IDENTITY
+                   const original = originalData.find(item => (item._rid || item.id) === rid) || 
+                                  addedRows.find(item => item._rid === rid);
 
-                  return (
-                    <div key={rid} className="bg-amber-50 rounded-2xl border border-amber-100 overflow-hidden">
-                      <div className="bg-amber-100/30 p-3 text-xs font-bold text-amber-900 border-b border-amber-100 flex justify-between items-center">
-                        <span>{original.Name || 'Unnamed'}</span>
-                        <span className="text-[10px] opacity-50 uppercase tracking-widest">{original.Vendor || 'No Vendor'}</span>
-                      </div>
-                      <div className="p-3 space-y-2">
-                        {fieldChanges.map(([key, newVal]) => (
-                          <div key={key} className="flex items-center text-sm gap-2">
-                            <span className="text-zinc-500 font-medium min-w-[80px]">{key}:</span>
-                            <span className="text-zinc-400 line-through truncate max-w-[120px]">{original[key] || '(empty)'}</span>
-                            <svg className="w-4 h-4 text-amber-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                            </svg>
-                            <span className="text-amber-900 font-bold bg-amber-200/50 px-2 py-0.5 rounded-md">{newVal}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
+                   if (!original) return null;
+
+                   // UI FILTER: Skip banned ghost fields from display
+                   const BANNED_DISPLAY = [
+                      'historical_order_count', 'weight g (v)', 'weight (v)', '_rid', 
+                      'shopify_product_id', 'shopify_variant_id', '_internal_database_id',
+                      'ProductURL', 'Title', 'ID', 'Variant ID', 'Product ID'
+                   ];
+
+                   const fieldChanges = Object.entries(changes[rid]).filter(([k]) => {
+                      const normK = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+                      return !BANNED_DISPLAY.some(b => b.toLowerCase().replace(/[^a-z0-9]/g, '') === normK);
+                   });
+
+                   if (fieldChanges.length === 0) return null;
+
+                   return (
+                     <div key={rid} className="bg-amber-50 rounded-2xl border border-amber-100 overflow-hidden">
+                       <div className="bg-amber-100/30 p-3 text-xs font-bold text-amber-900 border-b border-amber-100 flex justify-between items-center">
+                         <span>{original.Name || original.name || original.title || 'Unnamed Component'}</span>
+                         <span className="text-[10px] opacity-50 uppercase tracking-widest">{original.Vendor || original.brand || 'No Vendor'}</span>
+                       </div>
+                       <div className="p-3 space-y-2">
+                         {fieldChanges.map(([key, newVal]) => (
+                           <div key={key} className="flex items-center text-sm gap-2">
+                             <span className="text-zinc-500 font-medium min-w-[80px]">{key}:</span>
+                             <span className="text-zinc-400 line-through truncate max-w-[120px]">{original[key] || '(empty)'}</span>
+                             <svg className="w-4 h-4 text-amber-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                             </svg>
+                             <span className="text-amber-900 font-bold bg-amber-200/50 px-2 py-0.5 rounded-md">{newVal}</span>
+                           </div>
+                         ))}
+                       </div>
+                     </div>
+                   );
                 })}
+
               </div>
             </div>
           )}
