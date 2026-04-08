@@ -339,6 +339,12 @@ export default function OpsDashboard() {
     return `${name}_${item._rawIdx !== undefined ? item._rawIdx : index}`;
   }, []);
 
+  const getCleanShopifyId = React.useCallback((val) => {
+    if (!val) return '';
+    const str = String(val);
+    return str.includes('/') ? str.split('/').pop() : str;
+  }, []);
+
   const getComponentValue = React.useCallback((component, key) => {
     if (!component) return '';
     let normTarget = key.toLowerCase().replace(/[^a-z0-9]/g, '');
