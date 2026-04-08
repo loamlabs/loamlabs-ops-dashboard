@@ -395,6 +395,15 @@ export default function OpsDashboard() {
     });
     if (fuzzyKey) return component[fuzzyKey];
     
+    if (normTarget === 'rimsize' || normTarget === 'diameter' || normTarget === 'size') {
+        return component['Rim Size'] || component.size || component.diameter || '';
+    }
+    if (normTarget === 'holecount' || normTarget === 'spokecount' || normTarget === 'holes') {
+        return component['Hole Count'] || component['Spoke Count'] || component.holes || '';
+    }
+
+    if (normTarget.includes('weight')) return component['Weight G (p)'] || component['Weight G (v)'] || component.weight || '';
+    
     if (normTarget === 'wheelspecposition') return component['Wheel Spec Position'] || '';
     if (normTarget === 'rimerd') return component['Rim Erd'] || component.rim_erd || '';
     
@@ -405,8 +414,6 @@ export default function OpsDashboard() {
     if (normTarget === 'shopifyvariantid' || normTarget === 'variantid') {
        return component.shopify_variant_id || component['Variant ID'] || '';
     }
-
-    if (normTarget.includes('weight')) return component['Weight G (p)'] || component['Weight G (v)'] || component.weight || '';
 
     return '';
   }, []);
@@ -710,38 +717,47 @@ export default function OpsDashboard() {
          const componentsForPid = candidates.filter(c => getComponentValue(c, 'shopify_product_id') === pid);
          
          for (const comp of componentsForPid) {
-            // MATCHING ENGINE
+            console.group(`[Discovery] Scanning: ${comp.Name || 'Unnamed Component'}`);
+            
+            // MATCHING ENGINE (Category-Aware)
             const match = variants.find(v => {
-               const norm = (val) => String(val || "").toLowerCase().replace(/["']/g, '').trim();
+               const norm = (val) => String(val || "").toLowerCase().replace(/["'\\]/g, '').trim();
                const vOpts = Object.values(v.options).map(norm);
                
-               if (comp['Option 1 Value'] && vOpts.includes(norm(comp['Option 1 Value']))) {
-                  if (comp['Option 2 Value']) {
-                     return vOpts.includes(norm(comp['Option 2 Value']));
-                  }
-                  return true;
-               }
-
-               let sizeMatch = true;
-               if (comp['Rim Size']) {
-                  const s = norm(comp['Rim Size']);
-                  sizeMatch = vOpts.some(vo => vo.includes(s) || (s === '700c' && vo.includes('29')) || (s === '29' && vo.includes('700c')));
+               // 1. RIM LOGIC: Size + Hub Count
+               if (tab === 'rims') {
+                  const cSize = norm(getComponentValue(comp, 'Rim Size'));
+                  const cHoles = norm(getComponentValue(comp, 'Hole Count')).replace(/\D/g, '');
+                  
+                  const sizeMatch = vOpts.some(vo => vo.includes(cSize));
+                  const holeMatch = vOpts.some(vo => vo.replace(/\D/g, '') === cHoles);
+                  
+                  if (sizeMatch && holeMatch) return true;
                }
                
-               let holeMatch = true;
-               const holes = comp['Spoke Count'] || comp['Hole Count'];
-               if (holes) {
-                  const h = norm(holes).replace(/\D/g, '');
-                  holeMatch = vOpts.some(vo => vo.replace(/\D/g, '') === h);
+               // 2. HUB LOGIC: Spoke Count Only (First Color)
+               if (tab === 'hubs') {
+                  const cHoles = norm(getComponentValue(comp, 'Hole Count')).replace(/\D/g, '');
+                  const holeMatch = vOpts.some(vo => vo.replace(/\D/g, '') === cHoles);
+                  if (holeMatch) return true;
                }
-               const isMatch = sizeMatch && holeMatch && (comp['Rim Size'] || holes);
-               if (!isMatch && pid === '9227932926259') {
-                  console.log(`[Discovery Debug] Mismatch for ${comp.Name}:`, { sizeMatch, holeMatch, compSize: comp['Rim Size'], compHoles: holes, vOpts });
+
+               // 3. SPOKE LOGIC: "-" Length Variant
+               if (tab === 'spokes') {
+                  const lengthMatch = vOpts.some(vo => vo === '-');
+                  if (lengthMatch) return true;
                }
-               return isMatch;
+
+               // 4. NIPPLE LOGIC: First Available
+               if (tab === 'nipples') {
+                  return true; // Pick the first
+               }
+
+               return false;
             });
 
             if (match) {
+               console.log("✅ MATCH FOUND:", match.title, "ID:", match.id);
                proposals.push({
                   rid: comp._rid || comp.id,
                   name: comp.Name || comp.Vendor || 'Unknown',
@@ -750,7 +766,10 @@ export default function OpsDashboard() {
                   newVariantId: match.id,
                   fullGid: match.full_id
                });
+            } else {
+               console.log("❌ NO MATCH. Shopify Options:", variants.map(v => v.title));
             }
+            console.groupEnd();
          }
        }
        
