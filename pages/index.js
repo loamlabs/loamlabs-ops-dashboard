@@ -1519,94 +1519,126 @@ export default function OpsDashboard() {
        let mismatchCount = 0;
 
        try {
-          const auth = localStorage.getItem('loam_ops_auth');
-          
-          // Group by Product ID for batching
-          const grouped = candidates.reduce((acc, c) => {
-             const pid = getComponentValue(c, 'shopify_product_id');
-             if (!acc[pid]) acc[pid] = [];
-             acc[pid].push(c);
-             return acc;
-          }, {});
+           const auth = localStorage.getItem('loam_ops_auth');
+           console.group("🚀 Shopify Sync Audit Started");
+           console.log("Total Candidates:", candidates.length);
+           
+           // Group by Product ID for batching
+           const grouped = candidates.reduce((acc, c) => {
+              const pid = getComponentValue(c, 'shopify_product_id');
+              if (!acc[pid]) acc[pid] = [];
+              acc[pid].push(c);
+              return acc;
+           }, {});
 
-          for (const [pid, comps] of Object.entries(grouped)) {
-             const res = await fetch(`/api/get-product-variants?productId=${pid}`, {
-                headers: { 'x-dashboard-auth': auth }
-             });
-             if (!res.ok) continue;
-             
-             const data = await res.json();
-             const shopifyVariants = data.variants || [];
+           for (const [pid, comps] of Object.entries(grouped)) {
+              console.group(`📦 Auditing Product ID: ${pid}`);
+              const res = await fetch(`/api/get-product-variants?productId=${pid}`, {
+                 headers: { 'x-dashboard-auth': auth }
+              });
+              if (!res.ok) {
+                 console.error("Failed to fetch Shopify variants for PID:", pid);
+                 console.groupEnd();
+                 continue;
+              }
+              
+              const data = await res.json();
+              console.log("Product Title:", data.title);
+              console.log("Product Metafields:", data.metafields);
+              const shopifyVariants = data.variants || [];
 
-             for (const comp of comps) {
-                const vid = String(getComponentValue(comp, 'shopify_variant_id'));
-                const sVariant = shopifyVariants.find(v => String(v.id) === vid);
-                if (!sVariant) continue;
+              for (const comp of comps) {
+                 const name = comp.Name || comp.name || 'Unnamed';
+                 console.group(`🔍 Item: ${name}`);
+                 const vid = String(getComponentValue(comp, 'shopify_variant_id'));
+                 const sVariant = shopifyVariants.find(v => String(v.id) === vid);
+                 
+                 if (!sVariant) {
+                    console.warn("Could not find matching variant in Shopify for VID:", vid);
+                    console.groupEnd();
+                    continue;
+                 }
 
-                scanned++;
-                const compMismatches = [];
-                const rid = comp._rid || comp.id;
+                 console.log("Found Shopify Variant:", sVariant.title);
+                 console.log("Variant Metafields:", sVariant.metafields);
 
-                // Dynamic Metafield Comparison
-                Object.keys(comp).forEach(key => {
-                   let shopifyVal = null;
-                   let isMetafield = false;
+                 scanned++;
+                 const compMismatches = [];
+                 const rid = comp._rid || comp.id;
 
-                   if (key.startsWith('variant:metafield:')) {
-                      isMetafield = true;
-                      const parts = key.split(':'); // variant:metafield:custom:key:type
-                      const mKey = parts[3];
-                      shopifyVal = sVariant.metafields?.find(m => m.key === mKey)?.value;
-                   } else if (key.startsWith('metafield:')) {
-                      isMetafield = true;
-                      const parts = key.split(':'); // metafield:custom:key:type
-                      const mKey = parts[2];
-                      shopifyVal = data.metafields?.find(m => m.key === mKey)?.value;
-                   }
+                 // Dynamic Metafield Comparison
+                 Object.keys(comp).forEach(key => {
+                    let shopifyVal = null;
+                    let isMetafield = false;
+                    let source = "none";
 
-                   // --- NEW: Map human-readable keys back to Shopify ---
-                   // Use metafieldRegistry to find the human labels (e.g., 'Rim Erd' -> 'custom.rim_erd')
-                   const regField = metafieldRegistry.find(m => m.label === key || (m.label && m.label.toLowerCase() === key.toLowerCase()));
-                   if (regField) {
-                      isMetafield = true;
-                      if (regField.target === 'variant') {
-                         shopifyVal = sVariant.metafields?.find(m => m.key === regField.key)?.value;
-                      } else {
-                         shopifyVal = data.metafields?.find(m => m.key === regField.key)?.value;
-                      }
-                   }
+                    if (key.startsWith('variant:metafield:')) {
+                       isMetafield = true;
+                       source = "prefix_variant";
+                       const parts = key.split(':'); 
+                       const mKey = parts[3];
+                       shopifyVal = sVariant.metafields?.find(m => m.key === mKey)?.value;
+                    } else if (key.startsWith('metafield:')) {
+                       isMetafield = true;
+                       source = "prefix_product";
+                       const parts = key.split(':'); 
+                       const mKey = parts[2];
+                       shopifyVal = data.metafields?.find(m => m.key === mKey)?.value;
+                    }
 
-                   // Special Case: Wheel Spec Position (usually a constant variant prop or metafield)
-                   if (key === 'Wheel Spec Position') {
-                      isMetafield = true;
-                      shopifyVal = sVariant.metafields?.find(m => m.key === 'wheel_spec_position')?.value || sVariant.wheel_spec_position;
-                   }
+                    // --- NEW: Map human-readable keys back to Shopify ---
+                    const regField = metafieldRegistry.find(m => m.label === key || (m.label && m.label.toLowerCase() === key.toLowerCase()));
+                    if (regField) {
+                       isMetafield = true;
+                       source = `registry_${regField.target}`;
+                       if (regField.target === 'variant') {
+                          shopifyVal = sVariant.metafields?.find(m => m.key === regField.key)?.value;
+                       } else {
+                          shopifyVal = data.metafields?.find(m => m.key === regField.key)?.value;
+                       }
+                    }
 
-                   if (isMetafield) {
-                      const cVal = String(comp[key] || "").trim();
-                      const sVal = String(shopifyVal || "").trim();
-                      
-                      // Normalize values for comparison (handles 580 vs 580.0)
-                      const normalize = (v) => {
-                         if (!v) return "";
-                         const n = parseFloat(v);
-                         return !isNaN(n) ? String(n) : String(v).toLowerCase();
-                      };
+                    if (key === 'Wheel Spec Position') {
+                       isMetafield = true;
+                       source = "special_position";
+                       shopifyVal = sVariant.metafields?.find(m => m.key === 'wheel_spec_position')?.value || sVariant.wheel_spec_position;
+                    }
 
-                      if (normalize(cVal) !== normalize(sVal)) {
-                         compMismatches.push(key);
-                      }
-                   }
-                });
+                    if (isMetafield) {
+                       const cVal = String(comp[key] || "").trim();
+                       const sVal = String(shopifyVal || "").trim();
+                       
+                       const normalize = (v) => {
+                          if (!v) return "";
+                          const n = parseFloat(v);
+                          return !isNaN(n) ? String(n) : String(v).toLowerCase();
+                       };
 
-                if (compMismatches.length > 0) {
-                   newMismatches[rid] = compMismatches;
-                   mismatchCount++;
-                } else {
-                   delete newMismatches[rid];
-                }
-             }
-          }
+                       const ncVal = normalize(cVal);
+                       const nsVal = normalize(sVal);
+
+                       if (ncVal !== nsVal) {
+                          console.log(`❌ MISMATCH on [${key}] (Source: ${source})`);
+                          console.log(`   Lib Val: "${cVal}" (Norm: "${ncVal}")`);
+                          console.log(`   Sho Val: "${sVal}" (Norm: "${nsVal}")`);
+                          compMismatches.push(key);
+                       } else {
+                          // console.log(`✅ MATCH on [${key}]`);
+                       }
+                    }
+                 });
+
+                 if (compMismatches.length > 0) {
+                    newMismatches[rid] = compMismatches;
+                    mismatchCount++;
+                 } else {
+                    delete newMismatches[rid];
+                 }
+                 console.groupEnd();
+              }
+              console.groupEnd();
+           }
+           console.groupEnd();
 
           setSyncMismatches(newMismatches);
           showNotification(`Audit Complete. Scanned: ${scanned}. Mismatches: ${mismatchCount}.`, mismatchCount > 0 ? 'warning' : 'success');
