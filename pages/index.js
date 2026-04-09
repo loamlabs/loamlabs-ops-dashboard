@@ -1018,6 +1018,10 @@ export default function OpsDashboard() {
                                
                                if (isVariantLabel && lowK.includes('variant') && lowK.includes('weight')) return true;
                                if (isProductLabel && !lowK.includes('variant') && lowK.includes('weight')) return true;
+                               
+                               // If this is a weight field but failed the specialized checks above,
+                               // DO NOT fall through to general matching (prevents variant -> product cross-talk)
+                               return false;
                             }
 
                             // 3. Option Position mapping
@@ -3726,7 +3730,7 @@ export default function OpsDashboard() {
                           </button>
                           {(() => {
                              const activeList = (componentData[componentTab] || []).map((item, idx) => ({ ...item, _rawIdx: idx }));
-                             const excludeKeys = ['Name', 'name', 'title', 'Title', 'Vendor', 'vendor', 'Brand', 'brand', 'id', 'ID', 'shopify_product_id', 'Product ID', 'Variant ID', 'tags', 'RID', 'RAWIDX', '_rid', '_rawIdx', '_isNew', '_editIdx'];
+                             const excludeKeys = ['Name', 'name', 'title', 'Title', 'Vendor', 'vendor', 'Brand', 'brand', 'id', 'ID', 'shopify_product_id', 'Product ID', 'Variant ID', 'tags', 'RID', 'RAWIDX', '_rid', '_rawIdx', '_isNew', '_editIdx', 'wheel_spec_brake_interface', 'wheel_spec_hub_spacing', 'Brake Interface', 'Hub Spacing'];
                              const requiredKeys = ['Name', 'Vendor', ...Object.keys(activeList[0] || {}).filter(k => !excludeKeys.includes(k))];
                              const allConfirmed = !isDuplicateMode || requiredKeys.every(k => confirmedFields.includes(k));
                              
