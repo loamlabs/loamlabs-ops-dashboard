@@ -157,7 +157,7 @@ export default function OpsDashboard() {
     { key: 'hub_sp_offset_spoke_hole_right', label: 'Hub SP Offset Spoke Hole Right', categories: ['HUB'], target: 'variant', type: 'decimal' },
     { key: 'product_weight_g', label: 'Metafield: custom.weight_g [number_decimal]', categories: ['RIM', 'HUB', 'SPOKE', 'NIPPLE', 'VALVESTEM', 'ACCESSORY'], target: 'product', type: 'decimal' },
     { key: 'integrated_hub_name', label: 'Integrated Hub Name', categories: ['HUB'], target: 'product', type: 'single_line_text_field' },
-    { key: 'spoke_hub_interface', label: 'Spoke Hub Interface', categories: ['HUB', 'SPOKE'], target: 'product', type: 'single_line_text_field' },
+    { key: 'spoke_hub_interface', label: 'Spoke Hub Interface', categories: ['HUB'], target: 'product', type: 'single_line_text_field' },
     { key: 'model', label: 'Model', categories: ['RIM', 'HUB', 'NIPPLE', 'VALVESTEM', 'ACCESSORY'], target: 'product', type: 'single_line_text_field' },
     // HUB SPECIFIC JSON FIELDS
     { key: 'hub_lacing_cross_left', label: 'Hub Lacing Cross Left', categories: ['HUB'], target: 'variant', type: 'decimal' },
@@ -456,7 +456,7 @@ export default function OpsDashboard() {
          // Only parse as float if it's a pure numeric value (prevents "700c" -> "700" bug)
          if (/^-?\d*\.?\d+$/.test(clean)) {
             const n = parseFloat(clean);
-            return isNaN(n) ? clean.toLowerCase() : String(n);
+            if (!isNaN(n)) return String(n); // Standardize to clean number string (e.g. "0.70" -> "0.7")
          }
          
          return clean.toLowerCase();
@@ -3643,7 +3643,7 @@ export default function OpsDashboard() {
                                 <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block italic">Technical Specifications</label>
                                 {(() => {
                                    const activeList = (componentData[componentTab] || []).map((item, idx) => ({ ...item, _rawIdx: idx }));
-                                   const excludeKeys = ['Name', 'name', 'title', 'Title', 'Vendor', 'vendor', 'Brand', 'brand', 'id', 'ID', 'shopify_product_id', 'Product ID', 'Variant ID', 'tags', 'RID', 'RAWIDX', '_rid', '_rawIdx', '_isNew', '_editIdx'];
+                                   const excludeKeys = ['Name', 'name', 'title', 'Title', 'Vendor', 'vendor', 'Brand', 'brand', 'id', 'ID', 'shopify_product_id', 'Product ID', 'Variant ID', 'Shopify Variant ID', 'Shopify Product ID', 'shopify_variant_id', 'tags', 'RID', 'RAWIDX', '_rid', '_rawIdx', '_isNew', '_editIdx'];
                                    const specFields = [...new Set(activeList.slice(0, 10).flatMap(item => Object.keys(item)))].filter(k => !excludeKeys.includes(k));
                                    
                                    return specFields.map(key => {
@@ -3852,7 +3852,7 @@ export default function OpsDashboard() {
                                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block italic">Technical Specifications</label>
                                  {(() => {
                                     const activeList = (componentData[componentTab] || []);
-                                    const excludeKeys = ['Name', 'name', 'title', 'Title', 'Vendor', 'vendor', 'Brand', 'brand', 'id', 'ID', 'shopify_product_id', 'Product ID', 'Variant ID', 'tags', 'RID', 'RAWIDX', '_rid', '_rawIdx', '_isNew', '_editIdx'];
+                                    const excludeKeys = ['Name', 'name', 'title', 'Title', 'Vendor', 'vendor', 'Brand', 'brand', 'id', 'ID', 'shopify_product_id', 'Product ID', 'Variant ID', 'Shopify Variant ID', 'Shopify Product ID', 'shopify_variant_id', 'tags', 'RID', 'RAWIDX', '_rid', '_rawIdx', '_isNew', '_editIdx'];
                                     const specFields = Array.from(new Set(activeList.slice(0, 10).flatMap(item => Object.keys(item)))).filter(k => !excludeKeys.includes(k));
                                     
                                     const nodes = specFields.map(key => {
