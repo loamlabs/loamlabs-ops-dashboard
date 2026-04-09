@@ -122,6 +122,8 @@ export default function OpsDashboard() {
   const [showVariantSyncModal, setShowVariantSyncModal] = useState(false);
   const [proposedVariantUpdates, setProposedVariantUpdates] = useState([]);
   const [isDiscoveringVariants, setIsDiscoveringVariants] = useState(false);
+  const [isImportingProduct, setIsImportingProduct] = useState(false);
+  const [productSyncId, setProductSyncId] = useState('');
   const [notification, setNotification] = useState(null);
   const [gridUnsavedChanges, setGridUnsavedChanges] = useState({}); 
   const [gridAddedRows, setGridAddedRows] = useState({ hubs: [], rims: [], spokes: [], nipples: [] });
@@ -442,6 +444,15 @@ export default function OpsDashboard() {
   // --- SHARED AUDIT ENGINE ---
   // This 'Golden Rule' is shared by BOTH the Sync Audit and Sync Selected buttons
   // to ensure 100% consistency across the dashboard.
+   const formatShopifyTitle = (title) => {
+      if (!title) return '';
+      return title
+         .replace(/Centerlock/gi, 'CL')
+         .replace(/Hook Flange/gi, 'HF')
+         .replace(/Straight Pull/gi, 'SP')
+         .trim();
+   };
+
   const evaluateComponentAgainstShopify = React.useCallback((comp, shopifyVariant, tab) => {
      if (!comp || !shopifyVariant) return null;
      
@@ -1054,6 +1065,125 @@ export default function OpsDashboard() {
          showNotification("Sync failed: " + e.message, 'error');
      }
      setLoading(false);
+   };
+
+   const handleImportProductByID = async (productIdOverride) => {
+      const pidInput = productIdOverride || productSyncId;
+      if (!pidInput) {
+         showNotification("Please enter a Shopify Product ID", "warning");
+         return;
+      }
+
+      setIsImportingProduct(true);
+      const auth = password || localStorage.getItem('loam_ops_auth');
+      const tab = componentTab;
+
+      try {
+         const cleanPid = getCleanShopifyId(pidInput);
+         const res = await fetch(`/api/get-product-variants?productId=${cleanPid}`, {
+            headers: { 'x-dashboard-auth': auth }
+         });
+
+         if (!res.ok) {
+            throw new Error(`Shopify API returned ${res.status}`);
+         }
+
+         const { title, variants, metafields: productMetafields } = await res.json();
+         
+         // 1. Get Registry for current tab
+         const activeRegistry = metafieldRegistry.filter(m => 
+            m.categories?.map(c => c.toLowerCase() + 's').includes(tab)
+         );
+
+         const currentData = componentData[tab] || [];
+         const newChanges = { ...(gridUnsavedChanges[tab] || {}) };
+         const newAdded = [...(gridAddedRows[tab] || [])];
+         let importedCount = 0;
+         let collisionCount = 0;
+
+         variants.forEach((v, vIdx) => {
+            // Collision Check via Shopify Variant ID
+            const existing = currentData.find(c => {
+                const vid = String(c.shopify_variant_id || c['Variant ID'] || '');
+                return vid === String(v.id);
+            });
+            
+            if (existing) {
+               // --- COLLISION RECOVERY ---
+               // Use standard audit engine to find mismatches and stage them as proposals
+               const rid = existing._rid || getComponentUniqueId(existing);
+               const evaluation = evaluateComponentAgainstShopify(existing, { ...v, product: { title, metafields: productMetafields } }, tab);
+               
+               if (evaluation) {
+                  const currentChanges = { ...(newChanges[rid] || {}) };
+                  Object.entries(evaluation.proposals).forEach(([label, shopVal]) => {
+                     // Map label to technical key
+                     const regEntry = metafieldRegistry.find(r => r.label === label);
+                     const techK = regEntry?.key || label;
+                     const finalField = Object.keys(existing).find(k => k.toLowerCase() === techK.toLowerCase()) || techK;
+                     currentChanges[finalField] = shopVal;
+                  });
+                  newChanges[rid] = currentChanges;
+                  collisionCount++;
+               }
+            } else {
+               // --- NEW IMPORT ---
+               const baseObj = {
+                  _rid: `new_import_${Date.now()}_${vIdx}`,
+                  _isNew: true,
+                  Title: formatShopifyTitle(title),
+                  Vendor: '', // Placeholder for user or extracted below
+                  shopify_product_id: cleanPid,
+                  shopify_variant_id: v.id,
+               };
+
+               // Initialize mandatory fields
+               MANDATORY_FIELDS[tab]?.forEach(f => { if (baseObj[f] === undefined) baseObj[f] = ''; });
+
+               // Map Options from Shopify
+               const opts = Object.entries(v.options || {});
+               if (opts[0]) {
+                  baseObj['Option 1 Name'] = opts[0][0];
+                  baseObj['Option 1 Value'] = opts[0][1];
+               }
+               if (opts[1]) {
+                  baseObj['Option 2 Name'] = opts[1][0];
+                  baseObj['Option 2 Value'] = opts[1][1];
+               }
+
+               // Map Metafields via Registry
+               activeRegistry.forEach(m => {
+                  let val = null;
+                  if (m.target === 'variant') {
+                     val = v[m.key] || v.metafields?.find(sm => sm.key === m.key)?.value;
+                  } else {
+                     val = productMetafields?.find(sm => sm.key === m.key)?.value;
+                  }
+                  
+                  if (val !== undefined && val !== null) {
+                      // Attempt to map to human label first to maintain grid consistency
+                      baseObj[m.label] = val;
+                  }
+               });
+
+               newAdded.unshift(baseObj);
+               importedCount++;
+            }
+         });
+
+         if (importedCount > 0 || collisionCount > 0) {
+            setGridAddedRows(prev => ({ ...prev, [tab]: newAdded }));
+            setGridUnsavedChanges(prev => ({ ...prev, [tab]: newChanges }));
+            showNotification(`Import Analysis Complete! Staged ${importedCount} new rows and detected ${collisionCount} updates for existing items. Review changes before saving.`, "success");
+         } else {
+            showNotification("No importable data found for this product ID.", "info");
+         }
+      } catch (err) {
+         console.error("[Product Import Error]", err);
+         showNotification(`Import Failed: ${err.message}`, "error");
+      } finally {
+         setIsImportingProduct(false);
+      }
    };
 
    const applyVariantDiscovery = () => {
@@ -3609,18 +3739,32 @@ export default function OpsDashboard() {
                              </div>
 
                               {/* SHOPIFY LINKAGE SECTION */}
-                              <div className="space-y-4 mb-4 bg-emerald-50/30 p-6 rounded-3xl border border-emerald-100/50">
+                              <div className="space-y-4 mb-4 bg-emerald-50/50 p-6 rounded-3xl border border-emerald-100/50 shadow-inner">
                                  <label className="text-[10px] font-black uppercase tracking-widest text-emerald-600 block italic">Shopify Automation Link (Discovery)</label>
                                  <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-1">
                                        <div className="text-[8px] font-black uppercase text-zinc-400 ml-1">Shopify Product ID</div>
-                                       <input 
-                                          type="text" 
-                                          placeholder="Numeric ID only..."
-                                          value={editingComponent.shopify_product_id || ''}
-                                          onChange={(e) => setEditingComponent({...editingComponent, shopify_product_id: e.target.value})}
-                                          className="w-full p-3 rounded-xl outline-none border-2 border-transparent bg-white focus:border-emerald-500 transition-all font-mono text-xs font-bold shadow-sm"
-                                       />
+                                       <div className="flex gap-2">
+                                          <input 
+                                             type="text" 
+                                             placeholder="Numeric ID..."
+                                             value={editingComponent.shopify_product_id || productSyncId || ''}
+                                             onChange={(e) => {
+                                                const val = e.target.value;
+                                                setEditingComponent({...editingComponent, shopify_product_id: val});
+                                                setProductSyncId(val);
+                                             }}
+                                             className="flex-grow p-3 rounded-xl outline-none border-2 border-transparent bg-white focus:border-emerald-500 transition-all font-mono text-xs font-bold shadow-sm"
+                                          />
+                                          <button 
+                                             disabled={isImportingProduct || !(editingComponent.shopify_product_id || productSyncId)}
+                                             onClick={() => handleImportProductByID()}
+                                             className="p-3 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 transition-all shadow-md disabled:bg-zinc-200"
+                                             title="Rapid Sync: Pull all Product Metafields & Variants"
+                                          >
+                                             {isImportingProduct ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+                                          </button>
+                                       </div>
                                     </div>
                                     <div className="space-y-1">
                                        <div className="text-[8px] font-black uppercase text-zinc-400 ml-1">Shopify Variant ID</div>
@@ -3634,7 +3778,7 @@ export default function OpsDashboard() {
                                     </div>
                                  </div>
                                  <p className="text-[8px] font-bold text-zinc-400 uppercase leading-relaxed px-1">
-                                    These IDs power the <span className="text-emerald-600 font-black">Link Variants</span> engine. Items without Product IDs are skipped.
+                                    Use the <span className="text-emerald-600 font-black">Product Sync</span> button to pull all engineering specs directly from your live Shopify store.
                                  </p>
                               </div>
 
