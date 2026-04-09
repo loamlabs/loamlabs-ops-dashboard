@@ -437,24 +437,7 @@ export default function OpsDashboard() {
           return (regKey && cleanK === regKey.replace(/[^a-z0-9]/g, '')) || cleanK === normTarget;
        });
        if (deepMatch) return component[deepMatch];
-
-       // C. Weight Specific Fallback
-       if (normTarget.includes('weight')) {
-          const wMatch = keys.find(k => {
-             const normK = k.toLowerCase().replace(/[^a-z0-9]/g, '');
-             const val = component[k];
-             return normK.includes('weight') && val !== undefined && val !== null && String(val).trim() !== '';
-          });
-          if (wMatch) return component[wMatch];
-       }
-
-       // D. Option Specific Fallback
-       if (normTarget.startsWith('option')) {
-          const oMatch = keys.find(k => k.toLowerCase().replace(/[^a-z0-9]/g, '') === normTarget);
-          if (oMatch) return component[oMatch];
-       }
-
-       return '';
+       return "";
     };
 
     const result = findInJSON();
@@ -513,6 +496,11 @@ export default function OpsDashboard() {
            nsVal = shopValsNorm.includes(ncVal) ? ncVal : (shopValsNorm[0] || "");
         } else {
            nsVal = normalize(shopifyVal);
+        }
+
+        // [FIX] Ignore mismatch if Shopify is empty/0 but Grid has data (prevents destructive wipes)
+        if ((nsVal === "" || nsVal === "0") && ncVal !== "") {
+           return; 
         }
 
         // Special handling for Hole Counts (e.g. "32H" vs "32")
