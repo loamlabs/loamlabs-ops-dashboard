@@ -477,6 +477,7 @@ const ComponentLibraryGrid = React.memo(({
           </thead>
           <tbody className="divide-y divide-zinc-100">
             {finalFilteredList.map((row, i) => {
+              if (!row) return null;
               const rowId = row._rid || getComponentUniqueId(row);
               const isSelected = selectedComponents.includes(rowId);
               const validation = getComponentValidation(row, componentTab);

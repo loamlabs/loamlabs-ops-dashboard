@@ -844,7 +844,7 @@ export default function OpsDashboard() {
       
       // --- NEW: Selection-Aware Discovery ---
       let candidates = [];
-      const selectedForTab = items.filter((item, idx) => selectedComponents.includes(item._rid || getComponentUniqueId(item, idx)));
+      const selectedForTab = items.filter((item, idx) => item && selectedComponents.includes(item._rid || getComponentUniqueId(item, idx)));
 
       if (selectedForTab.length > 0) {
          // User has selected specific rows -> process them regardless of if they have IDs
@@ -994,7 +994,7 @@ export default function OpsDashboard() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'x-dashboard-auth': auth },
             body: JSON.stringify({ variantIds: selected.map(rid => {
-               const c = (componentData[componentTab] || []).find(x => (x._rid || x.id) === rid);
+               const c = (componentData[componentTab] || []).find(x => x && (x._rid || x.id) === rid);
                return c?.shopify_variant_id || c?.['Variant ID'];
             }).filter(Boolean) })
          });
@@ -1005,7 +1005,7 @@ export default function OpsDashboard() {
             let updatedCount = 0;
 
             selected.forEach(rid => {
-               const comp = (componentData[componentTab] || []).find(c => (c._rid || c.id) === rid);
+               const comp = (componentData[componentTab] || []).find(c => c && (c._rid || c.id) === rid);
                const vid = comp?.shopify_variant_id || comp?.['Variant ID'];
                const variantData = variantMap[vid];
 
@@ -1253,8 +1253,8 @@ export default function OpsDashboard() {
        
        // --- DATA INTEGRITY FIX ---
        // Find the technical key in the underlying object to update
-       const rowData = (componentData[componentTab] || []).find(c => (c._rid || c.id) === rowId) || 
-                       (gridAddedRows[componentTab] || []).find(c => (c._rid || c.id) === rowId);
+       const rowData = (componentData[componentTab] || []).find(c => c && (c._rid || c.id) === rowId) || 
+                       (gridAddedRows[componentTab] || []).find(c => c && (c._rid || c.id) === rowId);
 
        let finalKey = colKey;
        const regEntry = metafieldRegistry.find(r => r.label === colKey || r.key === colKey);
@@ -1342,8 +1342,8 @@ export default function OpsDashboard() {
      const gridRows = rows.map(r => r.split('\t'));
      const allCols = getComponentTabColumns(componentTab);
      const startColIndex = allCols.indexOf(startColKey);
-     const visibleData = (componentData[componentTab] || []).map((item, idx) => ({ ...item, _rid: getComponentUniqueId(item, idx) }));
-     const startRowIndex = visibleData.findIndex(r => r._rid === startRowId);
+     const visibleData = (componentData[componentTab] || []).filter(Boolean).map((item, idx) => ({ ...item, _rid: getComponentUniqueId(item, idx) }));
+     const startRowIndex = visibleData.findIndex(r => r && r._rid === startRowId);
      
      if (startRowIndex === -1 || startColIndex === -1) return currentChanges;
 
@@ -1445,7 +1445,7 @@ export default function OpsDashboard() {
 
   const handleRemoveAddedRow = React.useCallback((rid) => {
     setGridAddedRows(prev => {
-        const currentTabRows = (prev[componentTab] || []).filter(r => r._rid !== rid);
+        const currentTabRows = (prev[componentTab] || []).filter(r => r && r._rid !== rid);
         return {
             ...prev,
             [componentTab]: currentTabRows
@@ -1500,7 +1500,7 @@ export default function OpsDashboard() {
     let componentToEdit = comp;
     if (comp._isNew) {
         const added = gridAddedRows[componentTab] || [];
-        const found = added.find(r => r._rid === comp._rid);
+        const found = added.find(r => r && r._rid === comp?._rid);
         if (found) componentToEdit = found;
     }
     setEditingComponent({ ...componentToEdit, _editIdx: idx });
@@ -1629,10 +1629,11 @@ export default function OpsDashboard() {
     const activeList = componentData[componentTab] || [];
     const addedList = gridAddedRows[componentTab] || [];
     const combined = [...activeList, ...addedList];
-    const vends = combined.map(item => {
-       const rid = item._rid || getComponentUniqueId(item);
-       const unsaved = (gridUnsavedChanges[componentTab] || {})[rid] || {};
-       return unsaved.Vendor || item.Vendor || item.vendor || item.Brand || item.brand;
+     const vends = combined.map(item => {
+        if (!item) return null;
+        const rid = item._rid || getComponentUniqueId(item);
+        const unsaved = (gridUnsavedChanges[componentTab] || {})[rid] || {};
+        return unsaved.Vendor || item.Vendor || item.vendor || item.Brand || item.brand;
     }).filter(v => typeof v === 'string' && v.trim() !== '');
     return [...new Set(vends)].sort((a,b) => a.localeCompare(b));
   }, [componentData, componentTab, gridAddedRows, gridUnsavedChanges, getComponentUniqueId]);
@@ -1643,7 +1644,7 @@ export default function OpsDashboard() {
     const activeList = componentData[componentTab].map((item, idx) => ({ ...item, _rawIdx: idx }));
     const addedRows = gridAddedRows[componentTab] || [];
     // Prepend addedRows so they naturally start at the top
-    const combinedList = [...addedRows, ...activeList];
+    const combinedList = [...addedRows, ...activeList].filter(Boolean);
 
     let preFilteredList = componentVendorFilter === 'All' 
       ? combinedList 
@@ -1668,8 +1669,8 @@ export default function OpsDashboard() {
     return [...preFilteredList].sort((a,b) => {
       // Prioritize actual drafts (items in gridAddedRows) over database items
       // Prioritize actual drafts (items in gridAddedRows) over database items
-      const isDraftA = gridAddedRows[componentTab]?.some(r => r._rid === a._rid);
-      const isDraftB = gridAddedRows[componentTab]?.some(r => r._rid === b._rid);
+      const isDraftA = gridAddedRows[componentTab]?.some(r => r?._rid === a?._rid);
+      const isDraftB = gridAddedRows[componentTab]?.some(r => r?._rid === b?._rid);
 
       if (isDraftA && !isDraftB) return -1;
       if (!isDraftA && isDraftB) return 1;
@@ -1745,7 +1746,7 @@ export default function OpsDashboard() {
     if (selectedComponents.length === 0) return;
     if (!confirm("Delete " + selectedComponents.length + " component(s)? This cannot be undone.")) return;
     const rawData = componentData[componentTab] || [];
-    const updatedArray = rawData.filter((item, idx) => !selectedComponents.includes(getComponentUniqueId(item, idx)));
+    const updatedArray = rawData.filter((item, idx) => item && !selectedComponents.includes(getComponentUniqueId(item, idx)));
     setComponentSaving(true);
     await saveComponentChanges(updatedArray);
     setSelectedComponents([]);
@@ -1755,7 +1756,7 @@ export default function OpsDashboard() {
   const handleOpenMassEdit = React.useCallback(() => {
      try {
         const activeList = componentData[componentTab] || [];
-        const selectedItems = activeList.filter((item, i) => selectedComponents.includes(getComponentUniqueId(item, i)));
+        const selectedItems = activeList.filter((item, i) => item && selectedComponents.includes(getComponentUniqueId(item, i)));
        
         const initialValues = {};
         // OPTIMIZATION: If selection is very large (> 100 items), skip common-value calculation 
@@ -3605,7 +3606,7 @@ export default function OpsDashboard() {
                    <div className="flex gap-4 mb-8 border-b-2 border-zinc-100 pb-2">
                       {['rims', 'hubs', 'spokes', 'nipples'].map(tab => {
                          const tabMismatches = (componentData[tab] || []).filter(c => {
-                            const rid = c._rid || getComponentUniqueId(c);
+                            const rid = c?._rid || getComponentUniqueId(c);
                             return syncMismatches[rid] && syncMismatches[rid].length > 0;
                          }).length;
 

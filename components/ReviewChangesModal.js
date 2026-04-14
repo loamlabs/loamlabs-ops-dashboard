@@ -58,8 +58,8 @@ const ReviewChangesModal = ({ isOpen, onClose, onConfirm, changes, originalData,
               <div className="space-y-3">
                 {modifiedIds.map(rid => {
                    // SEARCH BOTH EXISTING AND ADDED ROWS FOR IDENTITY
-                   const original = originalData.find(item => (item._rid || item.id) === rid) || 
-                                  addedRows.find(item => item._rid === rid);
+                   const original = originalData.find(item => item && (item._rid || item.id) === rid) || 
+                                  addedRows.find(item => item && item._rid === rid);
 
                    if (!original) return null;
 
