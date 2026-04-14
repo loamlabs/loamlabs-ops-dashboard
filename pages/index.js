@@ -296,7 +296,7 @@ export default function OpsDashboard() {
     return allUniqueRules.filter(rule => {
       const matchesVendor = selectedVendors.length === 0 || selectedVendors.includes(rule.vendor_name);
       
-      const normalize = (str) => String(str || "").toLowerCase().replace(/×/g, 'x').replace(/\s+/g, ' ').trim();
+      const normalize = (str) => String(str || "").toLowerCase().replace(/Ã—/g, 'x').replace(/\s+/g, ' ').trim();
       const searchString = normalize(registrySearch);
       const searchTokens = searchString ? searchString.split(' ').filter(Boolean) : [];
       const searchMatch = searchTokens.length === 0 || searchTokens.every(token => 
@@ -327,7 +327,7 @@ export default function OpsDashboard() {
   }, []);
 
   useEffect(() => {
-    console.log("%c🚀 [SYSTEM] DASHBOARD VERSION 2.2 ACTIVE", "color: #3b82f6; font-size: 14px; font-weight: 800; padding: 4px; border: 2px solid #3b82f6; border-radius: 4px;");
+    console.log("%cðŸš€ [SYSTEM] DASHBOARD VERSION 2.2 ACTIVE", "color: #3b82f6; font-size: 14px; font-weight: 800; padding: 4px; border: 2px solid #3b82f6; border-radius: 4px;");
     if (typeof window !== 'undefined') {
        window.__DASHBOARD_VERSION__ = "2.2-nuclear-debug";
     }
@@ -351,7 +351,7 @@ export default function OpsDashboard() {
   const getComponentUniqueId = React.useCallback((item, index) => {
     if (!item) return `empty_${index || 'unknown'}`;
     // Priority 1: Use the permanent stable _rid
-    if (item._rid) return item._rid;
+    if (item?._rid) return item?._rid;
     // Priority 2: Use native database IDs
     const baseId = item.id || item.shopify_product_id || item.ID || item['Product ID'] || item['Variant ID'];
     if (baseId) return String(baseId);
@@ -633,10 +633,10 @@ export default function OpsDashboard() {
            if (d.success && d.optionsDict) setMetafieldOptionsMap(d.optionsDict);
         }).catch(e => console.error("Meta def sync err", e));
       } else {
-        showNotification("❌ Dashboard Login Failed", 'error');
+        showNotification("âŒ Dashboard Login Failed", 'error');
       }
     } catch (e) { 
-      showNotification("❌ Critical Error: " + e.message, 'error');
+      showNotification("âŒ Critical Error: " + e.message, 'error');
     }
     setLoading(false);
   };
@@ -664,7 +664,7 @@ export default function OpsDashboard() {
                        const specs = specKeys.map(k => `${k}:${item[k]}`).join('|');
                        const hash = `${title}_${vendor}_${specs}`.toLowerCase().replace(/[^a-z0-9]/g, '');
                        
-                       let rid = item._rid;
+                       let rid = item?._rid;
                        // If RID is numeric (looks like a Shopify ID), prioritize the internal hash for separation
                        if (!rid || /^\d+$/.test(String(rid))) {
                           rid = `rid_${hash}`;
@@ -804,7 +804,7 @@ export default function OpsDashboard() {
      
      // 2. Map over added rows
      const finalAdded = added.map((item, idx) => {
-         const rid = item._rid; 
+         const rid = item?._rid; 
          if (rid && unsaved[rid]) return { ...item, ...unsaved[rid] };
          return item;
      });
@@ -844,7 +844,7 @@ export default function OpsDashboard() {
       
       // --- NEW: Selection-Aware Discovery ---
       let candidates = [];
-      const selectedForTab = items.filter((item, idx) => item && selectedComponents.includes(item._rid || getComponentUniqueId(item, idx)));
+      const selectedForTab = items.filter((item, idx) => item && selectedComponents.includes(item?._rid || getComponentUniqueId(item, idx)));
 
       if (selectedForTab.length > 0) {
          // User has selected specific rows -> process them regardless of if they have IDs
@@ -946,7 +946,7 @@ export default function OpsDashboard() {
                 }
 
                 proposals.push({
-                   rid: comp._rid || comp.id,
+                   rid: comp?._rid || comp.id,
                    title: compTitle,
                    productTitle: title,
                    variantTitle: match.title,
@@ -1112,14 +1112,33 @@ export default function OpsDashboard() {
          // COLLISION ENGINE: Merge permanent data with currently staged/added rows
          const permanentData = componentData[tab] || [];
          const stagedData = gridAddedRows[tab] || [];
-         const currentData = [...permanentData, ...stagedData];
+         const currentData = [...permanentData, ...stagedData].filter(Boolean);
 
          const newChanges = { ...(gridUnsavedChanges[tab] || {}) };
          const newAdded = [...stagedData]; // Work with currently staged list
          let importedCount = 0;
          let collisionCount = 0;
 
-         variants.forEach((v, vIdx) => {
+          // --- NEW: Variant Deduplication (Representative Color Only) ---
+          const processedVariants = [];
+          const seenSpecs = new Set();
+          
+          variants.forEach(v => {
+             const vOpts = Object.entries(v.options || {});
+             // Build signature of all non-color options
+             const signature = vOpts
+                .filter(([name]) => !/color|colour|finish|surface/i.test(name))
+                .map(([name, val]) => `${name}:${val}`)
+                .sort()
+                .join('|');
+             
+             if (!seenSpecs.has(signature)) {
+                seenSpecs.add(signature);
+                processedVariants.push(v);
+             }
+          });
+
+          processedVariants.forEach((v, vIdx) => {
             // Collision Check via Shopify Variant ID
             const existing = currentData.find(c => {
                 const vid = String(c.shopify_variant_id || c['Variant ID'] || '');
@@ -1128,7 +1147,7 @@ export default function OpsDashboard() {
             
             if (existing) {
                // --- COLLISION RECOVERY ---
-               const rid = existing._rid || getComponentUniqueId(existing);
+               const rid = (existing?._rid || getComponentUniqueId(existing));
                const evaluation = evaluateComponentAgainstShopify(existing, { ...v, product: { title, handle, vendor, metafields: productMetafields } }, tab);
                
                if (evaluation) {
@@ -1253,8 +1272,8 @@ export default function OpsDashboard() {
        
        // --- DATA INTEGRITY FIX ---
        // Find the technical key in the underlying object to update
-       const rowData = (componentData[componentTab] || []).find(c => c && (c._rid || c.id) === rowId) || 
-                       (gridAddedRows[componentTab] || []).find(c => c && (c._rid || c.id) === rowId);
+       const rowData = (componentData[componentTab] || []).find(c => c && (c?._rid || c?.id) === rowId) || 
+                       (gridAddedRows[componentTab] || []).find(c => c && (c?._rid || c?.id) === rowId);
 
        let finalKey = colKey;
        const regEntry = metafieldRegistry.find(r => r.label === colKey || r.key === colKey);
@@ -1354,7 +1373,7 @@ export default function OpsDashboard() {
      gridRows.forEach((rowCells, rOffset) => {
        const targetRow = visibleData[startRowIndex + rOffset];
        if (!targetRow) return;
-       const rid = targetRow._rid;
+       const rid = targetRow?._rid;
        const rowChanges = { ...(tabChanges[rid] || {}) };
        rowCells.forEach((cellVal, cOffset) => {
          const colKey = allCols[startColIndex + cOffset];
@@ -1420,13 +1439,13 @@ export default function OpsDashboard() {
     const isShift = e && (e.shiftKey || (e.nativeEvent && e.nativeEvent.shiftKey));
     
     if (isShift && lastCheckedComponentRef.current && list.length > 0) {
-        const currentIdx = list.findIndex(r => (r._rid || getComponentUniqueId(r)) === rowId);
-        const lastIdx = list.findIndex(r => (r._rid || getComponentUniqueId(r)) === lastCheckedComponentRef.current);
+        const currentIdx = list.findIndex(r => (r?._rid || getComponentUniqueId(r)) === rowId);
+        const lastIdx = list.findIndex(r => (r?._rid || getComponentUniqueId(r)) === lastCheckedComponentRef.current);
         
         if (currentIdx !== -1 && lastIdx !== -1) {
             const start = Math.min(currentIdx, lastIdx);
             const end = Math.max(currentIdx, lastIdx);
-            const rangeIds = list.slice(start, end + 1).map(r => r._rid || getComponentUniqueId(r));
+            const rangeIds = list.slice(start, end + 1).map(r => r?._rid || getComponentUniqueId(r));
             
             setSelectedComponents(prev => {
                 const combined = new Set([...prev, ...rangeIds]);
@@ -1464,7 +1483,7 @@ export default function OpsDashboard() {
   }, [componentTab]);
 
   const handleDeleteComponent = React.useCallback(async (item) => {
-      const rowId = item._rid || getComponentUniqueId(item);
+      const rowId = item?._rid || getComponentUniqueId(item);
       const isNew = !!item._isNew;
       
       if (isNew) {
@@ -1479,7 +1498,7 @@ export default function OpsDashboard() {
 
       const rawData = componentData[componentTab] || [];
       const updatedArray = rawData.filter(i => {
-          const rid = i._rid || getComponentUniqueId(i);
+          const rid = i?._rid || getComponentUniqueId(i);
           return rid !== rowId;
       });
 
@@ -1500,7 +1519,7 @@ export default function OpsDashboard() {
     let componentToEdit = comp;
     if (comp._isNew) {
         const added = gridAddedRows[componentTab] || [];
-        const found = added.find(r => r && r._rid === comp?._rid);
+        const found = added.find(r => r && r?._rid === comp?._rid);
         if (found) componentToEdit = found;
     }
     setEditingComponent({ ...componentToEdit, _editIdx: idx });
@@ -1631,7 +1650,7 @@ export default function OpsDashboard() {
     const combined = [...activeList, ...addedList];
      const vends = combined.map(item => {
         if (!item) return null;
-        const rid = item._rid || getComponentUniqueId(item);
+        const rid = item?._rid || getComponentUniqueId(item);
         const unsaved = (gridUnsavedChanges[componentTab] || {})[rid] || {};
         return unsaved.Vendor || item.Vendor || item.vendor || item.Brand || item.brand;
     }).filter(v => typeof v === 'string' && v.trim() !== '');
@@ -1649,7 +1668,7 @@ export default function OpsDashboard() {
     let preFilteredList = componentVendorFilter === 'All' 
       ? combinedList 
       : combinedList.filter(item => {
-          const rid = item._rid || getComponentUniqueId(item);
+          const rid = item?._rid || getComponentUniqueId(item);
           const unsaved = (gridUnsavedChanges[componentTab] || {})[rid] || {};
           const v = unsaved.Vendor || item.Vendor || item.vendor || item.Brand || item.brand;
           return v === componentVendorFilter;
@@ -1661,7 +1680,7 @@ export default function OpsDashboard() {
 
     if (showMismatchesOnly) {
       preFilteredList = preFilteredList.filter(item => {
-        const rid = item._rid || getComponentUniqueId(item);
+        const rid = item?._rid || getComponentUniqueId(item);
         return syncMismatches[rid] && syncMismatches[rid].length > 0;
       });
     }
@@ -1720,9 +1739,9 @@ export default function OpsDashboard() {
     try {
       const auth = localStorage.getItem('loam_ops_auth');
       const res = await fetch('/api/import-catalog', { method: 'POST', headers: { 'x-dashboard-auth': auth, 'Content-Type': 'application/json' } });
-      if (res.ok) { showNotification("✅ Catalog Tags Synced Successfully!"); fetchRules(); }
-      else { const err = await res.json(); showNotification("❌ Sync Failed: " + (err.error || "Unknown Error"), 'error'); }
-    } catch (e) { showNotification("❌ Sync Failed: " + e.message, 'error'); }
+      if (res.ok) { showNotification("âœ… Catalog Tags Synced Successfully!"); fetchRules(); }
+      else { const err = await res.json(); showNotification("âŒ Sync Failed: " + (err.error || "Unknown Error"), 'error'); }
+    } catch (e) { showNotification("âŒ Sync Failed: " + e.message, 'error'); }
     setLoading(false);
   };
 
@@ -1875,7 +1894,7 @@ export default function OpsDashboard() {
   };
 
   const deleteRule = async (id) => {
-    if (!confirm("⚠️ PERMANENT ACTION: Remove this item from the Registry?")) return;
+    if (!confirm("âš ï¸ PERMANENT ACTION: Remove this item from the Registry?")) return;
     await fetch('/api/delete-rule', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-dashboard-auth': password }, body: JSON.stringify({ id }) });
     fetchRules();
   };
@@ -1897,9 +1916,9 @@ export default function OpsDashboard() {
     try {
       const res = await fetch('/api/duplicate-product', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-dashboard-auth': password }, body: JSON.stringify({ productId: `gid://shopify/Product/${dupSourceProduct.shopify_product_id}`, options: dupOptions }) });
       const data = await res.json();
-      if (res.ok) { showNotification("✅ " + data.message); setShowDupModal(false); fetchRules(); }
-      else { showNotification("❌ Error: " + data.error, 'error'); }
-    } catch (e) { console.error(e); showNotification("❌ Critical Error during duplication.", 'error'); }
+      if (res.ok) { showNotification("âœ… " + data.message); setShowDupModal(false); fetchRules(); }
+      else { showNotification("âŒ Error: " + data.error, 'error'); }
+    } catch (e) { console.error(e); showNotification("âŒ Critical Error during duplication.", 'error'); }
     setLoading(false);
   };
 
@@ -1922,7 +1941,7 @@ export default function OpsDashboard() {
   };
 
   const bulkDelete = async () => {
-    if (!confirm(`⚠️ PERMANENT ACTION: Delete ${selectedRules.length} items from the Registry?`)) return;
+    if (!confirm(`âš ï¸ PERMANENT ACTION: Delete ${selectedRules.length} items from the Registry?`)) return;
     setLoading(true);
     try {
       await Promise.all(selectedRules.map(id => fetch('/api/delete-rule', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-dashboard-auth': password }, body: JSON.stringify({ id }) })));
@@ -1932,7 +1951,7 @@ export default function OpsDashboard() {
   };
 
   const bulkIgnore = async () => {
-    if (!confirm(`⚠️ PERMANENT DESTRUCTIVE ACTION: Do you want to tag these ${selectedRules.length} items to be permanently ignored in Shopify and purged from this Registry?`)) return;
+    if (!confirm(`âš ï¸ PERMANENT DESTRUCTIVE ACTION: Do you want to tag these ${selectedRules.length} items to be permanently ignored in Shopify and purged from this Registry?`)) return;
     setLoading(true);
     try {
       const productIds = [...new Set(selectedRules.map(id => rules.find(r => r.id === id)?.shopify_product_id).filter(Boolean))];
@@ -2028,7 +2047,7 @@ export default function OpsDashboard() {
                );
              
              list.forEach(item => {
-                const rid = item._rid || item.id;
+                const rid = item?._rid || item?.id;
                 const vid = item.shopify_variant_id || item['Variant ID'];
                 if (!vid) return;
 
@@ -2369,7 +2388,7 @@ export default function OpsDashboard() {
 
   const bulkIgnoreLab = async () => {
     if (selectedLabProducts.length === 0) return;
-    if (!confirm(`⚠️ Are you sure you want to hide ${selectedLabProducts.length} items from the Product Lab?`)) return;
+    if (!confirm(`âš ï¸ Are you sure you want to hide ${selectedLabProducts.length} items from the Product Lab?`)) return;
     setLoading(true);
     try {
       const res = await fetch('/api/bulk-update-tags', {
@@ -2410,7 +2429,7 @@ export default function OpsDashboard() {
   };
 
   const removeMetafield = (key) => {
-    if (!confirm(`⚠️ Delete '${key}' from registry permanently?`)) return;
+    if (!confirm(`âš ï¸ Delete '${key}' from registry permanently?`)) return;
     setMetafieldRegistry(prev => prev.filter(m => m.key !== key));
   };
 
@@ -2653,7 +2672,7 @@ export default function OpsDashboard() {
                   <button onClick={() => bulkSetAutoSync(false)} className="flex items-center gap-2 text-[10px] font-black uppercase text-zinc-400 hover:text-white transition-colors bg-zinc-900 px-3 py-2 rounded-xl"><ZapOff size={14} /> Disable Auto-Sync</button>
                   <div className="w-px h-6 bg-zinc-800 hidden sm:block"></div>
                   <button onClick={bulkSetPriceAdjust} className="flex items-center gap-2 text-[10px] font-black uppercase text-blue-400 hover:text-blue-300 transition-colors bg-blue-950/30 px-3 py-2 rounded-xl"><DollarSign size={14} /> Set Price Adjust</button>
-                  <button onClick={bulkSetCompareAt} className="flex items-center gap-2 text-[10px] font-black uppercase text-purple-400 hover:text-purple-300 transition-colors bg-purple-950/30 px-3 py-2 rounded-xl"><Tag size={14} /> Set Compare-At → Base</button>
+                  <button onClick={bulkSetCompareAt} className="flex items-center gap-2 text-[10px] font-black uppercase text-purple-400 hover:text-purple-300 transition-colors bg-purple-950/30 px-3 py-2 rounded-xl"><Tag size={14} /> Set Compare-At â†’ Base</button>
                   <div className="w-px h-6 bg-zinc-800 hidden sm:block"></div>
                   <button onClick={() => runSelectiveSync(selectedRules)} className="flex items-center gap-2 text-[10px] font-black uppercase text-white hover:text-green-400 transition-colors bg-zinc-900 px-3 py-2 rounded-xl border border-zinc-700"><RefreshCcw size={14} className={loading ? 'animate-spin' : ''} /> Sync Selected Items</button>
                   <div className="w-px h-6 bg-zinc-800 hidden sm:block"></div>
@@ -2683,11 +2702,11 @@ export default function OpsDashboard() {
                           <div className="absolute left-0 top-full mt-2 hidden group-hover/legend:block w-72 bg-black text-white text-[10px] p-4 rounded-xl z-50 shadow-2xl border border-zinc-700 leading-relaxed">
                             <div className="text-zinc-400 mb-2 uppercase font-black tracking-widest">Row Color Legend</div>
                             <div className="space-y-1.5">
-                              <div className="flex items-center gap-2"><div className="w-3 h-3 rounded bg-red-500/30 border border-red-400"></div> Review Required — margin safety triggered</div>
-                              <div className="flex items-center gap-2"><div className="w-3 h-3 rounded bg-amber-200 border border-amber-400"></div> Drastic Sale — vendor price 10%+ below MSRP</div>
-                              <div className="flex items-center gap-2"><div className="w-3 h-3 rounded bg-blue-600 border border-blue-700"></div> BTI Active — inventory deferred to BTI</div>
-                              <div className="flex items-center gap-2"><div className="w-3 h-3 rounded bg-red-50 border border-red-200"></div> Missing URL — no vendor URL mapped</div>
-                              <div className="flex items-center gap-2"><div className="w-3 h-3 rounded bg-zinc-200 border border-zinc-300"></div> Selected — currently checked</div>
+                              <div className="flex items-center gap-2"><div className="w-3 h-3 rounded bg-red-500/30 border border-red-400"></div> Review Required â€” margin safety triggered</div>
+                              <div className="flex items-center gap-2"><div className="w-3 h-3 rounded bg-amber-200 border border-amber-400"></div> Drastic Sale â€” vendor price 10%+ below MSRP</div>
+                              <div className="flex items-center gap-2"><div className="w-3 h-3 rounded bg-blue-600 border border-blue-700"></div> BTI Active â€” inventory deferred to BTI</div>
+                              <div className="flex items-center gap-2"><div className="w-3 h-3 rounded bg-red-50 border border-red-200"></div> Missing URL â€” no vendor URL mapped</div>
+                              <div className="flex items-center gap-2"><div className="w-3 h-3 rounded bg-zinc-200 border border-zinc-300"></div> Selected â€” currently checked</div>
                               <div className="border-t border-zinc-700 my-2"></div>
                               <div className="text-zinc-400 mb-1 uppercase font-black tracking-widest">Status Pills</div>
                               <div className="flex items-center gap-2"><span className="bg-green-100 text-green-700 text-[8px] px-2 py-0.5 rounded-full font-black">ACTIVE</span> Vendor shows in stock</div>
@@ -2748,7 +2767,7 @@ export default function OpsDashboard() {
                               <span className="text-[7px] font-mono text-zinc-400 font-bold">{rule.bti_part_number}</span>
                             </div>
                           ) : (
-                            <span className="text-zinc-200 text-[10px] font-bold">—</span>
+                            <span className="text-zinc-200 text-[10px] font-bold">â€”</span>
                           )}
                         </td>
                         <td className="p-6 font-mono font-bold text-lg text-zinc-700">
@@ -3044,7 +3063,7 @@ export default function OpsDashboard() {
                     {(() => {
                       const filtered = Object.values(allUniqueRules.filter(r => {
                         const matchesVendor = selectedVendors.length === 0 || selectedVendors.includes(r.vendor_name);
-                        const normalize = (str) => String(str || "").toLowerCase().replace(/×/g, 'x').replace(/\s+/g, ' ').trim();
+                        const normalize = (str) => String(str || "").toLowerCase().replace(/Ã—/g, 'x').replace(/\s+/g, ' ').trim();
                         const searchString = normalize(labSearch);
                         const searchTokens = searchString ? searchString.split(' ').filter(Boolean) : [];
                         const searchMatch = searchTokens.length === 0 || searchTokens.every(token => 
@@ -3126,7 +3145,7 @@ export default function OpsDashboard() {
                               <td className="p-6 text-center">
                                 {hasIssue ? (
                                   <div className="group/integrity relative inline-block">
-                                    <span className="bg-red-100 text-red-600 px-3 py-1 rounded-full font-black text-[9px] uppercase italic animate-pulse cursor-help border border-red-200">⚠️ Discrepancy</span>
+                                    <span className="bg-red-100 text-red-600 px-3 py-1 rounded-full font-black text-[9px] uppercase italic animate-pulse cursor-help border border-red-200">âš ï¸ Discrepancy</span>
                                     <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 hidden group-hover/integrity:block w-48 bg-black text-white text-[10px] p-3 rounded-xl z-50 shadow-2xl font-sans text-left leading-relaxed">
                                        <div className="text-zinc-400 mb-2 uppercase font-black tracking-widest">Inconsistent Fields:</div>
                                        {Object.keys(discrepancies).map(k => (
@@ -3139,7 +3158,7 @@ export default function OpsDashboard() {
                                     </div>
                                   </div>
                                 ) : (
-                                  <span className="bg-green-50 text-green-600 px-3 py-1 rounded-full font-black text-[9px] uppercase italic border border-green-100">✓ Healthy</span>
+                                  <span className="bg-green-50 text-green-600 px-3 py-1 rounded-full font-black text-[9px] uppercase italic border border-green-100">âœ“ Healthy</span>
                                 )}
                               </td>
                               <td className="p-6 text-right">
@@ -3930,9 +3949,9 @@ export default function OpsDashboard() {
                                         
                                         let existingIdx = -1;
                                         // Enforce stable identification via _rid for the master list
-                                        const targetId = editingComponent._rid;
+                                        const targetId = editingComponent?._rid;
                                         if (targetId) {
-                                           existingIdx = activeArray.findIndex((item, i) => (item._rid === targetId) || (getComponentUniqueId(item, i) === targetId));
+                                           existingIdx = activeArray.findIndex((item, i) => item && ((item?._rid === targetId) || (getComponentUniqueId(item, i) === targetId)));
                                         } else if (_editIdx !== undefined && _editIdx >= 0 && _editIdx < activeArray.length) {
                                            // Fallback for objects missing _rid but having a valid local index context
                                            existingIdx = _editIdx;
@@ -4091,7 +4110,7 @@ export default function OpsDashboard() {
                                           <div className="grid grid-cols-2 gap-3">
                                              <div className="bg-zinc-50/50 p-3 rounded-xl border border-zinc-100/30">
                                                 <div className="text-[7px] font-black uppercase text-zinc-400 mb-0.5">Internal RID</div>
-                                                <div className="font-mono text-[8px] truncate text-zinc-500" title={editingComponent._rid}>{editingComponent._rid || "N/A"}</div>
+                                                <div className="font-mono text-[8px] truncate text-zinc-500" title={editingComponent?._rid}>{editingComponent?._rid || "N/A"}</div>
                                              </div>
                                              <div className="bg-zinc-50/50 p-3 rounded-xl border border-zinc-100/30">
                                                 <div className="text-[7px] font-black uppercase text-zinc-400 mb-0.5">Raw Index</div>
@@ -4227,7 +4246,7 @@ export default function OpsDashboard() {
                                     {metaEditFields[m.key] === '_CONFLICT_' && (
                                        <div className="absolute inset-[2px] z-10 flex items-center justify-center bg-zinc-100/90 backdrop-blur-[1px] rounded-[10px] border border-dashed border-zinc-300 group">
                                           <button className="bg-white px-3 py-1.5 rounded-lg text-[10px] font-black uppercase shadow-sm border border-zinc-200 hover:border-black transition-all flex items-center gap-2 text-zinc-500 hover:text-black hover:bg-zinc-100 group-hover:scale-105" onClick={() => setMetaEditFields({...metaEditFields, [m.key]: ''})}>
-                                             🔒 Unlock to Override
+                                             ðŸ”’ Unlock to Override
                                           </button>
                                        </div>
                                     )}
@@ -4416,7 +4435,7 @@ export default function OpsDashboard() {
                     <div>
                         <label className="text-[10px] font-black uppercase text-zinc-400 mb-2 block tracking-widest italic">OOS Reminder</label>
                         <button onClick={() => setEditingRule({...editingRule, oos_reminder_enabled: !editingRule.oos_reminder_enabled})} className={`w-full p-4 rounded-xl font-black text-sm uppercase transition-all border-2 ${editingRule.oos_reminder_enabled !== false ? 'bg-green-50 text-green-700 border-green-200' : 'bg-zinc-100 text-zinc-400 border-transparent'}`}>
-                            {editingRule.oos_reminder_enabled !== false ? '✓ Enabled' : '✗ Disabled'}
+                            {editingRule.oos_reminder_enabled !== false ? 'âœ“ Enabled' : 'âœ— Disabled'}
                         </button>
                     </div>
                 </div>
@@ -4438,7 +4457,7 @@ export default function OpsDashboard() {
                             <div>
                                 <label className="text-[10px] font-black uppercase text-zinc-400 mb-2 block tracking-widest italic">Monitoring</label>
                                 <button onClick={() => setEditingRule({...editingRule, bti_monitoring_enabled: !editingRule.bti_monitoring_enabled})} className={`w-full p-4 rounded-xl font-black text-sm uppercase transition-all border-2 ${editingRule.bti_monitoring_enabled !== false ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-zinc-100 text-zinc-400 border-transparent'}`}>
-                                    {editingRule.bti_monitoring_enabled !== false ? '✓ Active' : '✗ Off'}
+                                    {editingRule.bti_monitoring_enabled !== false ? 'âœ“ Active' : 'âœ— Off'}
                                 </button>
                             </div>
                         </div>
@@ -4754,3 +4773,10 @@ export default function OpsDashboard() {
     </div>
   );
 }
+
+
+
+
+
+
+
