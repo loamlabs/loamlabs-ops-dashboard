@@ -36,78 +36,19 @@ export default async function handler(req, res) {
           title
           status
           handle
+          vendor
           metafields(first: 50) {
             edges {
-              node {
-                key
-                namespace
-                value
-              }
-            }
-          }
-          variants(first: 250) {
-            edges {
-              node {
-                id
-                title
-                sku
-                metafields(first: 50) {
-                  edges {
-                    node {
-                      key
-                      namespace
-                      value
-                    }
-                  }
-                }
-                selectedOptions {
-                  name
-                  value
-                }
-              }
-            }
-          }
-        }
-      }
-    `;
-
-    const response = await fetch(shopifyUrl, {
-      method: 'POST',
-      headers: {
-        'X-Shopify-Access-Token': adminToken,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ query, variables: { id: gid } })
-    });
-
-    const data = await response.json();
-    if (data.errors) {
-       console.error(`[API] Shopify GID ${gid} returned errors:`, JSON.stringify(data.errors));
-       return res.status(500).json({ error: 'Shopify API Error', details: data.errors });
-    }
-
-    const product = data.data?.product;
-    if (!product) {
-      console.warn(`[API] Product ID ${productId} (GID: ${gid}) NOT FOUND in Shopify.`);
-      return res.status(404).json({ error: 'Product not found in Shopify' });
-    }
-    
-    console.log(`[API] Found Product: ${product.title} (Status: ${product.status})`);
-
-    const variants = product.variants.edges.map(e => ({
-      id: e.node.id.split('/').pop(),
-      full_id: e.node.id,
-      title: e.node.title,
-      metafields: e.node.metafields?.edges.map(me => me.node) || [],
-      options: e.node.selectedOptions.reduce((acc, opt) => {
-        acc[opt.name] = opt.value;
-        return acc;
-      }, {})
-    }));
-
+...
     const productMetafields = product.metafields?.edges.map(me => me.node) || [];
 
-    return res.status(200).json({ title: product.title, variants, metafields: productMetafields });
+    return res.status(200).json({ 
+      title: product.title, 
+      handle: product.handle,
+      vendor: product.vendor,
+      variants, 
+      metafields: productMetafields 
+    });
   } catch (e) {
     console.error(e);
     return res.status(500).json({ error: 'Internal Server Error' });

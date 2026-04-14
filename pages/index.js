@@ -20,10 +20,10 @@ const DROPDOWN_OPTIONS = {
 };
 
 const MANDATORY_FIELDS = {
-  rims: ['Title', 'Vendor', 'Option 1 Name', 'Option 1 Value', 'Option 2 Name', 'Option 2 Value', 'Wheel Spec Position', 'Rim Erd', 'Weight G (p)'],
-  hubs: ['Title', 'Vendor', 'Option 1 Name', 'Option 1 Value', 'Hub Type', 'Weight G (v)', 'Wheel Spec Position'],
+  rims: ['Title', 'Vendor', 'Option1 Name', 'Option1 Value', 'Option2 Name', 'Option2 Value', 'Wheel Spec Position', 'Rim Erd', 'Weight G (p)'],
+  hubs: ['Title', 'Vendor', 'Option1 Name', 'Option1 Value', 'Hub Type', 'Weight G (v)', 'Wheel Spec Position'],
   spokes: ['Title', 'Vendor', 'Spoke Type', 'Spoke Cross Section Area Mm2', 'Spoke Model Group', 'Weight G (p)', 'Spoke Diameter Spec', 'Spoke Rounding Rule'],
-  nipples: ['Title', 'Vendor', 'Option 1 Name', 'Option 1 Value', 'Weight G (p)']
+  nipples: ['Title', 'Vendor', 'Option1 Name', 'Option1 Value', 'Weight G (p)']
 };
 
 
@@ -444,13 +444,20 @@ export default function OpsDashboard() {
   // --- SHARED AUDIT ENGINE ---
   // This 'Golden Rule' is shared by BOTH the Sync Audit and Sync Selected buttons
   // to ensure 100% consistency across the dashboard.
-   const formatShopifyTitle = (title) => {
+   const formatShopifyTitle = (title, category) => {
       if (!title) return '';
-      return title
+      let clean = title
          .replace(/Centerlock/gi, 'CL')
          .replace(/Hook Flange/gi, 'HF')
-         .replace(/Straight Pull/gi, 'SP')
-         .trim();
+         .replace(/Straight Pull/gi, 'SP');
+      
+      // Smart Rim Cleaner: Only remove 'Rim' if it is the absolute final word
+      // This preserves components like "Velocity A23 (Rim Brake)"
+      if (category === 'rims') {
+         clean = clean.replace(/\s+rim$/i, '');
+      }
+      
+      return clean.trim();
    };
 
   const evaluateComponentAgainstShopify = React.useCallback((comp, shopifyVariant, tab) => {
@@ -1088,7 +1095,7 @@ export default function OpsDashboard() {
             throw new Error(`Shopify API returned ${res.status}`);
          }
 
-         const { title, variants, metafields: productMetafields } = await res.json();
+         const { title, handle, vendor, variants, metafields: productMetafields } = await res.json();
          
          // 1. Get Registry for current tab
          const activeRegistry = metafieldRegistry.filter(m => 
@@ -1110,14 +1117,12 @@ export default function OpsDashboard() {
             
             if (existing) {
                // --- COLLISION RECOVERY ---
-               // Use standard audit engine to find mismatches and stage them as proposals
                const rid = existing._rid || getComponentUniqueId(existing);
-               const evaluation = evaluateComponentAgainstShopify(existing, { ...v, product: { title, metafields: productMetafields } }, tab);
+               const evaluation = evaluateComponentAgainstShopify(existing, { ...v, product: { title, handle, vendor, metafields: productMetafields } }, tab);
                
                if (evaluation) {
                   const currentChanges = { ...(newChanges[rid] || {}) };
                   Object.entries(evaluation.proposals).forEach(([label, shopVal]) => {
-                     // Map label to technical key
                      const regEntry = metafieldRegistry.find(r => r.label === label);
                      const techK = regEntry?.key || label;
                      const finalField = Object.keys(existing).find(k => k.toLowerCase() === techK.toLowerCase()) || techK;
@@ -1131,8 +1136,9 @@ export default function OpsDashboard() {
                const baseObj = {
                   _rid: `new_import_${Date.now()}_${vIdx}`,
                   _isNew: true,
-                  Title: formatShopifyTitle(title),
-                  Vendor: '', // Placeholder for user or extracted below
+                  Title: formatShopifyTitle(title, tab),
+                  Vendor: vendor || '',
+                  ProductURL: handle ? `https://loamlabsusa.com/products/${handle}` : '',
                   shopify_product_id: cleanPid,
                   shopify_variant_id: v.id,
                };
@@ -1140,15 +1146,15 @@ export default function OpsDashboard() {
                // Initialize mandatory fields
                MANDATORY_FIELDS[tab]?.forEach(f => { if (baseObj[f] === undefined) baseObj[f] = ''; });
 
-               // Map Options from Shopify
+               // Map Options from Shopify (Consolidated Naming)
                const opts = Object.entries(v.options || {});
                if (opts[0]) {
-                  baseObj['Option 1 Name'] = opts[0][0];
-                  baseObj['Option 1 Value'] = opts[0][1];
+                  baseObj['Option1 Name'] = opts[0][0];
+                  baseObj['Option1 Value'] = opts[0][1];
                }
                if (opts[1]) {
-                  baseObj['Option 2 Name'] = opts[1][0];
-                  baseObj['Option 2 Value'] = opts[1][1];
+                  baseObj['Option2 Name'] = opts[1][0];
+                  baseObj['Option2 Value'] = opts[1][1];
                }
 
                // Map Metafields via Registry
@@ -1161,7 +1167,6 @@ export default function OpsDashboard() {
                   }
                   
                   if (val !== undefined && val !== null) {
-                      // Attempt to map to human label first to maintain grid consistency
                       baseObj[m.label] = val;
                   }
                });

@@ -17,10 +17,10 @@ async function getShopifyToken() {
       grant_type: 'client_credentials'
     })
   });
-  
+
   if (!response.ok) {
-     const errorText = await response.text();
-     throw new Error(`Failed to get Shopify token: ${response.status} ${errorText}`);
+    const errorText = await response.text();
+    throw new Error(`Failed to get Shopify token: ${response.status} ${errorText}`);
   }
 
   const data = await response.json();
@@ -53,14 +53,14 @@ export default async function handler(req, res) {
 
     // Map short IDs to Shopify GIDs - Shopify Variant GID is 'gid://shopify/ProductVariant/ID'
     const gids = variantIds.map(id => {
-       if (!id) return null;
-       id = String(id).trim();
-       if (id.startsWith('gid://')) return id;
-       // Handle numeric string or raw number
-       const numericId = id.split('/').pop();
-       return `gid://shopify/ProductVariant/${numericId}`;
+      if (!id) return null;
+      id = String(id).trim();
+      if (id.startsWith('gid://')) return id;
+      // Handle numeric string or raw number
+      const numericId = id.split('/').pop();
+      return `gid://shopify/ProductVariant/${numericId}`;
     }).filter(Boolean);
-    
+
     if (gids.length === 0) return res.status(200).json({});
 
     const query = `
@@ -103,46 +103,46 @@ export default async function handler(req, res) {
     });
 
     if (!response.ok) {
-        const errText = await response.text();
-        console.error(`[API] Shopify GraphQL HTTP Error: ${response.status}`, errText);
-        return res.status(response.status).json({ error: 'Shopify HTTP Error', details: errText });
+      const errText = await response.text();
+      console.error(`[API] Shopify GraphQL HTTP Error: ${response.status}`, errText);
+      return res.status(response.status).json({ error: 'Shopify HTTP Error', details: errText });
     }
 
     const data = await response.json();
     if (data.errors) {
-       console.error(`[API] Shopify GraphQL Query Errors:`, JSON.stringify(data.errors));
-       return res.status(500).json({ error: 'Shopify Query Error', details: data.errors });
+      console.error(`[API] Shopify GraphQL Query Errors:`, JSON.stringify(data.errors));
+      return res.status(500).json({ error: 'Shopify Query Error', details: data.errors });
     }
 
     const nodes = data.data?.nodes || [];
     const variantMap = {};
 
     nodes.forEach((node, index) => {
-       if (!node || !node.id) {
-          console.warn(`[API] Node at index ${index} (GID: ${gids[index]}) was NOT FOUND or is not a ProductVariant.`);
-          return;
-       }
-       
-       const shortId = node.id.split('/').pop();
-       variantMap[shortId] = {
-          id: shortId,
-          full_id: node.id,
-          title: node.title,
-          sku: node.sku,
-          product: node.product ? {
-             id: node.product.id.split('/').pop(),
-             title: node.product.title,
-             metafields: node.product.metafields?.edges.map(e => e.node) || []
-          } : null,
-          metafields: node.metafields?.edges.map(e => e.node) || [],
-          option1: node.selectedOptions?.[0]?.value,
-          option2: node.selectedOptions?.[1]?.value,
-          option3: node.selectedOptions?.[2]?.value,
-          options: node.selectedOptions?.reduce((acc, opt) => {
-             acc[opt.name] = opt.value;
-             return acc;
-          }, {}) || {}
-       };
+      if (!node || !node.id) {
+        console.warn(`[API] Node at index ${index} (GID: ${gids[index]}) was NOT FOUND or is not a ProductVariant.`);
+        return;
+      }
+
+      const shortId = node.id.split('/').pop();
+      variantMap[shortId] = {
+        id: shortId,
+        full_id: node.id,
+        title: node.title,
+        sku: node.sku,
+        product: node.product ? {
+          id: node.product.id.split('/').pop(),
+          title: node.product.title,
+          metafields: node.product.metafields?.edges.map(e => e.node) || []
+        } : null,
+        metafields: node.metafields?.edges.map(e => e.node) || [],
+        option1: node.selectedOptions?.[0]?.value,
+        option2: node.selectedOptions?.[1]?.value,
+        option3: node.selectedOptions?.[2]?.value,
+        options: node.selectedOptions?.reduce((acc, opt) => {
+          acc[opt.name] = opt.value;
+          return acc;
+        }, {}) || {}
+      };
     });
 
     return res.status(200).json(variantMap);
