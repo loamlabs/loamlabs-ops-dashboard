@@ -491,7 +491,6 @@ export default function OpsDashboard() {
       );
      
      console.group(`[Sync Audit] Evaluating: ${comp.Title || 'Unnamed'}`);
-     console.log('Registry Fields:', activeTabRegistry.map(m => m.label));
 
      activeTabRegistry.forEach(m => {
         // Evaluate based on registry rule
@@ -527,7 +526,6 @@ export default function OpsDashboard() {
         }
 
         if (ncVal !== nsVal) {
-           console.log(`❌ Mismatch [${m.label}]: Grid="${ncVal}" vs Shopify="${nsVal}" (Source: ${m.target})`);
            mismatches.push(m.label);
            // Proposed value is always the Shopify value (Standardize)
            proposals[m.label] = (Array.isArray(shopifyVal) ? shopifyVal[0] : shopifyVal) || "";
@@ -739,13 +737,11 @@ export default function OpsDashboard() {
     setComponentSaving(true);
     try {
       const auth = password || localStorage.getItem('loam_ops_auth');
-      console.log(`[Persistence Debug] Attempting SAVE: Tab=${tab}, Items=${sanitizedArray.length}, AuthPresent=${!!auth}`);
       const res = await fetch('/api/components', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-dashboard-auth': auth },
         body: JSON.stringify({ [tab]: sanitizedArray })
       });
-      console.log(`[Persistence Debug] ${tab.toUpperCase()} SAVE Status: ${res.status} ${res.statusText}`);
       if (res.ok) {
         // Transition items: strip _isNew flag from CLEANED data
         const transitionedArray = cleanArray.map(item => {
@@ -827,7 +823,13 @@ export default function OpsDashboard() {
 
    const handleFinalConfirmSave = React.useCallback(async () => {
       setShowReviewModal(false);
-      const success = await saveComponentChanges(stagedUpdatedArray, componentTab);
+      // DATA SANITIZATION: Strip internal ephemeral keys before persisting to GitHub
+      const cleanedArray = stagedUpdatedArray.map(item => {
+          const { _rid, _isNew, _rawIdx, _editIdx, ...rest } = item;
+          return rest;
+      });
+
+      const success = await saveComponentChanges(cleanedArray, componentTab);
       if (success) {
         setGridUnsavedChanges(prev => ({ ...prev, [componentTab]: {} }));
         setGridAddedRows(prev => ({ ...prev, [componentTab]: [] }));
@@ -931,7 +933,6 @@ export default function OpsDashboard() {
              if (techCandidates.length > 0) {
                 // 2. Select the FIRST technical match (Color is Ignored as requested)
                 const match = techCandidates[0];
-                console.log(`✅ MATCH FOUND (Technical): ${match.title}`);
 
                 // 3. Process the Match
                 let hasSpecMismatch = false;
@@ -960,7 +961,6 @@ export default function OpsDashboard() {
              } else {
                  const cSize = norm(getComponentValue(comp, 'Rim Size'));
                  const cHoles = norm(getComponentValue(comp, 'Hole Count')).replace(/\D/g, '');
-                 console.log(`❌ NO AVAILABLE MATCH for technical specs. (Target: Size="${cSize}", Holes="${cHoles}")`);
               }
 
              console.groupEnd();
@@ -1054,7 +1054,6 @@ export default function OpsDashboard() {
                                    (lowK.includes('metafield:') && lowK.includes(lowT));
                          }) || techK;
 
-                         console.log(`Mapping Proposal [${label}] to technical field [${finalField}] with value [${shopVal}]`);
 
                         rowChanges[finalField] = shopVal;
                      });
@@ -1323,7 +1322,6 @@ export default function OpsDashboard() {
         return !BAN_LIST.includes(normK);
      });
 
-     console.log(`🔍 [COL_DEBUG] Tab: ${tab} | Detected:`, Array.from(allKeys).length, "| Blocked:", blockedKeys, "| Final:", specCols);
 
      const order = componentColumnOrder?.[tab];
      if (order && Array.isArray(order)) {
@@ -1446,24 +1444,36 @@ export default function OpsDashboard() {
   }, [getComponentUniqueId]);
 
   const handleRemoveAddedRow = React.useCallback((rid) => {
-    setGridAddedRows(prev => ({
-        ...prev,
-        [componentTab]: prev[componentTab].filter(r => r._rid !== rid)
-    }));
+    setGridAddedRows(prev => {
+        const currentTabRows = (prev[componentTab] || []).filter(r => r._rid !== rid);
+        return {
+            ...prev,
+            [componentTab]: currentTabRows
+        };
+    });
+    // Also clear any unsaved changes for this specific RID from gridUnsavedChanges
+    setGridUnsavedChanges(prev => {
+        const next = { ...prev };
+        if (next[componentTab] && next[componentTab][rid]) {
+            const tabCopy = { ...next[componentTab] };
+            delete tabCopy[rid];
+            next[componentTab] = tabCopy;
+        }
+        return next;
+    });
   }, [componentTab]);
 
   const handleDeleteComponent = React.useCallback(async (item) => {
-      console.log("[Delete Debug] Row Clicked:", item);
       const rowId = item._rid || getComponentUniqueId(item);
       const isNew = !!item._isNew;
-      console.log(`[Delete Debug] ID=${rowId}, isNew=${isNew}`);
       
       if (isNew) {
-          console.log("[Delete Debug] Calling handleRemoveAddedRow for:", rowId);
           handleRemoveAddedRow(rowId);
           return;
       }
 
+      // If it's a permanent row but has staged updates, deleting it currently just reverts updates
+      // The user likely wants to confirm a hard delete from the database
       const name = item.Name || item.name || item.title || "Unknown";
       if (!confirm(`Delete ${name}? This cannot be undone.`)) return;
 
@@ -1647,8 +1657,12 @@ export default function OpsDashboard() {
     }
 
     return [...preFilteredList].sort((a,b) => {
-      if (a._isNew && !b._isNew) return -1;
-      if (!a._isNew && b._isNew) return 1;
+      // Prioritize actual drafts (items in gridAddedRows) over database items
+      const isDraftA = gridAddedRows[componentTab]?.some(r => (r._rid && r._rid === a._rid));
+      const isDraftB = gridAddedRows[componentTab]?.some(r => (r._rid && r._rid === b._rid));
+
+      if (isDraftA && !isDraftB) return -1;
+      if (!isDraftA && isDraftB) return 1;
       
       const vA = (a.Vendor || a.vendor || a.Brand || a.brand || "").trim();
       const vB = (b.Vendor || b.vendor || b.Brand || b.brand || "").trim();
