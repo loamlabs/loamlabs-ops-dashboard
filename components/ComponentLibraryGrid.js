@@ -187,7 +187,7 @@ const ComponentLibraryGrid = React.memo(({
         return !BAN_LIST.includes(normK);
      });
 
-     console.log(`🎨 [GRID_DEBUG] Tab: ${componentTab} | Blocked:`, blockedKeys, "| Final:", specCols);
+
      
      const order = componentColumnOrder?.[componentTab];
      if (order && Array.isArray(order)) {

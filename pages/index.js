@@ -1474,8 +1474,8 @@ export default function OpsDashboard() {
 
       // If it's a permanent row but has staged updates, deleting it currently just reverts updates
       // The user likely wants to confirm a hard delete from the database
-      const name = item.Title || item.Name || item.name || item.title || "Unknown";
-      if (!confirm(`Delete ${name}? This cannot be undone.`)) return;
+      const name = item.Title || item.Title || item.Name || item.name || item.title || "Unknown";
+      if (!window.confirm(`Delete ${name}? This cannot be undone.`)) return;
 
       const rawData = componentData[componentTab] || [];
       const updatedArray = rawData.filter(i => {
@@ -1625,11 +1625,17 @@ export default function OpsDashboard() {
   }, [draggedColumn, componentData, componentTab, componentColumnOrder]);
 
   const uniqueVendors = React.useMemo(() => {
-    if (!componentTab || !componentData[componentTab]) return [];
-    const activeList = componentData[componentTab];
-    const vends = activeList.map(item => item.Vendor || item.vendor || item.Brand || item.brand).filter(v => typeof v === 'string' && v.trim() !== '');
+    if (!componentTab) return [];
+    const activeList = componentData[componentTab] || [];
+    const addedList = gridAddedRows[componentTab] || [];
+    const combined = [...activeList, ...addedList];
+    const vends = combined.map(item => {
+       const rid = item._rid || getComponentUniqueId(item);
+       const unsaved = (gridUnsavedChanges[componentTab] || {})[rid] || {};
+       return unsaved.Vendor || item.Vendor || item.vendor || item.Brand || item.brand;
+    }).filter(v => typeof v === 'string' && v.trim() !== '');
     return [...new Set(vends)].sort((a,b) => a.localeCompare(b));
-  }, [componentData, componentTab]);
+  }, [componentData, componentTab, gridAddedRows, gridUnsavedChanges, getComponentUniqueId]);
 
   const finalFilteredList = React.useMemo(() => {
     if (!componentTab || !componentData[componentTab]) return [];
@@ -1642,7 +1648,9 @@ export default function OpsDashboard() {
     let preFilteredList = componentVendorFilter === 'All' 
       ? combinedList 
       : combinedList.filter(item => {
-          const v = item.Vendor || item.vendor || item.Brand || item.brand;
+          const rid = item._rid || getComponentUniqueId(item);
+          const unsaved = (gridUnsavedChanges[componentTab] || {})[rid] || {};
+          const v = unsaved.Vendor || item.Vendor || item.vendor || item.Brand || item.brand;
           return v === componentVendorFilter;
       });
 
@@ -1676,7 +1684,7 @@ export default function OpsDashboard() {
       const bN = (b.Title || b.Name || b.name || b.title || "Unknown").toLowerCase();
       return aN.localeCompare(bN);
     });
-  }, [componentData, componentTab, gridAddedRows, componentVendorFilter, showMissingOnly, showMismatchesOnly, syncMismatches, getComponentValidation, getComponentUniqueId]);
+  }, [componentData, componentTab, gridAddedRows, gridUnsavedChanges, componentVendorFilter, showMissingOnly, showMismatchesOnly, syncMismatches, getComponentValidation, getComponentUniqueId]);
 
   const handleCreateNewComponent = React.useCallback((tab) => {
     const activeList = componentData[tab] || [];
