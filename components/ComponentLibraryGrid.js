@@ -159,7 +159,7 @@ const ComponentLibraryGrid = React.memo(({
      // NUCLEAR BAN LIST - Everything is normalized to lowercase alphanumeric for comparison
       const BAN_LIST = [
          'Name', 'name', 'title', 'Title', 'Vendor', 'vendor', 'Brand', 'brand', 'Tags', 'tags', 
-         'id', 'ID', 'shopify_product_id', 'shopify_variant_id', 'Product ID', 'Variant ID', 
+         'id', 'ID', 
          '_rid', '_isNew', '_rawIdx', '_editIdx', '_internal_database_id', 
          'RIM SIZE', 'RIM ERD', 'WEIGHT G (V)', 'Weight (V)', 'rim_size', 'rim_erd', 'weight_g', 
          'Weight G (p)', 'Weight G (v)', 'Weight G (P)', 'Weight G (V)',
