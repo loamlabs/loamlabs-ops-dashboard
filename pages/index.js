@@ -91,6 +91,7 @@ export default function OpsDashboard() {
   const [selectedLabVariants, setSelectedLabVariants] = useState([]);
   const [expandedProducts, setExpandedProducts] = useState([]);
   const [metaEditTab, setMetaEditTab] = useState('variant');
+  const [metaEditFields, setMetaEditFields] = useState({});
   const [labDiscrepancyOnly, setLabDiscrepancyOnly] = useState(false);
   const [abandonedBuilds, setAbandonedBuilds] = useState([]);
   const [insightsLoading, setInsightsLoading] = useState(false);
@@ -298,7 +299,7 @@ export default function OpsDashboard() {
     return allUniqueRules.filter(rule => {
       const matchesVendor = selectedVendors.length === 0 || selectedVendors.includes(rule.vendor_name);
       
-      const normalize = (str) => String(str || "").toLowerCase().replace(/Ã—/g, 'x').replace(/\s+/g, ' ').trim();
+      const normalize = (str) => String(str || "").toLowerCase().replace(/×/g, 'x').replace(/\s+/g, ' ').trim();
       const searchString = normalize(registrySearch);
       const searchTokens = searchString ? searchString.split(' ').filter(Boolean) : [];
       const searchMatch = searchTokens.length === 0 || searchTokens.every(token => 
@@ -1731,7 +1732,7 @@ export default function OpsDashboard() {
     }
 
     if (componentSearch) {
-      const normalizeStr = (str) => String(str || "").toLowerCase().replace(/Ã—/g, 'x').replace(/\s+/g, ' ').trim();
+      const normalizeStr = (str) => String(str || "").toLowerCase().replace(/×/g, 'x').replace(/\s+/g, ' ').trim();
       const searchString = normalizeStr(componentSearch);
       const searchTokens = searchString ? searchString.split(' ').filter(Boolean) : [];
       preFilteredList = preFilteredList.filter(item => {
@@ -3122,7 +3123,7 @@ export default function OpsDashboard() {
                     {(() => {
                       const filtered = Object.values(allUniqueRules.filter(r => {
                         const matchesVendor = selectedVendors.length === 0 || selectedVendors.includes(r.vendor_name);
-                        const normalize = (str) => String(str || "").toLowerCase().replace(/Ã—/g, 'x').replace(/\s+/g, ' ').trim();
+                        const normalize = (str) => String(str || "").toLowerCase().replace(/×/g, 'x').replace(/\s+/g, ' ').trim();
                         const searchString = normalize(labSearch);
                         const searchTokens = searchString ? searchString.split(' ').filter(Boolean) : [];
                         const searchMatch = searchTokens.length === 0 || searchTokens.every(token => 
@@ -4520,7 +4521,7 @@ export default function OpsDashboard() {
                     <div>
                         <label className="text-[10px] font-black uppercase text-zinc-400 mb-2 block tracking-widest italic">OOS Reminder</label>
                         <button onClick={() => setEditingRule({...editingRule, oos_reminder_enabled: !editingRule.oos_reminder_enabled})} className={`w-full p-4 rounded-xl font-black text-sm uppercase transition-all border-2 ${editingRule.oos_reminder_enabled !== false ? 'bg-green-50 text-green-700 border-green-200' : 'bg-zinc-100 text-zinc-400 border-transparent'}`}>
-                            {editingRule.oos_reminder_enabled !== false ? 'âœ“ Enabled' : 'âœ— Disabled'}
+                            {editingRule.oos_reminder_enabled !== false ? '✓ Enabled' : '✗ Disabled'}
                         </button>
                     </div>
                 </div>
@@ -4542,7 +4543,7 @@ export default function OpsDashboard() {
                             <div>
                                 <label className="text-[10px] font-black uppercase text-zinc-400 mb-2 block tracking-widest italic">Monitoring</label>
                                 <button onClick={() => setEditingRule({...editingRule, bti_monitoring_enabled: !editingRule.bti_monitoring_enabled})} className={`w-full p-4 rounded-xl font-black text-sm uppercase transition-all border-2 ${editingRule.bti_monitoring_enabled !== false ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-zinc-100 text-zinc-400 border-transparent'}`}>
-                                    {editingRule.bti_monitoring_enabled !== false ? 'âœ“ Active' : 'âœ— Off'}
+                                    {editingRule.bti_monitoring_enabled !== false ? '✓ Active' : '✗ Off'}
                                 </button>
                             </div>
                         </div>
