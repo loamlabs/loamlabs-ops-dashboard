@@ -147,6 +147,7 @@ export default function OpsDashboard() {
   const [metafieldRegistry, setMetafieldRegistry] = useState([
     { key: 'shopify_product_id', label: 'Shopify Product ID', categories: ['RIM', 'HUB', 'SPOKE', 'NIPPLE', 'VALVESTEM', 'ACCESSORY'], target: 'product', type: 'single_line_text_field' },
     { key: 'shopify_variant_id', label: 'Shopify Variant ID', categories: ['RIM', 'HUB', 'SPOKE', 'NIPPLE', 'VALVESTEM', 'ACCESSORY'], target: 'variant', type: 'single_line_text_field' },
+    { key: '_variant_image_url', label: 'Variant Thumbnail Image URL (Paste Shopify Link)', categories: ['RIM', 'HUB', 'SPOKE', 'NIPPLE', 'VALVESTEM', 'ACCESSORY'], target: 'variant', type: 'url' },
     { key: 'hub_manual_cross_value', label: 'Variant Metafield: custom.hub_manual_cross_value [number_decimal]', categories: ['HUB'], target: 'variant', type: 'number_decimal' },
     { key: 'weight_g', label: 'Variant Metafield: custom.weight_g [number_decimal]', categories: ['RIM', 'HUB', 'SPOKE', 'NIPPLE', 'VALVESTEM', 'ACCESSORY'], target: 'variant', type: 'number_decimal' },
     { key: 'length_adjust_mm', label: 'Variant Metafield: custom.length_adjust_mm [number_decimal]', categories: ['RIM', 'HUB', 'SPOKE', 'NIPPLE'], target: 'variant', type: 'number_decimal' },
@@ -2278,10 +2279,13 @@ export default function OpsDashboard() {
       .map(f => ({ namespace: 'custom', key: f.key.replace('product_', ''), value: f.val, type: f.reg.type }));
 
     const variantFields = validEntries.map(([key, val]) => ({ key, val, reg: metafieldRegistry.find(m => m.key === key) }))
-      .filter(f => f.reg && f.reg.target === 'variant')
+      .filter(f => f.reg && f.reg.target === 'variant' && f.key !== '_variant_image_url')
       .map(f => ({ namespace: 'custom', key: f.key.replace('variant_', ''), value: f.val, type: f.reg.type }));
     
-    if (productFields.length === 0 && variantFields.length === 0) return;
+    const imageUrlField = validEntries.find(([key]) => key === '_variant_image_url');
+    const imageUrl = imageUrlField ? imageUrlField[1] : null;
+    
+    if (productFields.length === 0 && variantFields.length === 0 && !imageUrl) return;
     setLoading(true);
     try {
       const auth = localStorage.getItem('loam_ops_auth');
@@ -2296,11 +2300,15 @@ export default function OpsDashboard() {
           throw new Error(errData.error || errData.details || "Failed to update Product metafields");
         }
       }
-      if (selectedLabVariants.length > 0 && variantFields.length > 0) {
+      if (selectedLabVariants.length > 0 && (variantFields.length > 0 || imageUrl)) {
+        // Find the product ID for these variants from the local state
+        const firstVariantRow = allUniqueRules.find(r => selectedLabVariants.includes(r.shopify_variant_id));
+        const productId = firstVariantRow ? firstVariantRow.shopify_product_id : null;
+
         const res = await fetch('/api/bulk-update-metafields', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'x-dashboard-auth': auth },
-          body: JSON.stringify({ ids: selectedLabVariants, metafields: variantFields, targetType: 'ProductVariant' })
+          body: JSON.stringify({ ids: selectedLabVariants, metafields: variantFields, targetType: 'ProductVariant', imageUrl, productId })
         });
         if (!res.ok) {
           const errData = await res.json().catch(()=>({}));

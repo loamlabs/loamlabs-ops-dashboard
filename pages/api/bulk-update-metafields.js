@@ -39,7 +39,7 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   if (req.headers['x-dashboard-auth']?.trim() !== process.env.DASHBOARD_PASSWORD?.trim()) return res.status(401).json({ error: 'Unauthorized' });
 
-  const { ids, metafields, targetType } = req.body; // ids: array of Shopify IDs (product or variant), targetType: 'Product' | 'ProductVariant'
+  const { ids, metafields, targetType, imageUrl, productId } = req.body; // ids: array of Shopify IDs (product or variant), targetType: 'Product' | 'ProductVariant'
   if (!ids || !Array.isArray(ids) || !metafields || !Array.isArray(metafields) || !targetType) {
     return res.status(400).json({ error: 'Missing ids, metafields (array) or targetType' });
   }
@@ -111,6 +111,42 @@ export default async function handler(req, res) {
           .in('shopify_variant_id', ids.map(id => String(id).split('/').pop()));
         
         if (dbError) throw dbError;
+      }
+    }
+
+    // 3. Process Variant Thumbnail Image URL if provided
+    if (imageUrl && targetType === 'ProductVariant' && productId) {
+      const cleanProdId = String(productId).split('/').pop();
+      const variantIds = ids.map(id => parseInt(String(id).split('/').pop(), 10));
+      
+      // Fetch existing product images to avoid duplicating the same image
+      const imagesRes = await fetch(`https://${SHOPIFY_DOMAIN}/admin/api/2024-04/products/${cleanProdId}/images.json`, {
+        headers: { 'X-Shopify-Access-Token': SHOPIFY_TOKEN }
+      });
+      const imagesData = await imagesRes.json();
+      const existingImages = imagesData.images || [];
+      
+      // Clean query params for comparison (Shopify adds ?v=...)
+      const cleanInputUrl = imageUrl.split('?')[0];
+      const match = existingImages.find(img => img.src.split('?')[0] === cleanInputUrl);
+      
+      if (match) {
+        // Image exists, append the new variant IDs to it
+        const mergedVariantIds = Array.from(new Set([...(match.variant_ids || []), ...variantIds]));
+        const updateRes = await fetch(`https://${SHOPIFY_DOMAIN}/admin/api/2024-04/products/${cleanProdId}/images/${match.id}.json`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'X-Shopify-Access-Token': SHOPIFY_TOKEN },
+          body: JSON.stringify({ image: { id: match.id, variant_ids: mergedVariantIds } })
+        });
+        if (!updateRes.ok) throw new Error("Failed to update existing product image with variants");
+      } else {
+        // Image doesn't exist on product, upload it and assign to variants
+        const createRes = await fetch(`https://${SHOPIFY_DOMAIN}/admin/api/2024-04/products/${cleanProdId}/images.json`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Shopify-Access-Token': SHOPIFY_TOKEN },
+          body: JSON.stringify({ image: { src: imageUrl, variant_ids: variantIds } })
+        });
+        if (!createRes.ok) throw new Error("Failed to upload new variant image");
       }
     }
 
