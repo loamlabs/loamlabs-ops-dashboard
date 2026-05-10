@@ -2335,24 +2335,27 @@ export default function OpsDashboard() {
         const valueMap = {};
         const trackValue = (key, val) => {
           if (!valueMap[key]) valueMap[key] = new Set();
+          let cleanVal = '';
           if (val !== null && val !== undefined && val !== '') {
-            let cleanVal = String(val);
+            cleanVal = String(val);
             if (cleanVal.startsWith('[') && cleanVal.endsWith(']')) {
               try {
                 const parsed = JSON.parse(cleanVal);
                 if (Array.isArray(parsed) && parsed.length > 0) cleanVal = String(parsed[0]);
               } catch(e) {}
             }
-            valueMap[key].add(cleanVal === 'true' ? true : cleanVal === 'false' ? false : cleanVal);
+            cleanVal = cleanVal === 'true' ? true : cleanVal === 'false' ? false : cleanVal;
           }
+          valueMap[key].add(cleanVal);
         };
 
         results.forEach(data => {
           if (!data.success) return;
           if (data.productMetafields && selectedLabProducts.length > 0) {
-            data.productMetafields.forEach(m => {
-              const reg = metafieldRegistry.find(r => r.key === `product_${m.key}` || r.key === m.key);
-              if (reg) trackValue(reg.key, m.value);
+            metafieldRegistry.forEach(reg => {
+              if (reg.target !== 'product') return;
+              const m = data.productMetafields.find(meta => reg.key === `product_${meta.key}` || reg.key === meta.key);
+              trackValue(reg.key, m ? m.value : '');
             });
           }
           if (data.variantsMetafields) {
@@ -2362,9 +2365,10 @@ export default function OpsDashboard() {
              vKeys.forEach(vId => {
                const vData = data.variantsMetafields[vId];
                if (vData) {
-                 vData.forEach(m => {
-                   const reg = metafieldRegistry.find(r => r.key === `variant_${m.key}` || r.key === m.key);
-                   if (reg) trackValue(reg.key, m.value);
+                 metafieldRegistry.forEach(reg => {
+                   if (reg.target !== 'variant') return;
+                   const m = vData.find(meta => reg.key === `variant_${meta.key}` || reg.key === meta.key);
+                   trackValue(reg.key, m ? m.value : '');
                  });
                }
              });
@@ -2407,16 +2411,28 @@ export default function OpsDashboard() {
   };
 
   const toggleLabProduct = (productId) => {
-    const product = allUniqueRules.find(r => r.shopify_product_id === productId);
+    const product = allUniqueRules.find(r => String(r.shopify_product_id) === String(productId));
     if (!product) return;
+    
+    const variantIds = allUniqueRules.filter(r => String(r.shopify_product_id) === String(productId)).map(v => String(v.shopify_variant_id));
     const cat = getPrimaryCategory(product.tags);
     const activeCat = getActiveLabCategory();
-    if (activeCat && cat !== activeCat && (!selectedLabProducts.some(id => String(id)===String(productId)))) {
-       setSelectedLabVariants([]);
-       setSelectedLabProducts([String(productId)]);
-    } else {
-       setSelectedLabProducts(prev => prev.some(id => String(id)===String(productId)) ? prev.filter(id => String(id)!==String(productId)) : [...prev, String(productId)]);
-    }
+    
+    setSelectedLabProducts(prev => {
+       const isSelecting = !prev.some(id => String(id) === String(productId));
+       if (isSelecting) {
+         if (activeCat && cat !== activeCat && prev.length === 0) {
+            setSelectedLabVariants(variantIds);
+            return [String(productId)];
+         } else {
+            setSelectedLabVariants(vPrev => [...new Set([...vPrev, ...variantIds])]);
+            return [...prev, String(productId)];
+         }
+       } else {
+         setSelectedLabVariants(vPrev => vPrev.filter(vid => !variantIds.includes(String(vid))));
+         return prev.filter(id => String(id) !== String(productId));
+       }
+    });
   };
 
   const lastCheckedVariantRef = useRef(null);
