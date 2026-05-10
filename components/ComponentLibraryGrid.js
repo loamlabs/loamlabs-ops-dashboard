@@ -163,7 +163,7 @@ const ComponentLibraryGrid = React.memo(({
          '_rid', '_isNew', '_rawIdx', '_editIdx', '_internal_database_id', 
          'RIM SIZE', 'RIM ERD', 'WEIGHT G (V)', 'Weight (V)', 'rim_size', 'rim_erd', 'weight_g', 
          'Weight G (p)', 'Weight G (v)', 'Weight G (P)', 'Weight G (V)',
-         'Wheel Spec Position', 'wheel_spec_position'
+         'Wheel Spec Position', 'wheel_spec_position', 'Wheel Spec Rim Size', 'wheel_spec_rim_size'
       ].map(k => k.toLowerCase().replace(/[^a-z0-9]/g, ''));
 
      const allKeys = new Set();

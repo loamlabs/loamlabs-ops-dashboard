@@ -151,8 +151,7 @@ export default function OpsDashboard() {
     { key: 'weight_g', label: 'Variant Metafield: custom.weight_g [number_decimal]', categories: ['RIM', 'HUB', 'SPOKE', 'NIPPLE', 'VALVESTEM', 'ACCESSORY'], target: 'variant', type: 'decimal' },
     { key: 'length_adjust_mm', label: 'Variant Metafield: custom.length_adjust_mm [number_decimal]', categories: ['RIM', 'HUB', 'SPOKE', 'NIPPLE'], target: 'variant', type: 'decimal' },
     { key: 'wheel_spec_position', label: 'Variant Metafield: custom.wheel_spec_position [single_line_text_field]', categories: ['RIM', 'HUB'], target: 'variant', type: 'single_line_text_field', isConstant: true },
-    { key: 'option1', label: 'Option1 Value', categories: ['RIM'], target: 'variant', isOption: true },
-    { key: 'option2', label: 'Option2 Value', categories: ['RIM'], target: 'variant', isOption: true },
+    { key: 'wheel_spec_rim_size', label: 'Variant Metafield: custom.wheel_spec_rim_size [single_line_text_field]', categories: ['RIM'], target: 'variant', type: 'single_line_text_field' },
     { key: 'rim_erd', label: 'Variant Metafield: custom.rim_erd [number_decimal]', categories: ['RIM'], target: 'variant', type: 'decimal', isConstant: true },
     { key: 'valve_min_rim_depth_mm', label: 'Valve Min Rim Depth mm', categories: ['VALVESTEM'], target: 'variant', type: 'integer', isConstant: true },
     { key: 'valve_max_rim_depth_mm', label: 'Valve Max Rim Depth mm', categories: ['VALVESTEM'], target: 'variant', type: 'integer', isConstant: true },
@@ -1674,7 +1673,7 @@ export default function OpsDashboard() {
   const handleDrop = React.useCallback((targetCol) => {
     if (!draggedColumn || draggedColumn === targetCol) return;
     const activeList = componentData[componentTab] || [];
-                                   const excludeKeys = ['Name', 'name', 'title', 'Title', 'Vendor', 'vendor', 'Brand', 'brand', 'id', 'ID', 'shopify_product_id', 'Product ID', 'Variant ID', 'Shopify Variant ID', 'Shopify Product ID', 'shopify_variant_id', 'tags', 'RID', 'RAWIDX', '_rid', '_rawIdx', '_isNew', '_editIdx', 'Wheel Spec Position', 'wheel_spec_position', 'Rim Size', 'Weight G', 'Rim ERD', 'Weight G (p)', 'Weight G (v)', 'Weight G (P)', 'Weight G (V)'];
+                                   const excludeKeys = ['Name', 'name', 'title', 'Title', 'Vendor', 'vendor', 'Brand', 'brand', 'id', 'ID', 'shopify_product_id', 'Product ID', 'Variant ID', 'Shopify Variant ID', 'Shopify Product ID', 'shopify_variant_id', 'tags', 'RID', 'RAWIDX', '_rid', '_rawIdx', '_isNew', '_editIdx', 'Wheel Spec Position', 'wheel_spec_position', 'Wheel Spec Rim Size', 'wheel_spec_rim_size', 'Rim Size', 'Weight G', 'Rim ERD', 'Weight G (p)', 'Weight G (v)', 'Weight G (P)', 'Weight G (V)'];
     const rawColumns = Object.keys(activeList[0] || {}).filter(k => !excludeKeys.includes(k));
     let currentCols = componentColumnOrder[componentTab] || rawColumns;
     const srcIdx = currentCols.indexOf(draggedColumn);
@@ -3900,7 +3899,7 @@ export default function OpsDashboard() {
                                 <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block italic">Technical Specifications</label>
                                 {(() => {
                                    const activeList = (componentData[componentTab] || []).filter(Boolean).map((item, idx) => ({ ...item, _rawIdx: idx }));
-                                   const excludeKeys = ['Name', 'name', 'title', 'Title', 'Vendor', 'vendor', 'Brand', 'brand', 'id', 'ID', 'shopify_product_id', 'Product ID', 'Variant ID', 'Shopify Variant ID', 'Shopify Product ID', 'shopify_variant_id', 'tags', 'RID', 'RAWIDX', '_rid', '_rawIdx', '_isNew', '_editIdx', 'Wheel Spec Position', 'wheel_spec_position', 'Rim Size', 'Weight G', 'Rim ERD', 'Weight G (p)', 'Weight G (v)', 'Weight G (P)', 'Weight G (V)'];
+                                   const excludeKeys = ['Name', 'name', 'title', 'Title', 'Vendor', 'vendor', 'Brand', 'brand', 'id', 'ID', 'shopify_product_id', 'Product ID', 'Variant ID', 'Shopify Variant ID', 'Shopify Product ID', 'shopify_variant_id', 'tags', 'RID', 'RAWIDX', '_rid', '_rawIdx', '_isNew', '_editIdx', 'Wheel Spec Position', 'wheel_spec_position', 'Wheel Spec Rim Size', 'wheel_spec_rim_size', 'Rim Size', 'Weight G', 'Rim ERD', 'Weight G (p)', 'Weight G (v)', 'Weight G (P)', 'Weight G (V)'];
                                    const specFields = [...new Set(activeList.slice(0, 10).flatMap(item => Object.keys(item)))].filter(k => !excludeKeys.includes(k));
                                    
                                    return specFields.map(key => {
@@ -4129,7 +4128,7 @@ export default function OpsDashboard() {
                                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block italic">Technical Specifications</label>
                                  {(() => {
                                     const activeList = (componentData[componentTab] || []);
-                                    const excludeKeys = ['Name', 'name', 'title', 'Title', 'Vendor', 'vendor', 'Brand', 'brand', 'id', 'ID', 'shopify_product_id', 'Product ID', 'Variant ID', 'Shopify Variant ID', 'Shopify Product ID', 'shopify_variant_id', 'tags', 'RID', 'RAWIDX', '_rid', '_rawIdx', '_isNew', '_editIdx', 'Wheel Spec Position', 'wheel_spec_position', 'Rim Size', 'Weight G', 'Rim ERD', 'Weight G (p)', 'Weight G (v)', 'Weight G (P)', 'Weight G (V)'];
+                                    const excludeKeys = ['Name', 'name', 'title', 'Title', 'Vendor', 'vendor', 'Brand', 'brand', 'id', 'ID', 'shopify_product_id', 'Product ID', 'Variant ID', 'Shopify Variant ID', 'Shopify Product ID', 'shopify_variant_id', 'tags', 'RID', 'RAWIDX', '_rid', '_rawIdx', '_isNew', '_editIdx', 'Wheel Spec Position', 'wheel_spec_position', 'Wheel Spec Rim Size', 'wheel_spec_rim_size', 'Rim Size', 'Weight G', 'Rim ERD', 'Weight G (p)', 'Weight G (v)', 'Weight G (P)', 'Weight G (V)'];
                                     const specFields = Array.from(new Set(activeList.slice(0, 10).flatMap(item => Object.keys(item)))).filter(k => !excludeKeys.includes(k));
                                     
                                     const nodes = specFields.map(key => {
