@@ -249,9 +249,17 @@ export default function OpsDashboard() {
     const tags = Array.isArray(product.tags) ? product.tags.map(t => t.toLowerCase()) : [];
     
     if (tags.includes('rim') || tags.includes('component:rim')) {
-      if (variant.wheel_spec_rim_size) return String(variant.wheel_spec_rim_size);
+      if (variant.wheel_spec_rim_size) {
+        let val = variant.wheel_spec_rim_size;
+        if (typeof val === 'string' && val.startsWith('[') && val.endsWith(']')) {
+           try {
+             const arr = JSON.parse(val);
+             if (arr.length > 0) val = arr[0];
+           } catch(e) {}
+        }
+        return String(val);
+      }
     }
-
     if (parts.length > 0) {
       if (tags.includes('component:hub') || tags.includes('hub')) return parts[0]; // Hole Count
       if (tags.includes('component:valvestem') || tags.includes('valvestem') || tags.includes('component:spoke') || tags.includes('spoke') || tags.includes('component:nipple') || tags.includes('nipple')) return parts[0]; // Color
