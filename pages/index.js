@@ -4307,6 +4307,16 @@ export default function OpsDashboard() {
                          if (ts.includes('valvestem') || ts.includes('component:valvestem')) activeCategories.push('VALVESTEM');
                          if (ts.includes('accessory') || ts.includes('component:accessory')) activeCategories.push('ACCESSORY');
 
+                         // Fallback to active lab tab if tags are missing from the rules payload
+                         if (activeCategories.length === 0 && labCategory !== 'all') {
+                            if (labCategory.includes('rim')) activeCategories.push('RIM');
+                            else if (labCategory.includes('hub')) activeCategories.push('HUB');
+                            else if (labCategory.includes('spoke')) activeCategories.push('SPOKE');
+                            else if (labCategory.includes('nipple')) activeCategories.push('NIPPLE');
+                            else if (labCategory.includes('valvestem')) activeCategories.push('VALVESTEM');
+                            else if (labCategory.includes('accessory')) activeCategories.push('ACCESSORY');
+                         }
+
                       return ['RIM', 'HUB', 'SPOKE', 'NIPPLE', 'VALVESTEM', 'ACCESSORY']
                         .filter(cat => activeCategories.length === 0 || activeCategories.includes(cat))
                         .map(cat => {
