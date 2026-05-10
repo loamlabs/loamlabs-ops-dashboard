@@ -43,7 +43,7 @@ export default async function handler(req, res) {
     const duplicateMutation = `
       mutation productDuplicate($newTitle: String!, $productId: ID!, $includeImages: Boolean, $newStatus: ProductStatus) {
         productDuplicate(newTitle: $newTitle, productId: $productId, includeImages: $includeImages, newStatus: $newStatus) {
-          newProduct { id title handle variants(first: 100) { edges { node { id title sku } } } }
+          newProduct { id title handle variants(first: 250) { edges { node { id title sku } } } }
           userErrors { field message }
         }
       }
@@ -73,7 +73,7 @@ export default async function handler(req, res) {
       query getProductMeta($id: ID!) {
         product(id: $id) {
           metafields(first: 50) { edges { node { namespace key value type } } }
-          variants(first: 100) {
+          variants(first: 250) {
             edges {
               node {
                 title

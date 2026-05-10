@@ -4365,7 +4365,7 @@ export default function OpsDashboard() {
                                     {metaEditFields[m.key] === '_CONFLICT_' && (
                                        <div className="absolute inset-[2px] z-10 flex items-center justify-center bg-zinc-100/90 backdrop-blur-[1px] rounded-[10px] border border-dashed border-zinc-300 group">
                                           <button className="bg-white px-3 py-1.5 rounded-lg text-[10px] font-black uppercase shadow-sm border border-zinc-200 hover:border-black transition-all flex items-center gap-2 text-zinc-500 hover:text-black hover:bg-zinc-100 group-hover:scale-105" onClick={() => setMetaEditFields({...metaEditFields, [m.key]: ''})}>
-                                             ðŸ”’ Unlock to Override
+                                             🔓 Unlock to Override
                                           </button>
                                        </div>
                                     )}
