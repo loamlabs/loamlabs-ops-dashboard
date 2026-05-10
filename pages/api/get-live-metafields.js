@@ -41,6 +41,9 @@ export default async function handler(req, res) {
             edges {
               node {
                 id
+                image {
+                  url
+                }
                 metafields(first: 100) {
                   edges {
                     node {
@@ -82,7 +85,11 @@ export default async function handler(req, res) {
     const variantsMetafields = {};
     prodData.variants.edges.forEach(vEdge => {
       const vId = vEdge.node.id.split('/').pop();
-      variantsMetafields[vId] = vEdge.node.metafields.edges.map(e => e.node);
+      const meta = vEdge.node.metafields.edges.map(e => e.node);
+      if (vEdge.node.image && vEdge.node.image.url) {
+         meta.push({ key: '_variant_image_url', value: vEdge.node.image.url, type: 'url' });
+      }
+      variantsMetafields[vId] = meta;
     });
 
     res.status(200).json({ success: true, productMetafields, variantsMetafields });
