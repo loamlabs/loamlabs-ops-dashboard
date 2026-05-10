@@ -152,6 +152,7 @@ export default function OpsDashboard() {
     { key: 'length_adjust_mm', label: 'Variant Metafield: custom.length_adjust_mm [number_decimal]', categories: ['RIM', 'HUB', 'SPOKE', 'NIPPLE'], target: 'variant', type: 'decimal' },
     { key: 'wheel_spec_position', label: 'Variant Metafield: custom.wheel_spec_position [single_line_text_field]', categories: ['RIM', 'HUB'], target: 'variant', type: 'single_line_text_field', isConstant: true },
     { key: 'wheel_spec_rim_size', label: 'Variant Metafield: custom.wheel_spec_rim_size [single_line_text_field]', categories: ['RIM'], target: 'variant', type: 'single_line_text_field' },
+    { key: 'wheel_spec_internal_width_mm', label: 'Variant Metafield: custom.wheel_spec_internal_width_mm [number_decimal]', categories: ['RIM'], target: 'variant', type: 'decimal' },
     { key: 'rim_erd', label: 'Variant Metafield: custom.rim_erd [number_decimal]', categories: ['RIM'], target: 'variant', type: 'decimal', isConstant: true },
     { key: 'valve_min_rim_depth_mm', label: 'Valve Min Rim Depth mm', categories: ['VALVESTEM'], target: 'variant', type: 'integer', isConstant: true },
     { key: 'valve_max_rim_depth_mm', label: 'Valve Max Rim Depth mm', categories: ['VALVESTEM'], target: 'variant', type: 'integer', isConstant: true },
@@ -4312,13 +4313,23 @@ export default function OpsDashboard() {
                  <div className="p-8 max-h-[60vh] overflow-y-auto bg-white grid grid-cols-2 gap-8">
                    {(() => {
                          const uniqueSelectedTags = new Set();
+                         const extractTags = (p) => {
+                            if (!p) return;
+                            let tags = p.tags || [];
+                            if (typeof tags === 'string') {
+                               try { tags = JSON.parse(tags); } 
+                               catch(e) { tags = tags.split(',').map(t=>t.trim()); }
+                            }
+                            if (Array.isArray(tags)) {
+                               tags.forEach(t => uniqueSelectedTags.add(t.toLowerCase()));
+                            }
+                         };
+
                          if (selectedLabProducts.length > 0) {
-                            const p = allUniqueRules.find(r => String(r.shopify_product_id) === String(selectedLabProducts[0]));
-                            if (p) (p.tags||[]).forEach(t => uniqueSelectedTags.add(t.toLowerCase()));
+                            extractTags(allUniqueRules.find(r => String(r.shopify_product_id) === String(selectedLabProducts[0])));
                          }
                          if (selectedLabVariants.length > 0) {
-                            const p = allUniqueRules.find(r => String(r.shopify_variant_id) === String(selectedLabVariants[0]));
-                            if (p) (p.tags||[]).forEach(t => uniqueSelectedTags.add(t.toLowerCase()));
+                            extractTags(allUniqueRules.find(r => String(r.shopify_variant_id) === String(selectedLabVariants[0])));
                          }
 
                          const activeCategories = [];
@@ -4330,14 +4341,17 @@ export default function OpsDashboard() {
                          if (ts.includes('valvestem') || ts.includes('component:valvestem')) activeCategories.push('VALVESTEM');
                          if (ts.includes('accessory') || ts.includes('component:accessory')) activeCategories.push('ACCESSORY');
 
-                         // Fallback to active lab tab if tags are missing from the rules payload
-                         if (activeCategories.length === 0 && labCategory !== 'all') {
-                            if (labCategory.includes('rim')) activeCategories.push('RIM');
-                            else if (labCategory.includes('hub')) activeCategories.push('HUB');
-                            else if (labCategory.includes('spoke')) activeCategories.push('SPOKE');
-                            else if (labCategory.includes('nipple')) activeCategories.push('NIPPLE');
-                            else if (labCategory.includes('valvestem')) activeCategories.push('VALVESTEM');
-                            else if (labCategory.includes('accessory')) activeCategories.push('ACCESSORY');
+                         // Fallback to active lab tab or component tab if tags are missing
+                         if (activeCategories.length === 0) {
+                            const currentTab = activeTab === 'component_library' ? componentTab : labCategory;
+                            if (currentTab !== 'all') {
+                               if (currentTab.includes('rim')) activeCategories.push('RIM');
+                               else if (currentTab.includes('hub')) activeCategories.push('HUB');
+                               else if (currentTab.includes('spoke')) activeCategories.push('SPOKE');
+                               else if (currentTab.includes('nipple')) activeCategories.push('NIPPLE');
+                               else if (currentTab.includes('valvestem')) activeCategories.push('VALVESTEM');
+                               else if (currentTab.includes('accessor')) activeCategories.push('ACCESSORY');
+                            }
                          }
 
                       return ['RIM', 'HUB', 'SPOKE', 'NIPPLE', 'VALVESTEM', 'ACCESSORY']
