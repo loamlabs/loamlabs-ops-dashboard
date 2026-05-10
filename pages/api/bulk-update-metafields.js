@@ -106,6 +106,7 @@ export default async function handler(req, res) {
 
     res.status(200).json({ success: true, count: ids.length, fields: metafields.length });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("Bulk Update Error:", err);
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 }

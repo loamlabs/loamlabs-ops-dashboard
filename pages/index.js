@@ -2286,18 +2286,26 @@ export default function OpsDashboard() {
     try {
       const auth = localStorage.getItem('loam_ops_auth');
       if (selectedLabProducts.length > 0 && productFields.length > 0) {
-        await fetch('/api/bulk-update-metafields', {
+        const res = await fetch('/api/bulk-update-metafields', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'x-dashboard-auth': auth },
           body: JSON.stringify({ ids: selectedLabProducts, metafields: productFields, targetType: 'Product' })
         });
+        if (!res.ok) {
+          const errData = await res.json().catch(()=>({}));
+          throw new Error(errData.error || errData.details || "Failed to update Product metafields");
+        }
       }
       if (selectedLabVariants.length > 0 && variantFields.length > 0) {
-        await fetch('/api/bulk-update-metafields', {
+        const res = await fetch('/api/bulk-update-metafields', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'x-dashboard-auth': auth },
           body: JSON.stringify({ ids: selectedLabVariants, metafields: variantFields, targetType: 'ProductVariant' })
         });
+        if (!res.ok) {
+          const errData = await res.json().catch(()=>({}));
+          throw new Error(errData.error || errData.details || "Failed to update Variant metafields");
+        }
       }
       setShowMetaEditModal(false);
       setMetaEditFields({});
@@ -2306,7 +2314,7 @@ export default function OpsDashboard() {
       alert("Mass Metafield Sync Complete.");
     } catch (e) {
       console.error(e);
-      alert("Error syncing metafields.");
+      alert("Error syncing metafields: " + e.message);
     }
     setLoading(false);
   };
