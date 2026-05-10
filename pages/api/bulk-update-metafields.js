@@ -89,19 +89,24 @@ export default async function handler(req, res) {
         }
       }
 
-      // 2. Synchronize Supabase
+      // 2. Synchronize Supabase (Only for columns that exist)
+      const { data: schemaCheck } = await supabase.from('watcher_rules').select('*').limit(1);
+      const validColumns = schemaCheck && schemaCheck.length > 0 ? Object.keys(schemaCheck[0]) : [];
+
       const updateData = {};
       metafields.forEach(meta => {
-        // Map back to our column names if necessary (e.g. if we used prefixes)
-        updateData[meta.key] = meta.value;
+        if (validColumns.includes(meta.key)) updateData[meta.key] = meta.value;
+        else if (validColumns.includes(`product_${meta.key}`)) updateData[`product_${meta.key}`] = meta.value;
       });
 
-      const { error: dbError } = await supabase
-        .from('watcher_rules')
-        .update(updateData)
-        .in('shopify_variant_id', ids.map(id => String(id).split('/').pop()));
-      
-      if (dbError) throw dbError;
+      if (Object.keys(updateData).length > 0) {
+        const { error: dbError } = await supabase
+          .from('watcher_rules')
+          .update(updateData)
+          .in('shopify_variant_id', ids.map(id => String(id).split('/').pop()));
+        
+        if (dbError) throw dbError;
+      }
     }
 
     res.status(200).json({ success: true, count: ids.length, fields: metafields.length });
