@@ -77,12 +77,12 @@ export default async function handler(req, res) {
       
       const chunkSize = 25;
       for (let i = 0; i < metafieldsToSet.length; i += chunkSize) {
-        const res = await fetch(`https://${SHOPIFY_DOMAIN}/admin/api/2024-01/graphql.json`, {
+        const shopifyRes = await fetch(`https://${SHOPIFY_DOMAIN}/admin/api/2024-01/graphql.json`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'X-Shopify-Access-Token': SHOPIFY_TOKEN },
           body: JSON.stringify({ query: setMetaMutation, variables: { metafields: metafieldsToSet.slice(i, i + chunkSize) } })
         });
-        const data = await res.json();
+        const data = await shopifyRes.json();
         if (data.errors) throw new Error(data.errors[0].message);
         if (data.data?.metafieldsSet?.userErrors?.length > 0) {
            return res.status(400).json({ error: data.data.metafieldsSet.userErrors[0].message });
