@@ -55,11 +55,16 @@ export default async function handler(req, res) {
       const shopifyId = stringId.includes('gid://') ? stringId : `gid://shopify/${targetType}/${stringId}`;
       
       metafields.forEach(meta => {
+        let finalVal = String(meta.value);
+        if (meta.type && meta.type.startsWith('list.') && !finalVal.startsWith('[')) {
+          finalVal = JSON.stringify(finalVal.split(',').map(s => s.trim()).filter(Boolean));
+        }
+
         metafieldsToSet.push({
           ownerId: shopifyId,
           namespace: meta.namespace,
           key: meta.key,
-          value: String(meta.value),
+          value: finalVal,
           type: meta.type || 'single_line_text_field'
         });
       });
