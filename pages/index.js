@@ -150,7 +150,7 @@ export default function OpsDashboard() {
     { key: 'hub_manual_cross_value', label: 'Variant Metafield: custom.hub_manual_cross_value [number_decimal]', categories: ['HUB'], target: 'variant', type: 'number_decimal' },
     { key: 'weight_g', label: 'Variant Metafield: custom.weight_g [number_decimal]', categories: ['RIM', 'HUB', 'SPOKE', 'NIPPLE', 'VALVESTEM', 'ACCESSORY'], target: 'variant', type: 'number_decimal' },
     { key: 'length_adjust_mm', label: 'Variant Metafield: custom.length_adjust_mm [number_decimal]', categories: ['RIM', 'HUB', 'SPOKE', 'NIPPLE'], target: 'variant', type: 'number_decimal' },
-    { key: 'wheel_spec_position', label: 'Variant Metafield: custom.wheel_spec_position [list.single_line_text_field]', categories: ['RIM', 'HUB'], target: 'variant', type: 'list.single_line_text_field', isConstant: true },
+    { key: 'wheel_spec_position', label: 'Variant Metafield: custom.wheel_spec_position [single_line_text_field]', categories: ['RIM', 'HUB'], target: 'variant', type: 'single_line_text_field', isConstant: true },
     { key: 'wheel_spec_rim_size', label: 'Variant Metafield: custom.wheel_spec_rim_size [list.single_line_text_field]', categories: ['RIM'], target: 'variant', type: 'list.single_line_text_field' },
     { key: 'wheel_spec_internal_width_mm', label: 'Variant Metafield: custom.wheel_spec_internal_width_mm [number_decimal]', categories: ['RIM'], target: 'variant', type: 'number_decimal' },
     { key: 'rim_erd', label: 'Variant Metafield: custom.rim_erd [number_decimal]', categories: ['RIM'], target: 'variant', type: 'number_decimal', isConstant: true },
