@@ -423,7 +423,7 @@ export default async function handler(req, res) {
           const myPrice = parseFloat(variant.price).toFixed(2);
           const myCompare = variant.compareAtPrice ? parseFloat(variant.compareAtPrice).toFixed(2) : null;
           const isDiff = Number(goalPrice) !== Number(myPrice);
-          const ignorePriceUpdate = rule.shopify_product_id === '10180231921971';
+          const ignorePriceUpdate = String(rule.shopify_product_id) === '10180231921971';
           let forceNeedsReview = rule.needs_review;
           
           if (!ignorePriceUpdate && isDiff && Number(goalPrice) < Number(myPrice)) {
