@@ -321,6 +321,24 @@ export default async function handler(req, res) {
                   if (!ruleTitle.includes('mini') && vTitle.includes('mini')) return false;
                }
                return true;
+            } else if (rule.vendor_name?.toLowerCase() === 'velonix' || (rule.vendor_url && rule.vendor_url.toLowerCase().includes('velonix'))) {
+               let targetColor = null;
+               let targetLength = null;
+               for (const [on, ov] of Object.entries(parsedOptions)) {
+                  if (on.toLowerCase().includes('color')) targetColor = normalize(ov);
+                  if (on.toLowerCase().includes('length') || on.toLowerCase().includes('size')) {
+                     targetLength = normalize(ov).replace('mm', '').trim();
+                  }
+               }
+               
+               if (targetColor && !vTitle.includes(targetColor)) return false;
+               if (targetLength) {
+                  // Velonix lengths are formatted like "152mm" in the public_title
+                  if (!vTitle.includes(targetLength + 'mm') && !vTitle.includes(targetLength + ' mm') && !vTitle.split(/[\s/]+/).includes(targetLength)) {
+                     return false;
+                  }
+               }
+               return true;
             }
 
             // Generic Hub/Rim filtering for all other vendors (like OneUp)
