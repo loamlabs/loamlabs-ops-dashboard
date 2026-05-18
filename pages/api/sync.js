@@ -81,6 +81,8 @@ export default async function handler(req, res) {
       'Mozilla/5.0 (AppleChromebook; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
     ];
 
+    const urlCache = {};
+
     for (const rule of rules) {
       try {
         const itemTags = Array.isArray(rule.tags) ? rule.tags : [];
@@ -90,32 +92,38 @@ export default async function handler(req, res) {
         const url = `${rule.vendor_url}.js`;
         const randomUA = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
         
-        let vResponse;
-        try {
-          vResponse = await fetch(url, { headers: { 'User-Agent': randomUA } });
-          if (!vResponse.ok) throw new Error(`Fetch failed (${vResponse.status})`);
-        } catch (fetchErr) {
-          const errLog = `Fetch failed for ${url}: ${fetchErr.message}`;
-          console.error(`[SYNC ERROR] ${errLog}`);
-          await supabase.from('watcher_rules').update({
-              last_log: errLog,
-              last_run_at: new Date().toISOString()
-          }).eq('id', rule.id);
-          continue;
-        }
-
-        const textObj = await vResponse.text();
         let vData;
-        try {
-          vData = JSON.parse(textObj);
-        } catch(e) {
-          const errLog = `JSON Parse failed: ${url}`;
-          console.error(`[SYNC ERROR] ${errLog}`);
-          await supabase.from('watcher_rules').update({
-              last_log: errLog,
-              last_run_at: new Date().toISOString()
-          }).eq('id', rule.id);
-          continue;
+
+        if (urlCache[url]) {
+          vData = urlCache[url];
+        } else {
+          let vResponse;
+          try {
+            vResponse = await fetch(url, { headers: { 'User-Agent': randomUA } });
+            if (!vResponse.ok) throw new Error(`Fetch failed (${vResponse.status})`);
+          } catch (fetchErr) {
+            const errLog = `Fetch failed for ${url}: ${fetchErr.message}`;
+            console.error(`[SYNC ERROR] ${errLog}`);
+            await supabase.from('watcher_rules').update({
+                last_log: errLog,
+                last_run_at: new Date().toISOString()
+            }).eq('id', rule.id);
+            continue;
+          }
+
+          const textObj = await vResponse.text();
+          try {
+            vData = JSON.parse(textObj);
+            urlCache[url] = vData;
+          } catch(e) {
+            const errLog = `JSON Parse failed: ${url}`;
+            console.error(`[SYNC ERROR] ${errLog}`);
+            await supabase.from('watcher_rules').update({
+                last_log: errLog,
+                last_run_at: new Date().toISOString()
+            }).eq('id', rule.id);
+            continue;
+          }
         }
 
         let parsedOptions = rule.option_values || {};
