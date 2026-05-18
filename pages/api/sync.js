@@ -423,9 +423,10 @@ export default async function handler(req, res) {
           const myPrice = parseFloat(variant.price).toFixed(2);
           const myCompare = variant.compareAtPrice ? parseFloat(variant.compareAtPrice).toFixed(2) : null;
           const isDiff = Number(goalPrice) !== Number(myPrice);
+          const ignorePriceUpdate = rule.shopify_product_id === '10180231921971';
           let forceNeedsReview = rule.needs_review;
           
-          if (isDiff && Number(goalPrice) < Number(myPrice)) {
+          if (!ignorePriceUpdate && isDiff && Number(goalPrice) < Number(myPrice)) {
             // PRICE DROP SAFETY BLOCK
             if (!req.body.force_approve) {
               forceNeedsReview = true;
@@ -437,7 +438,7 @@ export default async function handler(req, res) {
             }
           }
           
-          const needsPriceUpdate = isDiff || (myCompare && Number(myCompare) < Number(goalPrice));
+          const needsPriceUpdate = !ignorePriceUpdate && (isDiff || (myCompare && Number(myCompare) < Number(goalPrice)));
 
           let newPriceLastChangedAt = rule.price_last_changed_at || null;
           if (rule.last_price !== winner.price) {
