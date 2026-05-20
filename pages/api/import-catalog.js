@@ -34,6 +34,61 @@ async function getShopifyToken() {
   return data.access_token;
 }
 
+async function fetchAllVariants(adminToken, productId, initialConnection) {
+  let allEdges = [...initialConnection.edges];
+  let hasNext = initialConnection.pageInfo?.hasNextPage;
+  let cursor = initialConnection.edges[initialConnection.edges.length - 1]?.cursor;
+
+  while (hasNext && cursor) {
+    const response = await fetch(`https://${process.env.SHOPIFY_SHOP_NAME}.myshopify.com/admin/api/2024-04/graphql.json`, {
+      method: 'POST',
+      headers: { 'X-Shopify-Access-Token': adminToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query: `query($id: ID!, $after: String) {
+          product(id: $id) {
+            variants(first: 250, after: $after) {
+              pageInfo { hasNextPage }
+              edges {
+                cursor
+                node {
+                  id
+                  title
+                  barcode
+                  sku
+                  selectedOptions { name value }
+                  metafields(first: 10, namespace: "custom") {
+                    edges {
+                      node {
+                        key
+                        value
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }`,
+        variables: { id: productId, after: cursor }
+      })
+    });
+    const data = await response.json();
+    if (data.errors) {
+      console.error(`[API] fetchAllVariants returned errors for ${productId}:`, JSON.stringify(data.errors));
+      break;
+    }
+    const connection = data.data?.product?.variants;
+    if (connection && connection.edges) {
+      allEdges = allEdges.concat(connection.edges);
+      hasNext = connection.pageInfo?.hasNextPage;
+      cursor = connection.edges[connection.edges.length - 1]?.cursor;
+    } else {
+      hasNext = false;
+    }
+  }
+  return allEdges;
+}
+
 export default async function handler(req, res) {
   if (!checkSupabase(res)) return;
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed. Use POST.' });
@@ -67,7 +122,9 @@ export default async function handler(req, res) {
                 node { 
                   id title vendor tags 
                   variants(first: 250) { 
+                    pageInfo { hasNextPage }
                     edges { 
+                      cursor 
                       node { 
                         id 
                         title 
@@ -108,12 +165,15 @@ export default async function handler(req, res) {
         let variantBatch = [];
         for (const p of filtered) {
           const seenTechnicalSpecs = new Set();
-          for (const v of p.node.variants.edges) {
+          const allVariantEdges = await fetchAllVariants(adminToken, p.node.id, p.node.variants);
+
+          for (const v of allVariantEdges) {
             const mappedOptions = {};
             v.node.selectedOptions.forEach(opt => { mappedOptions[opt.name] = opt.value; });
 
             const isRim = p.node.title.toLowerCase().includes('rim');
             const isWheelset = p.node.title.toLowerCase().includes('wheel');
+            const isSpoke = p.node.title.toLowerCase().includes('spoke');
             const spokeOptNames = Object.keys(mappedOptions).filter(k => k.toLowerCase().includes('spoke'));
             const spokeCountValue = spokeOptNames.length > 0 ? mappedOptions[spokeOptNames[0]] : 'Std';
 
@@ -135,6 +195,18 @@ export default async function handler(req, res) {
               const parts = [];
               if (sizeValue) parts.push(sizeValue);
               if (colorValue) parts.push(colorValue);
+              if (spokeCountValue !== 'Std') parts.push(spokeCountValue);
+              
+              titleSuffix = parts.length > 0 ? `(${parts.join(' / ')})` : '';
+            } else if (isSpoke) {
+              const lengthOptNames = Object.keys(mappedOptions).filter(k => k.toLowerCase().includes('length') || k.toLowerCase().includes('size'));
+              const lengthValue = lengthOptNames.length > 0 ? mappedOptions[lengthOptNames[0]] : '';
+              
+              technicalKey = `${p.node.id}-${colorValue}-${lengthValue}-${spokeCountValue}`;
+              
+              const parts = [];
+              if (colorValue) parts.push(colorValue);
+              if (lengthValue) parts.push(lengthValue);
               if (spokeCountValue !== 'Std') parts.push(spokeCountValue);
               
               titleSuffix = parts.length > 0 ? `(${parts.join(' / ')})` : '';
