@@ -778,6 +778,14 @@ export default async function handler(req, res) {
                  updatePayloadForPrice.metafields = [{ namespace: "custom", key: "bti_sync_authority", value: "true", type: "boolean" }];
                 shouldPutPrice = true;
                 currentEffectiveBtiFlag = true;
+             } else if (currentBtiFlag === true && !rule.bti_part_number) {
+                // Stale BTI flag: bti_sync_authority was set true by a previous run, but this item
+                // has no BTI part number and will never be managed by BTI. Clear the flag so the
+                // watcher takes back direct control of the inventory policy.
+                console.log(`[SYNC] Clearing stale BTI flag for ${rule.title} (no bti_part_number). Watcher will manage inventory directly.`);
+                updatePayloadForPrice.metafields = [{ namespace: "custom", key: "bti_sync_authority", value: "false", type: "boolean" }];
+                shouldPutPrice = true;
+                currentEffectiveBtiFlag = false;
              }
           }
 
