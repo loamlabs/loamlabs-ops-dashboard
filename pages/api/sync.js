@@ -37,6 +37,64 @@ async function getShopifyToken() {
   return data.access_token;
 }
 
+const shopifyProductVariantsCache = {};
+
+async function getShopifyVariant(adminToken, productId, variantId) {
+  const cacheKey = String(productId);
+  if (!shopifyProductVariantsCache[cacheKey]) {
+    shopifyProductVariantsCache[cacheKey] = {};
+    let hasNext = true;
+    let cursor = null;
+    const productGid = `gid://shopify/Product/${productId}`;
+
+    while (hasNext) {
+      const response = await fetch(`https://${process.env.SHOPIFY_SHOP_NAME}.myshopify.com/admin/api/2024-04/graphql.json`, {
+        method: 'POST',
+        headers: { 'X-Shopify-Access-Token': adminToken, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: `query($id: ID!, $after: String) {
+            product(id: $id) {
+              variants(first: 250, after: $after) {
+                pageInfo { hasNextPage }
+                edges {
+                  cursor
+                  node {
+                    id
+                    price
+                    compareAtPrice
+                    inventoryQuantity
+                    inventoryPolicy
+                    product { id handle }
+                    btiMonitor: metafield(namespace: "custom", key: "bti_sync_authority") { value }
+                  }
+                }
+              }
+            }
+          }`,
+          variables: { id: productGid, after: cursor }
+        })
+      });
+      const data = await response.json();
+      if (data.errors) {
+        console.error(`[API] fetchAllVariants returned errors for ${productId}:`, JSON.stringify(data.errors));
+        break;
+      }
+      const connection = data.data?.product?.variants;
+      if (connection && connection.edges) {
+        connection.edges.forEach(edge => {
+          const rawId = edge.node.id.split('/').pop();
+          shopifyProductVariantsCache[cacheKey][rawId] = edge.node;
+        });
+        hasNext = connection.pageInfo?.hasNextPage;
+        cursor = connection.edges[connection.edges.length - 1]?.cursor;
+      } else {
+        hasNext = false;
+      }
+    }
+  }
+  return shopifyProductVariantsCache[cacheKey][String(variantId)] || null;
+}
+
 export default async function handler(req, res) {
   if (!checkSupabase(res)) return;
   const authHeader = req.headers['x-loam-secret'] || req.headers['x-dashboard-auth'];
@@ -54,6 +112,8 @@ export default async function handler(req, res) {
       
       if (req.body?.ruleIds && Array.isArray(req.body.ruleIds)) {
         query = query.in('id', req.body.ruleIds);
+      } else if (req.body?.productId || req.query?.productId) {
+        query = query.eq('shopify_product_id', req.body?.productId || req.query?.productId);
       } else if (req.query?.id) {
         query = query.eq('id', req.query.id);
       }
@@ -72,6 +132,13 @@ export default async function handler(req, res) {
     const adminToken = await getShopifyToken();
     let updated = [], attention = [], inSync = [];
     let stockChanges = [], oosReminders = [];
+    const processedProducts = new Set();
+    const autoCreatedVariants = [];
+    // Collect IDs of rules that were processed but had NO changes, so we can
+    // bulk-update their last_run_at in a single query at the end instead of
+    // awaiting thousands of individual row updates.
+    const unchangedRuleIds = [];
+    const nowIso = new Date().toISOString();
     
     const USER_AGENTS = [
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
@@ -104,10 +171,15 @@ export default async function handler(req, res) {
           } catch (fetchErr) {
             const errLog = `Fetch failed for ${url}: ${fetchErr.message}`;
             console.error(`[SYNC ERROR] ${errLog}`);
-            await supabase.from('watcher_rules').update({
-                last_log: errLog,
-                last_run_at: new Date().toISOString()
-            }).eq('id', rule.id);
+            // Only write if the error log actually changed
+            if (rule.last_log !== errLog) {
+              await supabase.from('watcher_rules').update({
+                  last_log: errLog,
+                  last_run_at: nowIso
+              }).eq('id', rule.id);
+            } else {
+              unchangedRuleIds.push(rule.id);
+            }
             continue;
           }
 
@@ -118,10 +190,15 @@ export default async function handler(req, res) {
           } catch(e) {
             const errLog = `JSON Parse failed: ${url}`;
             console.error(`[SYNC ERROR] ${errLog}`);
-            await supabase.from('watcher_rules').update({
-                last_log: errLog,
-                last_run_at: new Date().toISOString()
-            }).eq('id', rule.id);
+            // Only write if the error log actually changed
+            if (rule.last_log !== errLog) {
+              await supabase.from('watcher_rules').update({
+                  last_log: errLog,
+                  last_run_at: nowIso
+              }).eq('id', rule.id);
+            } else {
+              unchangedRuleIds.push(rule.id);
+            }
             continue;
           }
         }
@@ -131,6 +208,249 @@ export default async function handler(req, res) {
           try { parsedOptions = JSON.parse(parsedOptions); } catch (e) {}
         }
         const normalize = (t) => String(t || "").toLowerCase().replace(/×/g, 'x').replace(/\s+/g, ' ').trim();
+
+        // SPOKE DYNAMIC SYNC AUTO-DETECTION & CREATION (PART 2)
+        const isSpokeProduct = rule.tags?.includes('spokes') || ['10180231921971', '10182494191923'].includes(String(rule.shopify_product_id));
+        if (isSpokeProduct && !processedProducts.has(String(rule.shopify_product_id))) {
+          const prodIdStr = String(rule.shopify_product_id);
+          processedProducts.add(prodIdStr);
+          console.log(`[SYNC SPOKES] Checking for new option values on product: ${rule.title} (ID: ${prodIdStr})`);
+
+          try {
+            // 1. Fetch current options from Shopify Product via GraphQL
+            const shopifyProdResponse = await fetch(`https://${process.env.SHOPIFY_SHOP_NAME}.myshopify.com/admin/api/2024-04/graphql.json`, {
+              method: 'POST',
+              headers: { 'X-Shopify-Access-Token': adminToken, 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                query: `query($id: ID!) {
+                  product(id: $id) {
+                    id
+                    title
+                    options {
+                      id
+                      name
+                      values
+                    }
+                  }
+                }`,
+                variables: { id: `gid://shopify/Product/${prodIdStr}` }
+              })
+            });
+            const shopifyProdData = await shopifyProdResponse.json();
+            
+            if (shopifyProdData.errors) {
+              console.error(`[SYNC SPOKES] GraphQL error fetching options for ${prodIdStr}:`, JSON.stringify(shopifyProdData.errors));
+            } else {
+              const shopifyProduct = shopifyProdData.data?.product;
+              if (shopifyProduct) {
+                const lengthOption = shopifyProduct.options.find(opt => opt.name.toLowerCase() === 'length');
+                const colorOption = shopifyProduct.options.find(opt => opt.name.toLowerCase() === 'color');
+                const countOption = shopifyProduct.options.find(opt => opt.name.toLowerCase() === 'spoke count');
+                
+                const existingLengths = lengthOption ? lengthOption.values : [];
+                const existingColors = colorOption ? colorOption.values : ['Black'];
+                const existingCounts = countOption ? countOption.values : ['14 Spokes', '18 Spokes', '20 Spokes', '26 Spokes', '30 Spokes', '34 Spokes', '38 Spokes'];
+
+                // 2. Extract Velonix option values (lengths)
+                const velonixLengths = vData.options?.find(opt => opt.name.toLowerCase() === 'length')?.values || [];
+                
+                // Compare and filter missing lengths
+                const missingLengths = velonixLengths.filter(vl => !existingLengths.includes(vl));
+                
+                // Apply strict safety bounds: numbers between 130 and 320
+                const validMissingLengths = missingLengths.filter(vl => {
+                  const numOnly = parseInt(vl.replace(/\D/g, ''));
+                  return !isNaN(numOnly) && numOnly >= 130 && numOnly <= 320;
+                });
+
+                if (validMissingLengths.length > 0) {
+                  console.log(`[SYNC SPOKES] Found ${validMissingLengths.length} missing valid lengths on Velonix: ${validMissingLengths.join(', ')}`);
+                  
+                  // 3. Generate all combinations of Shopify product's existing Colors, new Lengths, and Spoke Counts
+                  const newVariantsToCreate = [];
+                  for (const color of existingColors) {
+                    for (const length of validMissingLengths) {
+                      for (const spokeCount of existingCounts) {
+                        const countNum = parseInt(spokeCount.replace(/\D/g, ''));
+                        if (isNaN(countNum)) continue;
+                        
+                        const price = (countNum * 4.50).toFixed(2);
+                        newVariantsToCreate.push({
+                          price: price,
+                          inventoryPolicy: 'DENY',
+                          optionValues: [
+                            { optionName: 'Color', name: color },
+                            { optionName: 'Length', name: length },
+                            { optionName: 'Spoke Count', name: spokeCount }
+                          ]
+                        });
+                      }
+                    }
+                  }
+
+                  console.log(`[SYNC SPOKES] Generating ${newVariantsToCreate.length} new Shopify variants...`);
+                  
+                  // Chunks of 250
+                  const bulkCreateMutation = `
+                    mutation productVariantsBulkCreate($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
+                      productVariantsBulkCreate(productId: $productId, variants: $variants) {
+                        product { id }
+                        productVariants { id title price selectedOptions { name value } }
+                        userErrors { field message }
+                      }
+                    }
+                  `;
+                  
+                  let createdShopifyVariants = [];
+                  const variantChunks = [];
+                  const chunkSize = 250;
+                  for (let i = 0; i < newVariantsToCreate.length; i += chunkSize) {
+                    variantChunks.push(newVariantsToCreate.slice(i, i + chunkSize));
+                  }
+                  
+                  for (let index = 0; index < variantChunks.length; index++) {
+                    const chunk = variantChunks[index];
+                    const bulkResponse = await fetch(`https://${process.env.SHOPIFY_SHOP_NAME}.myshopify.com/admin/api/2024-04/graphql.json`, {
+                      method: 'POST',
+                      headers: { 'X-Shopify-Access-Token': adminToken, 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        query: bulkCreateMutation,
+                        variables: {
+                          productId: shopifyProduct.id,
+                          variants: chunk
+                        }
+                      })
+                    });
+                    const bulkData = await bulkResponse.json();
+                    if (bulkData.errors || bulkData.data?.productVariantsBulkCreate?.userErrors?.length > 0) {
+                      console.error(`[SYNC SPOKES] Bulk variant creation failed for product ${prodIdStr}:`, JSON.stringify(bulkData.errors || bulkData.data?.productVariantsBulkCreate?.userErrors));
+                    } else {
+                      const batchVariants = bulkData.data.productVariantsBulkCreate.productVariants || [];
+                      createdShopifyVariants = createdShopifyVariants.concat(batchVariants);
+                    }
+                  }
+
+                  if (createdShopifyVariants.length > 0) {
+                    console.log(`[SYNC SPOKES] Successfully created ${createdShopifyVariants.length} Shopify variants.`);
+                    
+                    // Track for the email report
+                    for (const variant of createdShopifyVariants) {
+                      autoCreatedVariants.push({
+                        productTitle: shopifyProduct.title,
+                        variantTitle: variant.title,
+                        price: variant.price
+                      });
+                    }
+
+                    // 4. Sort all lengths (existing + new) numerically and reorder
+                    const allLengthsSet = new Set([...existingLengths, ...validMissingLengths]);
+                    const sortedLengths = [...allLengthsSet].sort((a, b) => {
+                      const numA = parseInt(a.replace(/\D/g, '')) || 0;
+                      const numB = parseInt(b.replace(/\D/g, '')) || 0;
+                      return numA - numB;
+                    });
+
+                    console.log(`[SYNC SPOKES] Reordering all ${sortedLengths.length} options for product ${prodIdStr}...`);
+                    
+                    const reorderMutation = `
+                      mutation productOptionsReorder($productId: ID!, $options: [OptionReorderInput!]!) {
+                        productOptionsReorder(productId: $productId, options: $options) {
+                          product {
+                            id
+                            options {
+                              id
+                              name
+                              values
+                            }
+                          }
+                          userErrors {
+                            field
+                            message
+                          }
+                        }
+                      }
+                    `;
+
+                    const optionsInput = shopifyProduct.options.map(opt => {
+                      if (opt.name.toLowerCase() === 'length') {
+                        return {
+                          name: opt.name,
+                          values: sortedLengths.map(l => ({ name: l }))
+                        };
+                      } else {
+                        return {
+                          name: opt.name,
+                          values: opt.values.map(v => ({ name: v }))
+                        };
+                      }
+                    });
+
+                    const reorderResponse = await fetch(`https://${process.env.SHOPIFY_SHOP_NAME}.myshopify.com/admin/api/2024-04/graphql.json`, {
+                      method: 'POST',
+                      headers: { 'X-Shopify-Access-Token': adminToken, 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        query: reorderMutation,
+                        variables: {
+                          productId: shopifyProduct.id,
+                          options: optionsInput
+                        }
+                      })
+                    });
+                    const reorderData = await reorderResponse.json();
+                    if (reorderData.errors || reorderData.data?.productOptionsReorder?.userErrors?.length > 0) {
+                      console.error(`[SYNC SPOKES] Option reordering failed for product ${prodIdStr}:`, JSON.stringify(reorderData.errors || reorderData.data?.productOptionsReorder?.userErrors));
+                    } else {
+                      console.log(`[SYNC SPOKES] Options successfully reordered.`);
+                    }
+
+                    // 5. Generate and insert DB rules in Supabase
+                    const rulesToInsert = [];
+                    for (const variant of createdShopifyVariants) {
+                      const variantIdRaw = variant.id.split('/').pop();
+                      const optionsMap = {};
+                      variant.selectedOptions.forEach(opt => {
+                        optionsMap[opt.name] = opt.value;
+                      });
+
+                      rulesToInsert.push({
+                        shopify_product_id: prodIdStr,
+                        shopify_variant_id: variantIdRaw,
+                        title: `${shopifyProduct.title} (${variant.title})`,
+                        vendor_name: rule.vendor_name,
+                        site_type: rule.site_type || 'SHOPIFY',
+                        option_values: optionsMap,
+                        tags: rule.tags || ['spokes'],
+                        vendor_url: rule.vendor_url,
+                        auto_update: true,
+                        needs_review: false,
+                        price_adjustment_factor: rule.price_adjustment_factor || 1.08,
+                        last_price: rule.last_price || 395,
+                        current_shopify_price: Math.round(parseFloat(variant.price) * 100),
+                        last_availability: false
+                      });
+                    }
+
+                    const dbBatchSize = 100;
+                    for (let i = 0; i < rulesToInsert.length; i += dbBatchSize) {
+                      const batch = rulesToInsert.slice(i, i + dbBatchSize);
+                      const { data: insertedData, error: dbError } = await supabase.from('watcher_rules').insert(batch).select();
+                      if (dbError) {
+                        console.error('[SYNC SPOKES] Supabase rule insert error:', dbError);
+                      } else if (insertedData) {
+                        rules.push(...insertedData);
+                        console.log(`[SYNC SPOKES] Pushed ${insertedData.length} new rules into current sync execution queue.`);
+                      }
+                    }
+                  }
+                } else {
+                  console.log(`[SYNC SPOKES] No new options detected for product ${prodIdStr}.`);
+                }
+              }
+            }
+          } catch (spokeErr) {
+            console.error(`[SYNC SPOKES] CRITICAL ERROR during spoke auto-detection:`, spokeErr);
+          }
+        }
 
         // 1. DYNAMIC MATCHING ENGINE
         let winner = null;
@@ -396,16 +716,7 @@ export default async function handler(req, res) {
 
         console.log(`[RULE: ${rule.id}] Processing "${rule.title}" | Winner: "${winner?.public_title || 'None'}" | Status: ${vStatus}`);
         if (winner) {
-          const variantGid = `gid://shopify/ProductVariant/${rule.shopify_variant_id}`;
-          const sResponse = await fetch(`https://${process.env.SHOPIFY_SHOP_NAME}.myshopify.com/admin/api/2024-04/graphql.json`, {
-            method: 'POST', headers: { 'X-Shopify-Access-Token': adminToken, 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              query: `query($id: ID!) { productVariant(id: $id) { price compareAtPrice inventoryQuantity inventoryPolicy product { id handle } btiMonitor: metafield(namespace: "custom", key: "bti_sync_authority") { value } } }`,
-              variables: { id: variantGid }
-            })
-          });
-          const sData = await sResponse.json();
-          const variant = sData.data?.productVariant;
+          const variant = await getShopifyVariant(adminToken, rule.shopify_product_id, rule.shopify_variant_id);
           if (!variant) throw new Error(`Shopify ID ${rule.shopify_variant_id} not found`);
 
           const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true') : null;
@@ -423,7 +734,7 @@ export default async function handler(req, res) {
           const myPrice = parseFloat(variant.price).toFixed(2);
           const myCompare = variant.compareAtPrice ? parseFloat(variant.compareAtPrice).toFixed(2) : null;
           const isDiff = Number(goalPrice) !== Number(myPrice);
-          const ignorePriceUpdate = String(rule.shopify_product_id) === '10180231921971';
+          const ignorePriceUpdate = String(rule.shopify_product_id) === '10180231921971' || rule.tags?.includes('spokes');
           let forceNeedsReview = rule.needs_review;
           
           if (!ignorePriceUpdate && isDiff && Number(goalPrice) < Number(myPrice)) {
@@ -529,50 +840,100 @@ export default async function handler(req, res) {
           let newLog = `Synced (${winner.available ? 'In Stock' : 'OOS'}). Link: https://loamlabsusa.com/products/${productHandle}`;
           if (!winner.available && currentEffectiveBtiFlag === true) newLog = `Vendor OOS (Matched: "${winner.public_title}"). Deferring INVENTORY to BTI. Link: https://loamlabsusa.com/products/${productHandle}`;
 
-          await supabase.from('watcher_rules').update({ 
-            last_price: Math.round(vendorPrice * 100), 
-            last_availability: winner.available,
-            last_run_at: new Date().toISOString(),
-            last_log: newLog,
-            price_last_changed_at: newPriceLastChangedAt,
-            out_of_stock_since: newOutOfStockSince,
-            current_shopify_price: Math.round(finalShopifyPriceNum * 100),
-            current_compare_at_price: updatePayloadForPrice.compare_at_price ? Math.round(Number(updatePayloadForPrice.compare_at_price) * 100) : (myCompare ? Math.round(Number(myCompare) * 100) : null),
-            bti_inventory_active: !!currentEffectiveBtiFlag,
-            needs_review: forceNeedsReview
-          }).eq('id', rule.id);
+          // --- DIFFERENTIAL UPDATE: Only write to DB if something actually changed ---
+          const newLastPrice = Math.round(vendorPrice * 100);
+          const newCurrentShopifyPrice = Math.round(finalShopifyPriceNum * 100);
+          const newCurrentCompareAtPrice = updatePayloadForPrice.compare_at_price ? Math.round(Number(updatePayloadForPrice.compare_at_price) * 100) : (myCompare ? Math.round(Number(myCompare) * 100) : null);
+          const newBtiInventoryActive = !!currentEffectiveBtiFlag;
+
+          const hasChanged = (
+            rule.last_price !== newLastPrice ||
+            rule.last_availability !== winner.available ||
+            rule.last_log !== newLog ||
+            rule.price_last_changed_at !== newPriceLastChangedAt ||
+            rule.out_of_stock_since !== newOutOfStockSince ||
+            rule.current_shopify_price !== newCurrentShopifyPrice ||
+            rule.current_compare_at_price !== newCurrentCompareAtPrice ||
+            rule.bti_inventory_active !== newBtiInventoryActive ||
+            rule.needs_review !== forceNeedsReview
+          );
+
+          if (hasChanged) {
+            await supabase.from('watcher_rules').update({ 
+              last_price: newLastPrice, 
+              last_availability: winner.available,
+              last_run_at: nowIso,
+              last_log: newLog,
+              price_last_changed_at: newPriceLastChangedAt,
+              out_of_stock_since: newOutOfStockSince,
+              current_shopify_price: newCurrentShopifyPrice,
+              current_compare_at_price: newCurrentCompareAtPrice,
+              bti_inventory_active: newBtiInventoryActive,
+              needs_review: forceNeedsReview
+            }).eq('id', rule.id);
+          } else {
+            // Nothing changed — queue for bulk last_run_at update at the end
+            unchangedRuleIds.push(rule.id);
+          }
 
         } else {
            const vendorOptions = vData.variants.slice(0, 2).map(v => v.public_title).join(', ');
-           await supabase.from('watcher_rules').update({ 
-             last_log: `FAILED: Found 0 matches for parsed options. Vendor uses: ${vendorOptions}`,
-             last_run_at: new Date().toISOString()
-           }).eq('id', rule.id);
+           const failLog = `FAILED: Found 0 matches for parsed options. Vendor uses: ${vendorOptions}`;
+           if (rule.last_log !== failLog) {
+             await supabase.from('watcher_rules').update({ 
+               last_log: failLog,
+               last_run_at: nowIso
+             }).eq('id', rule.id);
+           } else {
+             unchangedRuleIds.push(rule.id);
+           }
         }
       } catch (ruleError) {
         console.error(`FAILURE on rule ${rule.id} (${rule.title}):`, ruleError);
         attention.push({ title: rule.title, reason: `Sync Failed: ${ruleError.message}` });
         await supabase.from('watcher_rules').update({ 
             last_log: `CRASHED: ${ruleError.message.slice(0, 100)}`,
-            last_run_at: new Date().toISOString()
+            last_run_at: nowIso
         }).eq('id', rule.id).catch(() => {});
       }
+    }
+
+    // --- BULK TIMESTAMP UPDATE for all unchanged rules ---
+    // This is the key performance optimization: instead of thousands of sequential
+    // row updates, we update last_run_at for ALL unchanged rules in chunked bulk queries.
+    if (unchangedRuleIds.length > 0) {
+      console.log(`[SYNC] Bulk-updating last_run_at for ${unchangedRuleIds.length} unchanged rules...`);
+      const chunkSize = 500;
+      for (let i = 0; i < unchangedRuleIds.length; i += chunkSize) {
+        const chunk = unchangedRuleIds.slice(i, i + chunkSize);
+        const { error: bulkErr } = await supabase
+          .from('watcher_rules')
+          .update({ last_run_at: nowIso })
+          .in('id', chunk);
+        if (bulkErr) console.error('[SYNC] Bulk last_run_at update error:', bulkErr);
+      }
+      console.log(`[SYNC] Bulk timestamp update complete.`);
     }
 
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
     await supabase.from('sync_logs').delete().lt('created_at', thirtyDaysAgo);
 
-    const hasReport = updated.length > 0 || attention.length > 0 || stockChanges.length > 0 || oosReminders.length > 0;
+    const hasReport = updated.length > 0 || attention.length > 0 || stockChanges.length > 0 || oosReminders.length > 0 || autoCreatedVariants.length > 0;
     if (hasReport) {
       const updatedHtml = updated.map(i => `<li style="color:green;">🚀 <b>UPDATED:</b> ${i.title}<br><small>${i.reason}</small></li>`).join('');
       const attentionHtml = attention.map(i => `<li style="color:red;">⚠️ <b>ALERT:</b> ${i.title}<br><small>${i.reason}</small></li>`).join('');
+      let autoCreatedHtml = '';
+      if (autoCreatedVariants.length > 0) {
+        autoCreatedHtml = `<h3 style="margin-top:20px; color:#4F46E5;">✨ Auto-Created Spoke Variants (${autoCreatedVariants.length})</h3><ul>` + 
+          autoCreatedVariants.map(v => `<li>Created variant: <b>${v.productTitle} (${v.variantTitle})</b> at $${v.price}</li>`).join('') + '</ul>';
+      }
       let stockHtml = stockChanges.length > 0 ? `<h3 style="margin-top:20px;">📦 Stock Status Changes (${stockChanges.length})</h3><ul>` + stockChanges.map(s => `<li>${s.action}: <b>${s.title}</b></li>`).join('') + '</ul>' : '';
       let oosHtml = oosReminders.length > 0 ? `<h3 style="margin-top:20px;">⏰ Items Still Out of Stock</h3><ul>` + oosReminders.map(r => `<li><b>${r.title}</b> — out of stock for <b>${r.days} days</b></li>`).join('') + '</ul>' : '';
-      const totalAlerts = updated.length + attention.length + stockChanges.length;
+      const totalAlerts = updated.length + attention.length + stockChanges.length + autoCreatedVariants.length;
       await resend.emails.send({
         from: 'Watcher <system@loamlabsusa.com>', to: process.env.REPORT_EMAIL,
-        subject: `Vendor Watcher: ${totalAlerts} Updates${oosReminders.length > 0 ? ` + ${oosReminders.length} OOS Reminders` : ''}`,
-        html: `<div style="font-family:sans-serif;"><h2>Shop Sync Report</h2><ul>${updatedHtml}${attentionHtml}</ul>${stockHtml}${oosHtml}</div>`
+        subject: `Vendor Watcher: ${totalAlerts} Updates${autoCreatedVariants.length > 0 ? ` (+${autoCreatedVariants.length} New Variants)` : ''}${oosReminders.length > 0 ? ` + ${oosReminders.length} OOS Reminders` : ''}`,
+        html: `<div style="font-family:sans-serif;"><h2>Shop Sync Report</h2><ul>${updatedHtml}${attentionHtml}</ul>${autoCreatedHtml}${stockHtml}${oosHtml}</div>`
       });
     }
 
@@ -582,6 +943,7 @@ export default async function handler(req, res) {
 
     res.status(200).json({ updated: updated.length, attention: attention.length, stock_changes: stockChanges.length });
   } catch (err) { 
+    console.error('CRITICAL SYNC ERROR:', err);
     await supabase.from('sync_logs').insert([{ status: 'error', message: `CRITICAL ERROR: ${err.message}` }]);
     res.status(500).json({ error: err.message }); 
   }
