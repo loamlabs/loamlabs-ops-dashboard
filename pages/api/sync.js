@@ -266,12 +266,11 @@ export default async function handler(req, res) {
                 if (validMissingLengths.length > 0) {
                   console.log(`[SYNC SPOKES] Found ${validMissingLengths.length} missing valid lengths on Velonix: ${validMissingLengths.join(', ')}`);
                   
-                  // Per user preference, do NOT auto-create variants. Just flag it for the daily email report.
-                  const sample = validMissingLengths.slice(0, 5).join(', ');
-                  const hasMore = validMissingLengths.length > 5 ? '...' : '';
+                  // Show the FULL list since the user needs to manually add them
+                  const fullList = validMissingLengths.join(', ');
                   attention.push({
                     title: rule.title.split('(')[0].trim(),
-                    reason: `Vendor added ${validMissingLengths.length} new lengths not currently on your store (e.g. ${sample}${hasMore}).`
+                    reason: `Vendor added ${validMissingLengths.length} new lengths not currently on your store: ${fullList}.`
                   });
                   
                   console.log(`[SYNC SPOKES] Added missing lengths warning to email report. Skipping auto-creation.`);
