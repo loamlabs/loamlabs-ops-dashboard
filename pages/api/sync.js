@@ -544,6 +544,13 @@ export default async function handler(req, res) {
                   vStatus = `Matched by tokens (${ruleTokens.join(', ')}).`;
                }
             }
+            
+            // IF multiple candidates match (e.g. hub with different freehubs), consider it available if ANY of the candidates are available.
+            if (winner && candidates.length > 1) {
+              const anyAvailable = candidates.some(c => c.available);
+              winner = { ...winner, available: anyAvailable };
+              if (anyAvailable) vStatus += ` (Aggregated availability from ${candidates.length} variants)`;
+            }
           }
         }
 
