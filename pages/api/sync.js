@@ -771,7 +771,9 @@ export default async function handler(req, res) {
                  updatePayloadForPrice.metafields = [{ namespace: "custom", key: "bti_sync_authority", value: "false", type: "boolean" }];
                 shouldPutPrice = true;
                 currentEffectiveBtiFlag = false;
-             } else if (!winner.available && (rule.bti_monitoring_enabled === true || rule.bti_monitoring_enabled === 'true' || rule.tags?.includes('bti-sync')) && currentBtiFlag !== true) {
+             } else if (!winner.available && rule.bti_part_number && (rule.bti_monitoring_enabled === true || rule.bti_monitoring_enabled === 'true' || rule.tags?.includes('bti-sync')) && currentBtiFlag !== true) {
+                // Only defer to BTI if there's an actual BTI part number — items without one
+                // (e.g. spokes sourced from Velonix) have no BTI match and must be managed directly.
                 console.log(`[SYNC] Vendor OOS for ${rule.title}. Deferring authority to BTI.`);
                  updatePayloadForPrice.metafields = [{ namespace: "custom", key: "bti_sync_authority", value: "true", type: "boolean" }];
                 shouldPutPrice = true;
