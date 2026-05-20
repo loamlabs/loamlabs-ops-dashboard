@@ -728,9 +728,22 @@ export default async function handler(req, res) {
         } else {
            const vendorOptions = vData.variants.slice(0, 2).map(v => v.public_title).join(', ');
            const failLog = `FAILED: Found 0 matches for parsed options. Vendor uses: ${vendorOptions}`;
-           if (rule.last_log !== failLog) {
+           
+           if (rule.auto_update === true) {
+             const variant = await getShopifyVariant(adminToken, rule.shopify_product_id, rule.shopify_variant_id);
+             if (variant && (variant.inventoryQuantity || 0) <= 0 && variant.inventoryPolicy === 'CONTINUE') {
+                 await fetch(`https://${process.env.SHOPIFY_SHOP_NAME}.myshopify.com/admin/api/2024-04/variants/${rule.shopify_variant_id}.json`, {
+                   method: 'PUT', headers: { 'X-Shopify-Access-Token': adminToken, 'Content-Type': 'application/json' },
+                   body: JSON.stringify({ variant: { id: rule.shopify_variant_id, inventory_policy: 'deny' } })
+                 });
+                 stockChanges.push({ title: rule.title, action: '🔴 Made Unavailable (Vendor Does Not Offer)' });
+             }
+           }
+
+           if (rule.last_log !== failLog || rule.last_availability !== false) {
              await supabase.from('watcher_rules').update({ 
                last_log: failLog,
+               last_availability: false,
                last_run_at: nowIso
              }).eq('id', rule.id);
            } else {
