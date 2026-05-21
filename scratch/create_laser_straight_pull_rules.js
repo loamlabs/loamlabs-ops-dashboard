@@ -123,16 +123,14 @@ async function run() {
       // Create new Shopify variant via REST API
       const payload = {
         variant: {
-          option1: `${countNum}`,
-          // Find the position of each option name
-          // Shopify expects option values in the order of product.options
+          // options will be filled below after we compute the correct values
         }
       };
-      // Build the option values in proper order
+      // Build the option values in proper order, ensuring the spoke count includes the "Spokes" suffix
       const optionValues = {};
       optionNames.forEach(name => {
         const lname = name.toLowerCase();
-        if (lname.includes('spoke')) optionValues[name] = `${countNum}`;
+        if (lname.includes('spoke')) optionValues[name] = `${countNum} Spokes`;
         else if (lname.includes('color')) optionValues[name] = color;
         else if (lname.includes('length')) optionValues[name] = `${length}mm`;
         else optionValues[name] = '';

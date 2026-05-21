@@ -1,0 +1,68 @@
+/*
+ * ------------------------------------------------------------
+ * IMPORTANT: The contents of this file are auto-generated.
+ *
+ * This file may be updated by the Shopify admin theme editor
+ * or related systems. Please exercise caution as any changes
+ * made to this file may be overwritten.
+ * ------------------------------------------------------------
+ */
+{
+  "sections": {
+    "custom_liquid_UF8mwf": {
+      "type": "custom-liquid",
+      "custom_css": [],
+      "name": "t:sections.custom-liquid.presets.name",
+      "settings": {
+        "custom_liquid": "<div class=\"intro-content-wrapper\">\n  <h1>Professional Spoke Length Calculator</h1>\n  \n  <p>Welcome to the most comprehensive and accurate spoke calculator for bicycle wheels. Simply enter your component data below to get the perfect spoke lengths for a strong, reliable wheel build.</p>\n\n  <h3>Designed for Professional & DIY Builders</h3>\n  <p>This tool provides the precise calculations you need for all modern hub and spoke types, including J-bend, Straight Pull, and even advanced Berd PolyLight spokes.</p>\n</div>",
+        "color_scheme": "background-2",
+        "padding_top": 8,
+        "padding_bottom": 8
+      }
+    },
+    "custom_liquid_Bjanga": {
+      "type": "custom-liquid",
+      "name": "t:sections.custom-liquid.presets.name",
+      "settings": {
+        "custom_liquid": "<div class=\"calculator-menu-bar\">\n  <a href=\"/pages/wheel-component-library\" class=\"calculator-menu-item\">\n    <svg xmlns=\"http://www.w3.org/2000/svg\" width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"feather feather-database\"><ellipse cx=\"12\" cy=\"5\" rx=\"9\" ry=\"3\"></ellipse><path d=\"M21 12c0 1.66-4 3-9 3s-9-1.34-9-3\"></path><path d=\"M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5\"></path></svg>\n    <span>Wheel Component Library</span>\n  </a>\n  \n  <!-- Add a placeholder for the \"My Bench\" feature -->\n  <div class=\"calculator-menu-item is-disabled\" title=\"Coming Soon!\">\n    <svg xmlns=\"http://www.w3.org/2000/svg\" width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"feather feather-briefcase\"><rect x=\"2\" y=\"7\" width=\"20\" height=\"14\" rx=\"2\" ry=\"2\"></rect><path d=\"M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16\"></path></svg>\n    <span>My Component Bench</span>\n  </div>\n\n</div>",
+        "color_scheme": "",
+        "padding_top": 0,
+        "padding_bottom": 0
+      }
+    },
+    "main": {
+      "type": "main-spoke-calculator",
+      "custom_css": [],
+      "settings": {}
+    },
+    "rich_text_pHWy3H": {
+      "type": "rich-text",
+      "blocks": {
+        "text_bCjrMt": {
+          "type": "text",
+          "settings": {
+            "text": "<p><em>Note for 2026: When calculating for straight-pull hubs like the New DT Swiss 180, ensure you are measuring from the actual seating point of the spoke head.</em></p>"
+          }
+        }
+      },
+      "block_order": [
+        "text_bCjrMt"
+      ],
+      "name": "t:sections.rich-text.presets.name",
+      "settings": {
+        "desktop_content_position": "center",
+        "content_alignment": "center",
+        "color_scheme": "",
+        "full_width": true,
+        "padding_top": 0,
+        "padding_bottom": 52
+      }
+    }
+  },
+  "order": [
+    "custom_liquid_UF8mwf",
+    "custom_liquid_Bjanga",
+    "main",
+    "rich_text_pHWy3H"
+  ]
+}

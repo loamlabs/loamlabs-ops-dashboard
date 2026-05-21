@@ -1,0 +1,95 @@
+<div class="in-page-nav">
+        <a href="#shop-by-brand">Shop by Brand</a>
+        <a href="#shop-by-material">Shop by Material</a>
+        <a href="#shop-by-size">Shop by Size</a>
+      </div>
+    </div>
+    
+    <div class="color-{{ section.settings.color_scheme }} gradient">
+  <div class="page-width">
+    
+    {% comment %} --- LOGO URLS (Rims) --- {% endcomment %}
+    {%- assign astral_logo = 'https://cdn.shopify.com/s/files/1/0801/1530/2707/files/Astral_logo_1.png?v=1699133256' -%}
+    {%- assign dtswiss_logo = 'https://cdn.shopify.com/s/files/1/0801/1530/2707/files/DT_Swiss_logo_46fa1c93-2429-459b-8d43-2654f7a75395.png?v=1699132779' -%}
+    {%- assign ethirteen_logo = 'https://cdn.shopify.com/s/files/1/0801/1530/2707/files/ethirteen_logo.png?v=1727132811' -%}
+    {%- assign hed_logo = 'https://cdn.shopify.com/s/files/1/0801/1530/2707/files/1835251_ff368469-9122-4859-a1f0-4cc57dfe9b43.png?v=1750807395' -%}
+    {%- assign logos_logo = 'https://cdn.shopify.com/s/files/1/0801/1530/2707/files/logos_logo_2.png?v=1715215994' -%}
+    {%- assign nobl_logo = 'https://cdn.shopify.com/s/files/1/0801/1530/2707/files/NOBL-logo.png?v=1699132790' -%}
+    {%- assign raceface_logo = 'https://cdn.shopify.com/s/files/1/0801/1530/2707/files/raceface_logo_1_250cbcad-a0f8-4850-a393-3765ef1d47a5.png?v=1699147463' -%}
+    {%- assign reserve_logo = 'https://cdn.shopify.com/s/files/1/0801/1530/2707/files/reserve_logo.png?v=1757602881' -%}
+    {%- assign spank_logo = 'https://cdn.shopify.com/s/files/1/0801/1530/2707/files/SPANK-LOGO.png?v=1699136478' -%}
+    {%- assign stans_logo = 'https://cdn.shopify.com/s/files/1/0801/1530/2707/files/stans_logo_f045f858-1389-4976-9e74-c4e90e9945ac.png?v=1715616945' -%}
+    {%- assign Velocity_logo = 'https://cdn.shopify.com/s/files/1/0801/1530/2707/files/Velocity_logo.png?v=1699140095' -%}
+    {%- assign wao_logo = 'https://cdn.shopify.com/s/files/1/0801/1530/2707/files/weareone_logo_1.png?v=1715616414' -%}
+    {%- assign carbon_logo = '' -%}
+    {%- assign alloy_logo = '' -%}
+
+    <!-- SHOP BY BRAND SECTION -->
+    <div class="landing-page-section" id="shop-by-brand">
+      <h2>Shop by Brand</h2>
+      <div class="flex-container">
+        <!-- Astral -->
+        <div class="flex-item"><a href="/collections/astral-rims" class="grid-item-link"><div class="grid-item-logo-wrapper">{% if astral_logo != blank %}<img src="{{ astral_logo }}" alt="Astral Rims Logo" class="grid-item-logo">{% else %}<h3>Astral Rims</h3>{% endif %}</div><p>High-quality rims for road, gravel, and cyclocross.</p></a></div>
+        <!-- DT Swiss -->
+        <div class="flex-item"><a href="/collections/dt-swiss-rims" class="grid-item-link"><div class="grid-item-logo-wrapper">{% if dtswiss_logo != blank %}<img src="{{ dtswiss_logo }}" alt="DT Swiss Rims Logo" class="grid-item-logo">{% else %}<h3>DT Swiss Rims</h3>{% endif %}</div><p>Legendary Swiss engineering and reliability.</p></a></div>
+        <!-- e*thirteen -->
+        <div class="flex-item"><a href="/collections/e-thirteen-rims" class="grid-item-link"><div class="grid-item-logo-wrapper">{% if ethirteen_logo != blank %}<img src="{{ ethirteen_logo }}" alt="e*thirteen Rims Logo" class="grid-item-logo">{% else %}<h3>e*thirteen Rims</h3>{% endif %}</div><p>Race-proven alloy & carbon rims for aggressive riding.</p></a></div>
+        <!-- HED -->
+        <div class="flex-item"><a href="/collections/hed-rims" class="grid-item-link"><div class="grid-item-logo-wrapper">{% if hed_logo != blank %}<img src="{{ hed_logo }}" alt="HED Rims Logo" class="grid-item-logo">{% else %}<h3>HED Rims</h3>{% endif %}</div><p>Pioneers in aerodynamics and wide-rim technology.</p></a></div>
+        <!-- Logos -->
+        <div class="flex-item"><a href="/collections/logos-rims" class="grid-item-link"><div class="grid-item-logo-wrapper">{% if logos_logo != blank %}<img src="{{ logos_logo }}" alt="Logos Rims Logo" class="grid-item-logo">{% else %}<h3>Logos Rims</h3>{% endif %}</div><p>A fantastic balance of quality and value.</p></a></div>
+        <!-- NOBL -->
+        <div class="flex-item"><a href="/collections/nobl-rims" class="grid-item-link"><div class="grid-item-logo-wrapper">{% if nobl_logo != blank %}<img src="{{ nobl_logo }}" alt="NOBL Carbon Rims Logo" class="grid-item-logo">{% else %}<h3>NOBL Carbon Rims</h3>{% endif %}</div><p>Premium carbon rims for MTB & Gravel.</p></a></div>
+        <!-- Race Face -->
+        <div class="flex-item"><a href="/collections/race-face-rims" class="grid-item-link"><div class="grid-item-logo-wrapper">{% if raceface_logo != blank %}<img src="{{ raceface_logo }}" alt="Race Face Rims Logo" class="grid-item-logo">{% else %}<h3>Race Face Rims</h3>{% endif %}</div><p>Bombproof rims built for the toughest conditions.</p></a></div>
+        <!-- Reserve -->
+        <div class="flex-item"><a href="/collections/reserve-rims" class="grid-item-link"><div class="grid-item-logo-wrapper">{% if reserve_logo != blank %}<img src="{{ reserve_logo }}" alt="Reserve Wheels Rims Logo" class="grid-item-logo">{% else %}<h3>Reserve Wheels Rims</h3>{% endif %}</div><p>High-performance carbon rims with a lifetime warranty.</p></a></div>
+        <!-- Spank -->
+        <div class="flex-item"><a href="/collections/spank-rims" class="grid-item-link"><div class="grid-item-logo-wrapper">{% if spank_logo != blank %}<img src="{{ spank_logo }}" alt="Spank Rims Logo" class="grid-item-logo">{% else %}<h3>Spank Rims</h3>{% endif %}</div><p>Innovative Vibrocore technology for a smoother ride.</p></a></div>
+        <!-- Stan's -->
+        <div class="flex-item"><a href="/collections/stans-rims" class="grid-item-link"><div class="grid-item-logo-wrapper">{% if stans_logo != blank %}<img src="{{ stans_logo }}" alt="Stan's NoTubes Rims Logo" class="grid-item-logo">{% else %}<h3>Stan's NoTubes Rims</h3>{% endif %}</div><p>The original and trusted name in tubeless technology.</p></a></div>
+        <!-- Velocity -->
+        <div class="flex-item"><a href="/collections/velocity-rims" class="grid-item-link"><div class="grid-item-logo-wrapper">{% if stans_logo != blank %}<img src="{{ Velocity_logo }}" alt="Velocity Rims Logo" class="grid-item-logo">{% else %}<h3>Velocity Rims</h3>{% endif %}</div><p>The American-made standard for rim versatility</p></a></div>
+        <!-- We Are One -->
+        <div class="flex-item"><a href="/collections/we-are-one-rims" class="grid-item-link"><div class="grid-item-logo-wrapper">{% if wao_logo != blank %}<img src="{{ wao_logo }}" alt="We Are One Rims Logo" class="grid-item-logo">{% else %}<h3>We Are One Rims</h3>{% endif %}</div><p>Handcrafted in Canada, backed by a lifetime warranty.</p></a></div>
+      </div>
+    </div>
+
+    <!-- SHOP BY MATERIAL SECTION -->
+    <div class="landing-page-section" id="shop-by-material">
+      <h2>Shop by Material</h2>
+      <div class="flex-container">
+        <div class="flex-item"><a href="/collections/all-rims"><div class="flex-item-content-wrapper"><h3>View All Rims</h3></div><p>Browse our entire catalog and use our filters to find the perfect rim.</p></a></div>
+        <div class="flex-item"><a href="/collections/carbon-rims"><div class="flex-item-content-wrapper">{% if carbon_logo != blank %}<img src="{{ carbon_logo }}" alt="Carbon Rims" class="flex-item-logo">{% else %}<h3>Carbon Rims</h3>{% endif %}</div><p>For the ultimate in lightweight performance and stiffness.</p></a></div>
+        <div class="flex-item"><a href="/collections/alloy-rims"><div class="flex-item-content-wrapper">{% if alloy_logo != blank %}<img src="{{ alloy_logo }}" alt="Alloy Rims" class="flex-item-logo">{% else %}<h3>Alloy Rims</h3>{% endif %}</div><p>For proven durability and exceptional value.</p></a></div>
+      </div>
+    </div>
+
+    <!-- SHOP BY SIZE SECTION -->
+    <div class="landing-page-section" id="shop-by-size">
+      <h2>Shop by Size</h2>
+      <div class="flex-container">
+        <div class="flex-item"><a href="/collections/29-inch-rims"><div class="flex-item-content-wrapper"><h3>29 Inch Rims</h3></div><p>For modern MTB & Gravel bikes.</p></a></div>
+        <div class="flex-item"><a href="/collections/27-5-inch-rims"><div class="flex-item-content-wrapper"><h3>27.5" Rims</h3></div><p>For playful trail & enduro bikes.</p></a></div>
+        <div class="flex-item"><a href="/collections/26-inch-rims"><div class="flex-item-content-wrapper"><h3>26 Inch Rims</h3></div><p>For Dirt Jump & classic MTB.</p></a></div>
+        <div class="flex-item"><a href="/collections/700c-rims"><div class="flex-item-content-wrapper"><h3>700c Rims</h3></div><p>The standard for Road & Gravel.</p></a></div>
+        <div class="flex-item"><a href="/collections/650b-rims"><div class="flex-item-content-wrapper"><h3>650b Rims</h3></div><p>For "Road Plus" & All-Road adventure.</p></a></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+{% schema %}
+{
+  "name": "Page Landing Rims",
+  "settings": [
+    {
+      "type": "color_scheme",
+      "id": "color_scheme",
+      "label": "Color scheme",
+      "default": "scheme-1"
+    }
+  ]
+}
+{% endschema %}

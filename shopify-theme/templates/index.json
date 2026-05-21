@@ -1,0 +1,468 @@
+/*
+ * ------------------------------------------------------------
+ * IMPORTANT: The contents of this file are auto-generated.
+ *
+ * This file may be updated by the Shopify admin theme editor
+ * or related systems. Please exercise caution as any changes
+ * made to this file may be overwritten.
+ * ------------------------------------------------------------
+ */
+{
+  "sections": {
+    "slideshow_hDBfzt": {
+      "type": "slideshow",
+      "blocks": {
+        "slide_YVPm48": {
+          "type": "slide",
+          "settings": {
+            "image": "shopify://shop_images/Reserve_Carbon_wheelset_landing_page.jpg",
+            "image_overlay_opacity": 20,
+            "heading": "<strong>Create Your Perfect Custom Bicycle Wheels</strong>",
+            "heading_size": "h1",
+            "subheading": "<em>Professional Wheel Builder - Hand Built With Components You Choose!</em>",
+            "button_label": "Build Yours Now",
+            "link": "shopify://pages/custom-wheel-builder",
+            "button_style_secondary": true,
+            "show_text_box": false,
+            "box_align": "bottom-center",
+            "text_alignment": "center",
+            "text_alignment_mobile": "center",
+            "color_scheme": "inverse"
+          }
+        },
+        "slide_bHzyyz": {
+          "type": "slide",
+          "settings": {
+            "image": "shopify://shop_images/P1033775.jpg",
+            "image_overlay_opacity": 20,
+            "heading": "<strong>Reserve 57|64 Aero Wheelsets In Stock</strong>",
+            "heading_size": "h1",
+            "subheading": "<em>DT Swiss DICUT 180, 240, and 350 hubs available today!  Custom build options are also available.</em>",
+            "button_label": "In Stock – Order Now",
+            "link": "https://loamlabsusa.com/products/reserve-57-64-turbulent-aero",
+            "button_style_secondary": true,
+            "show_text_box": false,
+            "box_align": "top-left",
+            "text_alignment": "left",
+            "text_alignment_mobile": "left",
+            "color_scheme": "inverse"
+          }
+        },
+        "slide_kWNmkd": {
+          "type": "slide",
+          "settings": {
+            "image": "shopify://shop_images/forgebond-dt240-berd-wheel.jpg",
+            "image_overlay_opacity": 20,
+            "heading": "<strong>Custom Bicycle Wheels Built to Last</strong>",
+            "heading_size": "h1",
+            "subheading": "<em>Steel and BERD Spoke Builds are Pre-Stretch and De-Stressed to Maximize Longevity!</em>",
+            "button_label": "Ready to Build?",
+            "link": "shopify://pages/custom-wheel-builder",
+            "button_style_secondary": true,
+            "show_text_box": false,
+            "box_align": "middle-right",
+            "text_alignment": "center",
+            "text_alignment_mobile": "center",
+            "color_scheme": "inverse"
+          }
+        },
+        "slide_bgyqxa": {
+          "type": "slide",
+          "settings": {
+            "image": "shopify://shop_images/P1033179.jpg",
+            "image_overlay_opacity": 20,
+            "heading": "<strong>Reserve 40|44 GR Wheelsets In Stock</strong>",
+            "heading_size": "h0",
+            "subheading": "<em>DT Swiss 180, 240, and 350 hubs available today!  Custom build options are also available.</em>",
+            "button_label": "In Stock – Order Now",
+            "link": "shopify://products/reserve-40-44-gr",
+            "button_style_secondary": true,
+            "show_text_box": false,
+            "box_align": "top-center",
+            "text_alignment": "center",
+            "text_alignment_mobile": "center",
+            "color_scheme": "inverse"
+          }
+        }
+      },
+      "block_order": [
+        "slide_YVPm48",
+        "slide_bHzyyz",
+        "slide_kWNmkd",
+        "slide_bgyqxa"
+      ],
+      "settings": {
+        "layout": "full_bleed",
+        "slide_height": "large",
+        "slider_visual": "dots",
+        "auto_rotate": true,
+        "change_slides_speed": 5,
+        "image_behavior": "none",
+        "show_text_below": false,
+        "accessibility_info": "Wheels built by LoamLabs"
+      }
+    },
+    "image_with_text_xC8Rhw": {
+      "type": "image-with-text",
+      "blocks": {
+        "heading_m3ePC6": {
+          "type": "heading",
+          "settings": {
+            "heading": "Free Professional Spoke Calculator",
+            "heading_size": "h2"
+          }
+        },
+        "text_FW9HLQ": {
+          "type": "text",
+          "settings": {
+            "text": "<p>The ultimate tool for your next wheel build. Powered by our comprehensive Rim & Hub Database, it supports J-Bend, Straight Pull, and Berd spokes for maximum accuracy.<br/><br/></p>",
+            "text_style": "body"
+          }
+        },
+        "button_LUUGUY": {
+          "type": "button",
+          "settings": {
+            "button_label": "Calculate Spoke Lengths",
+            "button_link": "shopify://pages/spoke-calculator",
+            "button_style_secondary": true
+          }
+        }
+      },
+      "block_order": [
+        "heading_m3ePC6",
+        "text_FW9HLQ",
+        "button_LUUGUY"
+      ],
+      "name": "t:sections.image-with-text.presets.name",
+      "settings": {
+        "image": "shopify://shop_images/spokecalc.jpg",
+        "height": "adapt",
+        "desktop_image_width": "medium",
+        "layout": "image_first",
+        "image_behavior": "none",
+        "content_layout": "overlap",
+        "desktop_content_position": "top",
+        "desktop_content_alignment": "left",
+        "mobile_content_alignment": "left",
+        "section_color_scheme": "inverse",
+        "color_scheme": "accent-2",
+        "padding_top": 36,
+        "padding_bottom": 36
+      }
+    },
+    "image_banner": {
+      "type": "image-banner",
+      "blocks": {
+        "heading": {
+          "type": "heading",
+          "settings": {
+            "heading": "<strong>Want to create your perfect custom wheels?</strong>",
+            "heading_size": "h1"
+          }
+        },
+        "text_9GGHKt": {
+          "type": "text",
+          "settings": {
+            "text": "<em>Heighten your Cycling Experience with Precision Handbuilt Wheels using the Components you want! </em>",
+            "text_style": "body"
+          }
+        },
+        "buttons_zGyz7j": {
+          "type": "buttons",
+          "settings": {
+            "button_label_1": "Build Yours Now",
+            "button_link_1": "shopify://pages/custom-wheel-builder",
+            "button_style_secondary_1": true,
+            "button_label_2": "",
+            "button_link_2": "",
+            "button_style_secondary_2": false
+          }
+        }
+      },
+      "block_order": [
+        "heading",
+        "text_9GGHKt",
+        "buttons_zGyz7j"
+      ],
+      "disabled": true,
+      "settings": {
+        "image": "shopify://shop_images/Reserve_Carbon_wheelset_landing_page.jpg",
+        "image_overlay_opacity": 30,
+        "image_height": "large",
+        "image_behavior": "none",
+        "desktop_content_position": "bottom-center",
+        "desktop_content_alignment": "center",
+        "show_text_box": false,
+        "color_scheme": "inverse",
+        "stack_images_on_mobile": false,
+        "mobile_content_alignment": "left",
+        "show_text_below": true
+      }
+    },
+    "image_with_text_EKwt98": {
+      "type": "image-with-text",
+      "blocks": {
+        "text_atjNTQ": {
+          "type": "text",
+          "settings": {
+            "text": "<p>Discover the difference with LoamLabs - explore the array of custom bicycle wheel options we offer! Our expert team uses the experience and knowledge to provide bicycle wheels that stand up to the toughest rides.<br/><br/>We use only the highest quality components from well-known manufacturers. This attention to detail ensures that your bike's wheels match your riding style, whether you're a professional or an enthusiast.</p>",
+            "text_style": "body"
+          }
+        },
+        "button_YzgUJj": {
+          "type": "button",
+          "settings": {
+            "button_label": "Choose Your Rim",
+            "button_link": "shopify://pages/custom-wheel-builder",
+            "button_style_secondary": true
+          }
+        }
+      },
+      "block_order": [
+        "text_atjNTQ",
+        "button_YzgUJj"
+      ],
+      "settings": {
+        "image": "shopify://shop_images/reserve-42-49-fillmore-orange.jpg",
+        "height": "adapt",
+        "desktop_image_width": "medium",
+        "layout": "text_first",
+        "image_behavior": "none",
+        "content_layout": "no-overlap",
+        "desktop_content_position": "top",
+        "desktop_content_alignment": "left",
+        "mobile_content_alignment": "left",
+        "section_color_scheme": "accent-2",
+        "color_scheme": "inverse",
+        "padding_top": 36,
+        "padding_bottom": 36
+      }
+    },
+    "image_with_text_ADNNVY": {
+      "type": "image-with-text",
+      "blocks": {
+        "text_EQm4Nc": {
+          "type": "text",
+          "settings": {
+            "text": "<p>As an industry leader, we aim to create the perfect bicycle wheel tailored to withstand the toughest challenges. We have perfected our wheel build process through detailed research and countless hours of experimentation to ensure durability, reliability, and top performance.<br/><br/>Our hand-built wheels go through rigorous quality control and precision assembly. From weekend warriors to competitive racers, we build every wheel to match your ambitions.</p>",
+            "text_style": "body"
+          }
+        },
+        "button_hhhdiN": {
+          "type": "button",
+          "settings": {
+            "button_label": "Choose Your Hub",
+            "button_link": "shopify://pages/custom-wheel-builder",
+            "button_style_secondary": false
+          }
+        }
+      },
+      "block_order": [
+        "text_EQm4Nc",
+        "button_hhhdiN"
+      ],
+      "settings": {
+        "image": "shopify://shop_images/onyx-vesper-white-xd-6bolt.jpg",
+        "height": "adapt",
+        "desktop_image_width": "medium",
+        "layout": "image_first",
+        "image_behavior": "none",
+        "content_layout": "overlap",
+        "desktop_content_position": "middle",
+        "desktop_content_alignment": "left",
+        "mobile_content_alignment": "left",
+        "section_color_scheme": "background-2",
+        "color_scheme": "inverse",
+        "padding_top": 36,
+        "padding_bottom": 36
+      }
+    },
+    "rich_text_D6cXi8": {
+      "type": "rich-text",
+      "blocks": {
+        "heading_TzUznK": {
+          "type": "heading",
+          "settings": {
+            "heading": "Why Choose LoamLabs as your Bike Wheel Builder?",
+            "heading_size": "h2"
+          }
+        }
+      },
+      "block_order": [
+        "heading_TzUznK"
+      ],
+      "settings": {
+        "desktop_content_position": "center",
+        "content_alignment": "center",
+        "color_scheme": "accent-2",
+        "full_width": true,
+        "padding_top": 24,
+        "padding_bottom": 24
+      }
+    },
+    "image_with_text_cpLjer": {
+      "type": "image-with-text",
+      "blocks": {
+        "text_WYNEyT": {
+          "type": "text",
+          "settings": {
+            "text": "<p>At LoamLabs, accuracy and quality are at the top of our wheel-building process. Each wheel ensures an optimal cycling experience from start to finish, so you can confidently ride.<br/><br/>We offer extensive spoke options, focusing on creating custom wheels that meet the highest standards. Every wheel is ready to hit the road or trail right from the start, providing you with a reliable and high-performing experience tailored to your riding style.</p>",
+            "text_style": "body"
+          }
+        },
+        "button_x3a8gT": {
+          "type": "button",
+          "settings": {
+            "button_label": "Select Your Spokes",
+            "button_link": "shopify://pages/custom-wheel-builder",
+            "button_style_secondary": true
+          }
+        }
+      },
+      "block_order": [
+        "text_WYNEyT",
+        "button_x3a8gT"
+      ],
+      "settings": {
+        "image": "shopify://shop_images/berd-dtswiss-6bolt.jpg",
+        "height": "adapt",
+        "desktop_image_width": "medium",
+        "layout": "image_first",
+        "image_behavior": "none",
+        "content_layout": "overlap",
+        "desktop_content_position": "middle",
+        "desktop_content_alignment": "left",
+        "mobile_content_alignment": "left",
+        "section_color_scheme": "background-2",
+        "color_scheme": "inverse",
+        "padding_top": 36,
+        "padding_bottom": 36
+      }
+    },
+    "image_with_text_4A3DGf": {
+      "type": "image-with-text",
+      "blocks": {
+        "text_PhtfRr": {
+          "type": "text",
+          "settings": {
+            "text": "<p>Choose LoamLabs for a superior riding experience supported by experts and innovation. Explore our range of custom-built wheels, <a href=\"/collections/all-hubs\" title=\"All Hubs\"><span style=\"text-decoration:underline\">bike hubs</span></a>, <a href=\"/collections/all-rims\" title=\"All Rims\"><span style=\"text-decoration:underline\">gravel, road & mtb rims</span></a>, and more for your next adventures.<br/></p><p>We use cutting-edge technology, ensuring your wheels are built with the latest innovations and advancements! Get your fully customizable options and design your dream wheels according to your preferences, whether it's the materials, finishes, or designs!</p>",
+            "text_style": "body"
+          }
+        },
+        "button_RUwCG9": {
+          "type": "button",
+          "settings": {
+            "button_label": "Customize Your Selections",
+            "button_link": "shopify://pages/custom-wheel-builder",
+            "button_style_secondary": false
+          }
+        }
+      },
+      "block_order": [
+        "text_PhtfRr",
+        "button_RUwCG9"
+      ],
+      "settings": {
+        "image": "shopify://shop_images/reserve-aluminum-project321-sapim-silver.jpg",
+        "height": "adapt",
+        "desktop_image_width": "medium",
+        "layout": "text_first",
+        "image_behavior": "none",
+        "content_layout": "no-overlap",
+        "desktop_content_position": "top",
+        "desktop_content_alignment": "left",
+        "mobile_content_alignment": "left",
+        "section_color_scheme": "inverse",
+        "color_scheme": "accent-2",
+        "padding_top": 36,
+        "padding_bottom": 36
+      }
+    },
+    "multicolumn_dxPE3q": {
+      "type": "multicolumn",
+      "blocks": {
+        "column_WFjMAk": {
+          "type": "column",
+          "settings": {
+            "image": "shopify://shop_images/new_IMG_4458.jpg",
+            "title": "",
+            "text": "<h3>We meticulously determine spoke lengths, prep each component and mechanically prestress every wheel to eliminate the traditional \"break-in\" period.</h3>",
+            "link_label": "",
+            "link": ""
+          }
+        },
+        "column_weNQTf": {
+          "type": "column",
+          "settings": {
+            "image": "shopify://shop_images/homepage1_02a2ca61-5f3d-4322-865b-dc1e130b62e0.png",
+            "title": "",
+            "text": "<h3>LoamLabs strives to be an industry leader in hand-built custom wheels.   </h3><h3>We want your wheels on your bike not on a truing stand.</h3>",
+            "link_label": "",
+            "link": ""
+          }
+        }
+      },
+      "block_order": [
+        "column_WFjMAk",
+        "column_weNQTf"
+      ],
+      "disabled": true,
+      "settings": {
+        "title": "",
+        "heading_size": "h2",
+        "image_width": "full",
+        "image_ratio": "adapt",
+        "button_label": "Build Yours Now",
+        "button_link": "shopify://pages/custom-wheel-builder",
+        "columns_desktop": 2,
+        "column_alignment": "center",
+        "background_style": "none",
+        "color_scheme": "inverse",
+        "columns_mobile": "1",
+        "swipe_on_mobile": false,
+        "padding_top": 28,
+        "padding_bottom": 28
+      }
+    },
+    "featured_blog_ayqXCB": {
+      "type": "featured-blog",
+      "settings": {
+        "blog": "wheel-talk",
+        "post_limit": 3,
+        "heading": "Blog posts",
+        "heading_size": "h1",
+        "columns_desktop": 3,
+        "show_view_all": true,
+        "show_image": true,
+        "show_date": true,
+        "show_author": false,
+        "color_scheme": "background-2",
+        "padding_top": 36,
+        "padding_bottom": 28
+      }
+    },
+    "custom_liquid_fFNGiT": {
+      "type": "custom-liquid",
+      "name": "t:sections.custom-liquid.presets.name",
+      "settings": {
+        "custom_liquid": "<!-- Elfsight Google Reviews | Untitled Google Reviews -->\n<script src=\"https://elfsightcdn.com/platform.js\" async></script>\n<div class=\"elfsight-app-41eeb6b3-2d1e-4d4e-a4ef-508658e298cf\" data-elfsight-app-lazy></div>",
+        "color_scheme": "inverse",
+        "padding_top": 40,
+        "padding_bottom": 52
+      }
+    }
+  },
+  "order": [
+    "slideshow_hDBfzt",
+    "image_with_text_xC8Rhw",
+    "image_banner",
+    "image_with_text_EKwt98",
+    "image_with_text_ADNNVY",
+    "rich_text_D6cXi8",
+    "image_with_text_cpLjer",
+    "image_with_text_4A3DGf",
+    "multicolumn_dxPE3q",
+    "featured_blog_ayqXCB",
+    "custom_liquid_fFNGiT"
+  ]
+}

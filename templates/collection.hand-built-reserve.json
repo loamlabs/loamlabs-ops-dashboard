@@ -1,0 +1,68 @@
+/*
+ * ------------------------------------------------------------
+ * IMPORTANT: The contents of this file are auto-generated.
+ *
+ * This file may be updated by the Shopify admin theme editor
+ * or related systems. Please exercise caution as any changes
+ * made to this file may be overwritten.
+ * ------------------------------------------------------------
+ */
+{
+  "sections": {
+    "banner": {
+      "type": "main-collection-banner",
+      "disabled": true,
+      "settings": {
+        "show_collection_description": true,
+        "show_collection_image": false,
+        "color_scheme": "background-1"
+      }
+    },
+    "custom_liquid_ttANDV": {
+      "type": "custom-liquid",
+      "name": "t:sections.custom-liquid.presets.name",
+      "settings": {
+        "custom_liquid": "<div class=\"intro-content-wrapper\">\n  <h1>{{ collection.title }}</h1>\n  {{ collection.metafields.custom.intro_content }}\n</div>",
+        "color_scheme": "background-2",
+        "padding_top": 4,
+        "padding_bottom": 16
+      }
+    },
+    "custom_liquid_Lx6kwA": {
+      "type": "custom-liquid",
+      "name": "t:sections.custom-liquid.presets.name",
+      "settings": {
+        "custom_liquid": "<div class=\"faq-accordion page-width\">\n      <div class=\"faq-item\">\n        <button class=\"faq-question\">\n          <span>What is the Reserve Wheels lifetime warranty?</span>\n          <span class=\"faq-icon\">+</span>\n        </button>\n        <div class=\"faq-answer\">\n          <p>Reserve's lifetime warranty covers their carbon rims against failure due to manufacturing defects for the original owner. We are an authorized Reserve dealer, and any wheelset purchased from LoamLabs is fully covered by this industry-leading warranty. We will even handle the warranty process for you.</p>\n        </div>\n      </div>\n\n      <div class=\"faq-item\">\n  <button class=\"faq-question\">\n    <span>Which Reserve wheel is right for me?</span>\n    <span class=\"faq-icon\">+</span>\n  </button>\n  <div class=\"faq-answer\">\n    <p>Reserve offers a wheel for every discipline, and we've curated the best options. Here’s a quick guide:</p>\n    <ul>\n      <li><strong>For Cross-Country (XC):</strong> The <strong>Reserve 28|XC</strong> is the ideal choice for lightweight racing and fast trail riding.</li>\n      <li><strong>For Trail & Enduro:</strong> The <strong>Reserve 30|SL</strong> (Super Light) is a fantastic all-rounder, while the <strong>30|HD</strong> (Heavy Duty) and <strong>30|HD AL</strong> (Aluminum) are built for maximum strength on aggressive terrain.</li>\n      <li><strong>For Gravel:</strong> Choose from the versatile <strong>25|GR</strong> and <strong>40|44 GR</strong> carbon options, or the durable <strong>30|GR Aluminum</strong> for the ultimate in all-road reliability.</li>\n      <li><strong>For Pure Aerodynamics:</strong> The <strong>Turbulent Aero</strong> models, like the <strong>42|49</strong>, <strong>52|63</strong>, <strong>57|64</strong> and <strong>77|88</strong>, are engineered for maximum speed on the road.</li>\n    </ul>\n    <p>If you need help choosing the perfect model, don't hesitate to <a href=\"/pages/contact-us\"><strong>contact us</strong></a> for an expert recommendation.</p>\n  </div>\n</div>\n\n      <div class=\"faq-item\">\n        <button class=\"faq-question\">\n          <span>Are these the same as the wheels from Santa Cruz?</span>\n          <span class=\"faq-icon\">+</span>\n        </button>\n        <div class=\"faq-answer\">\n          <p>Yes. Reserve Wheels is the component brand of Santa Cruz Bicycles. The wheels we offer are built to the exact same high standards and specifications as those that come on their complete bikes, using the same high-quality rims and hubs.</p>\n        </div>\n      </div>\n    </div>",
+        "color_scheme": "background-1",
+        "padding_top": 0,
+        "padding_bottom": 12
+      }
+    },
+    "product-grid": {
+      "type": "main-collection-product-grid",
+      "settings": {
+        "products_per_page": 16,
+        "columns_desktop": 4,
+        "columns_mobile": "2",
+        "color_scheme": "",
+        "image_ratio": "square",
+        "image_shape": "default",
+        "show_secondary_image": false,
+        "show_vendor": true,
+        "show_rating": false,
+        "quick_add": "standard",
+        "enable_filtering": true,
+        "filter_type": "horizontal",
+        "enable_sorting": true,
+        "padding_top": 0,
+        "padding_bottom": 36
+      }
+    }
+  },
+  "order": [
+    "banner",
+    "custom_liquid_ttANDV",
+    "custom_liquid_Lx6kwA",
+    "product-grid"
+  ]
+}

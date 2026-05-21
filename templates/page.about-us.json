@@ -1,0 +1,75 @@
+/*
+ * ------------------------------------------------------------
+ * IMPORTANT: The contents of this file are auto-generated.
+ *
+ * This file may be updated by the Shopify admin theme editor
+ * or related systems. Please exercise caution as any changes
+ * made to this file may be overwritten.
+ * ------------------------------------------------------------
+ */
+{
+  "sections": {
+    "main": {
+      "type": "main-page",
+      "disabled": true,
+      "settings": {
+        "padding_top": 20,
+        "padding_bottom": 0
+      }
+    },
+    "custom_liquid_JNhxWX": {
+      "type": "custom-liquid",
+      "name": "t:sections.custom-liquid.presets.name",
+      "settings": {
+        "custom_liquid": "<div class=\"intro-content-wrapper\">\n  <h1>The LoamLabs Story</h1>\n  <p>LoamLabs wasn't born in a boardroom; it was born on the trail. We're a team of passionate, lifelong cyclists who spent years searching for the perfect wheelset—one that could withstand the toughest rides and still feel light and responsive. After building countless custom wheels for ourselves and our friends, we turned our obsession with performance and precision into a profession.</p>\n</div>",
+        "color_scheme": "background-2",
+        "padding_top": 4,
+        "padding_bottom": 16
+      }
+    },
+    "18bbda2e-7484-4706-886f-c36f402829b1": {
+      "type": "image-with-text",
+      "blocks": {
+        "template--20425140437299__18bbda2e-7484-4706-886f-c36f402829b1-text-1": {
+          "type": "text",
+          "settings": {
+            "text": "<h4>Our journey started with a desire to build the perfect wheelset that would withstand the toughest rides and challenging terrains. We were tired of buying off-the-shelf wheels that didn't quite fit our needs, so we decided to build our own. We spent countless hours researching the best components and experimenting with different combinations until we found the perfect recipe for a high-performance wheelset.</h4><h4>We quickly realized that we had a talent for building custom wheels, and our friends and fellow cyclists started asking us to build wheels for them too. As time went on, we decided to turn our passion into a business and offer our custom wheel building services to the wider cycling community.</h4><h4>We take pride in our attention to detail and use only the highest quality components to build wheels that are durable, reliable, and perform at the highest level. Our mission is to help riders of all levels to achieve their full potential by providing them with the perfect wheelset that is tailored to their specific needs. We believe that the right wheelset can transform your riding experience and make a significant difference in your performance.</h4><h4>Thank you for choosing LoamLabs, and we look forward to building the perfect wheels for you!</h4>",
+            "text_style": "body"
+          }
+        },
+        "template--20425140437299__18bbda2e-7484-4706-886f-c36f402829b1-button-1": {
+          "type": "button",
+          "settings": {
+            "button_label": "Build Yours Now",
+            "button_link": "shopify://pages/custom-wheel-builder",
+            "button_style_secondary": false
+          }
+        }
+      },
+      "block_order": [
+        "template--20425140437299__18bbda2e-7484-4706-886f-c36f402829b1-text-1",
+        "template--20425140437299__18bbda2e-7484-4706-886f-c36f402829b1-button-1"
+      ],
+      "settings": {
+        "image": "shopify://shop_images/randr-photo-8824537-2500px-by-andrew-santoro_1.png",
+        "height": "large",
+        "desktop_image_width": "medium",
+        "layout": "text_first",
+        "image_behavior": "none",
+        "content_layout": "overlap",
+        "desktop_content_position": "top",
+        "desktop_content_alignment": "left",
+        "mobile_content_alignment": "left",
+        "section_color_scheme": "",
+        "color_scheme": "background-2",
+        "padding_top": 40,
+        "padding_bottom": 16
+      }
+    }
+  },
+  "order": [
+    "main",
+    "custom_liquid_JNhxWX",
+    "18bbda2e-7484-4706-886f-c36f402829b1"
+  ]
+}

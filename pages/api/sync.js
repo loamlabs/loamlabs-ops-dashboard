@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
+import fs from 'fs';
 
 
 // Initialize Supabase only if credentials exist
@@ -207,7 +208,11 @@ export default async function handler(req, res) {
         if (typeof parsedOptions === 'string') {
           try { parsedOptions = JSON.parse(parsedOptions); } catch (e) {}
         }
-        const normalize = (t) => String(t || "").toLowerCase().replace(/×/g, 'x').replace(/\s+/g, ' ').trim();
+          const normalize = (t) => String(t || "").replace(/×/g, 'x').replace(/\s+/g, ' ').trim();
+          // Helper to strip " Spokes" suffix for uniform matching of spoke counts
+          function normalizeSpokeCount(val) {
+            return String(val || "").replace(/\s*Spokes$/i, "").trim();
+          }
 
         // SPOKE DYNAMIC SYNC AUTO-DETECTION & CREATION (PART 2)
         const isSpokeProduct = rule.tags?.includes('spokes') || ['10180231921971', '10182494191923'].includes(String(rule.shopify_product_id));
@@ -456,7 +461,7 @@ export default async function handler(req, res) {
                       if (!cleanVTitle.includes(sizeString)) return false;
                   }
                   const spokeCount = parsedOptions["Spoke Count"] ? parsedOptions["Spoke Count"].toLowerCase() : null;
-                  if (spokeCount && !vTitle.includes(spokeCount)) return false;
+                  if (spokeCount && !vTitle.includes(normalizeSpokeCount(spokeCount))) return false;
                   const ruleTokens = ruleTitle.split(' ');
                   const vTokens = vTitle.replace(/[^a-z0-9\s]/g, ' ').split(/\s+/);
                   if (ruleTokens.includes('dh') && !vTokens.includes('dh') && (vTokens.includes('en') || vTokens.includes('gr'))) return false;
@@ -554,11 +559,16 @@ export default async function handler(req, res) {
         }
 
         console.log(`[RULE: ${rule.id}] Processing "${rule.title}" | Winner: "${winner?.public_title || 'None'}" | Status: ${vStatus}`);
+        fs.appendFileSync('sync_debug.log', `[RULE ${rule.id}] ${rule.title} -> Winner: ${winner?.public_title || 'None'} | Status: ${vStatus}\n`);
         if (winner) {
           const variant = await getShopifyVariant(adminToken, rule.shopify_product_id, rule.shopify_variant_id);
-          if (!variant) throw new Error(`Shopify ID ${rule.shopify_variant_id} not found`);
-
-          const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true') : null;
+          if (!variant) {
+            console.warn(`[SYNC] Variant ID ${rule.shopify_variant_id} not found for rule ${rule.id}. Skipping.`);
+            attention.push({ title: rule.title, reason: 'Variant not found in Shopify; rule skipped.' });
+            // Skip further processing for this rule
+            continue;
+          }
+const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true') : null;
           const productHandle = variant.product?.handle || '';
           const vendorPrice = winner ? (Math.max(winner.price, winner.compare_at_price || 0) / 100) : 0;
           const stdFactor = rule.price_adjustment_factor || 1.0;
@@ -737,6 +747,7 @@ export default async function handler(req, res) {
                    body: JSON.stringify({ variant: { id: rule.shopify_variant_id, inventory_policy: 'deny' } })
                  });
                  stockChanges.push({ title: rule.title, action: '🔴 Made Unavailable (Vendor Does Not Offer)' });
+                    attention.push({ title: rule.title, reason: 'NOTE: Variant not found on vendor page; marked unavailable.' });
              }
            }
 
@@ -753,10 +764,10 @@ export default async function handler(req, res) {
       } catch (ruleError) {
         console.error(`FAILURE on rule ${rule.id} (${rule.title}):`, ruleError);
         attention.push({ title: rule.title, reason: `Sync Failed: ${ruleError.message}` });
-        await supabase.from('watcher_rules').update({ 
-            last_log: `CRASHED: ${ruleError.message.slice(0, 100)}`,
-            last_run_at: nowIso
-        }).eq('id', rule.id).catch(() => {});
+        await supabase.from('watcher_rules').update({
+          last_log: `CRASHED: ${ruleError.message.slice(0, 100)}`,
+          last_run_at: nowIso
+        }).eq('id', rule.id);
       }
     }
 

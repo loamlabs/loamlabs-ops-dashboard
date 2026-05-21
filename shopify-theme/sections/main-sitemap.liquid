@@ -1,0 +1,59 @@
+<div class.page-width>
+  
+
+  <div class="sitemap-grid">
+    
+    <div class="sitemap-column">
+      <h2 class="sitemap-heading">Main Navigation</h2>
+      <ul class="sitemap-list">
+        {% for link in linklists.main-menu.links %}
+          <li>
+            <a href="{{ link.url }}"><strong>{{ link.title }}</strong></a>
+            {% if link.links != blank %}
+              <ul class="sitemap-sublist">
+                {% for child_link in link.links %}
+                  <li>
+                    <a href="{{ child_link.url }}">{{ child_link.title }}</a>
+                    {% if child_link.links != blank %}
+                      <ul class="sitemap-sublist">
+                        {% for grandchild_link in child_link.links %}
+                          <li><a href="{{ grandchild_link.url }}">{{ grandchild_link.title }}</a></li>
+                        {% endfor %}
+                      </ul>
+                    {% endif %}
+                  </li>
+                {% endfor %}
+              </ul>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+    
+    <div class="sitemap-column">
+      <h2 class="sitemap-heading">Footer Navigation</h2>
+      <ul class="sitemap-list">
+        {% for link in linklists.footer.links %}
+          <li>
+            <a href="{{ link.url }}"><strong>{{ link.title }}</strong></a>
+            {% if link.links != blank %}
+              <ul class="sitemap-sublist">
+                {% for child_link in link.links %}
+                  <li><a href="{{ child_link.url }}">{{ child_link.title }}</a></li>
+                {% endfor %}
+              </ul>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+
+  </div>
+</div>
+
+{% schema %}
+{
+  "name": "Sitemap Page",
+  "settings": []
+}
+{% endschema %}

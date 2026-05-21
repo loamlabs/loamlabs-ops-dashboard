@@ -1,0 +1,20 @@
+{% comment %}
+  Template: product.component-only
+  Purpose:  This template is for products that cannot be purchased individually
+            and must be part of a larger bundle (e.g., freehubs for the wheel builder).
+            It removes all purchasing options and redirects the user.
+{% endcomment %}
+
+<div style="text-align: center; padding: 40px 20px;">
+  <h1>{{ product.title }}</h1>
+  <p>Freehubs are automatically added to your cart with any compatible rear hub. Please begin by selecting a rear hub to include this part in your order.</p>
+  <p>You will be redirected to the home page shortly.</p>
+  <a href="{{ routes.root_url }}" style="display:inline-block; margin-top: 20px; padding: 10px 20px; background-color: #333; color: #fff; text-decoration: none;">Go to Home Page</a>
+</div>
+
+<script>
+  // Redirect the user to the home page after a short delay.
+  setTimeout(function() {
+    window.location.href = "{{ routes.root_url }}";
+  }, 4000); // 4-second delay
+</script>

@@ -1,0 +1,92 @@
+/*
+ * ------------------------------------------------------------
+ * IMPORTANT: The contents of this file are auto-generated.
+ *
+ * This file may be updated by the Shopify admin theme editor
+ * or related systems. Please exercise caution as any changes
+ * made to this file may be overwritten.
+ * ------------------------------------------------------------
+ */
+{
+  "sections": {
+    "banner": {
+      "type": "main-collection-banner",
+      "disabled": true,
+      "settings": {
+        "show_collection_description": true,
+        "show_collection_image": false,
+        "color_scheme": "background-1"
+      }
+    },
+    "rich_text_7fBBKi": {
+      "type": "rich-text",
+      "blocks": {
+        "text_kfDDQU": {
+          "type": "text",
+          "settings": {
+            "text": "<h1><strong>Bike Rims</strong></h1><h2>Our selection of bike rims includes a variety of bicycle rims for different types of bikes, whether you are into mountain biking, road cycling, or BMX. </h2><h3></h3><h3>Consider LoamLabs as your trusted <a href=\"https://loamlabsusa.com/\"><span style=\"text-decoration:underline\">wheel builder</span></a> and add a professional touch to your wheels and rims, to ensure perfect performance.</h3>"
+          }
+        }
+      },
+      "block_order": [
+        "text_kfDDQU"
+      ],
+      "settings": {
+        "desktop_content_position": "center",
+        "content_alignment": "left",
+        "color_scheme": "background-2",
+        "full_width": true,
+        "padding_top": 24,
+        "padding_bottom": 32
+      }
+    },
+    "product-grid": {
+      "type": "main-collection-product-grid",
+      "settings": {
+        "products_per_page": 16,
+        "columns_desktop": 4,
+        "columns_mobile": "2",
+        "color_scheme": "",
+        "image_ratio": "square",
+        "image_shape": "default",
+        "show_secondary_image": true,
+        "show_vendor": true,
+        "show_rating": false,
+        "quick_add": "standard",
+        "enable_filtering": true,
+        "filter_type": "vertical",
+        "enable_sorting": true,
+        "padding_top": 36,
+        "padding_bottom": 36
+      }
+    },
+    "rich_text_FtPFLg": {
+      "type": "rich-text",
+      "blocks": {
+        "text_mAgKQw": {
+          "type": "text",
+          "settings": {
+            "text": "<h2>Get Bicycle Rims for Any Need… </h2><p>Whether you need road bike rims for sleek racing or mountain bike rims for aggressive off-road trails, our selection covers your complex needs. We offer high-performance carbon MTB rims to resist the toughest terrains. Need more? Our road bike rims optimized for speed and efficiency will become your top choice.</p><p>We feature top brands like DT Swiss, HED, Crankbrothers, and others known for their innovative designs and durable materials, ensuring you get the best value for your investment. At LoamLabs, we understand that every cyclist has unique preferences, - we offer rims in various sizes and specifications to match your specific requirements and preferences.</p><h2>Why Choose Your Bike Rims from LoamLabs? </h2><ol><li>We are dedicated to providing high-quality rims from premium materials to ensure durability and reliability on every ride.</li><li>We offer cutting-edge designs and technology for optimal performance and style.</li><li>Each of the rims in our selection resists the demands of all roads and riding conditions.</li><li>LoamLabs offers a solid reputation for excellence.</li></ol><p>In addition to our premium rims, we provide convenient <a href=\"https://loamlabsusa.com/pages/wheel-repair\"><span style=\"text-decoration:underline\">bike wheel replacement</span></a> and top products. Trust us to take care of your bike's needs with the same expertise and dedication to quality that we bring to all our products and services. Have questions? Contact us! We are here to answer all your questions.</p><p></p>"
+          }
+        }
+      },
+      "block_order": [
+        "text_mAgKQw"
+      ],
+      "settings": {
+        "desktop_content_position": "center",
+        "content_alignment": "left",
+        "color_scheme": "background-2",
+        "full_width": true,
+        "padding_top": 40,
+        "padding_bottom": 52
+      }
+    }
+  },
+  "order": [
+    "banner",
+    "rich_text_7fBBKi",
+    "product-grid",
+    "rich_text_FtPFLg"
+  ]
+}

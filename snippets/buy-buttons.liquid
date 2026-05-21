@@ -1,0 +1,303 @@
+{% comment %}
+  Renders product buy-buttons.
+  - FINAL VERSION using a CSS state-driven approach for reliability.
+{% endcomment %}
+<div {{ block.shopify_attributes }}>
+  {%- if product != blank -%}
+    {%- liquid
+      assign gift_card_recipient_feature_active = false
+      if block.settings.show_gift_card_recipient and product.gift_card?
+        assign gift_card_recipient_feature_active = true
+      endif
+      assign show_dynamic_checkout = false
+      if block.settings.show_dynamic_checkout and gift_card_recipient_feature_active == false
+        assign show_dynamic_checkout = true
+      endif
+
+      assign current_variant = product.selected_or_first_available_variant
+assign lead_time_for_state = product.metafields.custom.lead_time_days.value | default: 99
+assign initial_state = 'sold-out'
+
+if current_variant.available
+  if current_variant.inventory_quantity > 0
+    assign initial_state = 'in-stock'
+  elsif current_variant.inventory_policy == 'continue'
+    if lead_time_for_state <= 5
+      assign initial_state = 'in-stock'
+    else
+      assign initial_state = 'special-order'
+    endif
+  endif
+endif
+
+      assign lead_time_days = product.metafields.custom.lead_time_days.value | default: 0
+      assign lead_time_message = "2-3 weeks"
+      if lead_time_days > 0
+        assign weeks = lead_time_days | divided_by: 5.0 | ceil
+        if weeks <= 1
+          assign lead_time_message = "5-7 business days"
+        else
+          assign end_weeks = weeks | plus: 1
+          assign lead_time_message = weeks | append: "-" | append: end_weeks | append: " weeks"
+        endif
+      endif
+
+      assign lead_time_for_button = product.metafields.custom.lead_time_days.value | default: 99
+      assign initial_button_text = 'products.product.add_to_cart' | t
+      if initial_state == 'special-order' and lead_time_for_button > 5
+        assign initial_button_text = 'products.product.special_order' | t
+      endif
+
+    -%}
+
+    <product-form
+      class="product-form"
+      data-hide-errors="{{ gift_card_recipient_feature_active }}"
+      data-section-id="{{ section_id }}"
+      data-product-form-state="{{ initial_state }}"
+    >
+      <div class="product-form__error-message-wrapper" role="alert" hidden>
+        <!-- Error SVG -->
+      </div>
+
+      {%- form 'product', product, id: product_form_id, class: 'form', novalidate: 'novalidate', data-type: 'add-to-cart-form' -%}
+        <input type="hidden" name="id" value="{{ current_variant.id }}" class="product-variant-id">
+
+        {%- if gift_card_recipient_feature_active -%}
+          {%- render 'gift-card-recipient-form', product: product, form: form, section: section -%}
+        {%- endif -%}
+
+        <!-- Main Button Container -->
+        <div class="product-form__buttons-container">
+            <button
+  id="ProductSubmitButton-{{ section_id }}"
+  type="submit"
+  name="add"
+  class="product-form__submit button button--full-width button--primary"
+>
+  <span>{{ initial_button_text }}</span>
+  {%- render 'loading-spinner' -%}
+</button>
+         
+            <button
+              type="button"
+              id="NotifyMeButton-{{ section_id }}"
+              class="notify-me-button button button--full-width button--secondary"
+            >
+              Notify Me When Available
+            </button>
+         
+            <div id="DynamicCheckoutWrapper-{{ section_id }}" class="dynamic-checkout-wrapper">
+              {%- if show_dynamic_checkout -%}
+                {{ form | payment_button }}
+              {%- endif -%}
+            </div>
+        </div>
+      {%- endform -%}
+    </product-form>
+
+    <p
+  id="SpecialOrderPolicy-{{ section_id }}"
+  class="special-order-policy-text"
+  style="font-size: 12px; margin-top: 10px;"
+>
+  * Special orders for this item typically ship within {{ lead_time_message }}. If a longer wait is required, we will notify you. Please contact us with any questions.
+</p>
+
+  {%- else -%}
+    <!-- Fallback for blank product -->
+  {%- endif -%}
+  
+  <div id="NotifyMeModal-{{ section_id }}" class="notify-me-modal" hidden>
+    <!-- Modal HTML -->
+    <div class="notify-me-modal__content">
+      <button class="notify-me-modal__close" type="button" aria-label="Close">&times;</button>
+      <h3 class="notify-me-modal__title">Get Notified When It's Back</h3>
+      <p class="notify-me-modal__product-title">{{ product.title }}</p>
+      <p class="notify-me-modal__variant-title"></p>
+      <div class="notify-me-modal__form">
+        <input type="email" class="notify-me-modal__email-input" placeholder="Enter your email" required>
+        <button class="notify-me-modal__submit button button--primary">Notify Me</button>
+        <p class="notify-me-modal__message"></p>
+      </div>
+    </div>
+  </div>
+</div>
+
+  <style>
+    /* --- CSS State Control --- */
+    .product-form[data-product-form-state="in-stock"] .notify-me-button { display: none; }
+    .product-form[data-product-form-state="special-order"] .dynamic-checkout-wrapper { display: none; }
+    .product-form[data-product-form-state="sold-out"] .product-form__submit,
+    .product-form[data-product-form-state="sold-out"] .dynamic-checkout-wrapper {
+      display: none;
+    }
+    .product-form[data-product-form-state="sold-out"] .notify-me-button { display: block; }
+
+    /* --- FIX: Use Sibling Selector for Disclaimer --- */
+    /* Hide the disclaimer by default */
+    .special-order-policy-text { display: none; }
+    /* Only show it when the preceding form is in a special-order state */
+    .product-form[data-product-form-state="special-order"] + .special-order-policy-text {
+      display: block;
+    }
+  </style>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const sectionId = {{ section_id | json }};
+
+  const variantsWithInventory = [
+  {%- for variant in product.variants -%}
+    {
+      "id": {{ variant.id }},
+      "title": {{ variant.title | json }},
+      "available": {{ variant.available | json }},
+      "inventory_quantity": {{ variant.inventory_quantity | default: 0 }},
+      "inventory_policy": {{ variant.inventory_policy | json }},
+      "lead_time_days": {{ product.metafields.custom.lead_time_days.value | default: 99 }}
+    }{% unless forloop.last %},{% endunless %}
+  {%- endfor -%}
+];
+
+  const initialVariant = variantsWithInventory.find(v => v.id === {{ product.selected_or_first_available_variant.id }});
+  
+  const initializeLoamLabsButtons = () => {
+    let currentVariant = null;
+    const productData = {{ product | json }};
+
+    // --- FIX: Restore all modal element selectors ---
+    const elements = {
+      productForm: document.querySelector(`product-form[data-section-id="${sectionId}"]`),
+      submitButton: document.getElementById(`ProductSubmitButton-${sectionId}`),
+      buttonSpan: document.getElementById(`ProductSubmitButton-${sectionId}`)?.querySelector('span'),
+      notifyButton: document.getElementById(`NotifyMeButton-${sectionId}`),
+      modal: document.getElementById(`NotifyMeModal-${sectionId}`),
+      modalCloseBtn: document.getElementById(`NotifyMeModal-${sectionId}`)?.querySelector('.notify-me-modal__close'),
+      modalEmailInput: document.getElementById(`NotifyMeModal-${sectionId}`)?.querySelector('.notify-me-modal__email-input'),
+      modalSubmitBtn: document.getElementById(`NotifyMeModal-${sectionId}`)?.querySelector('.notify-me-modal__submit'),
+      modalMessage: document.getElementById(`NotifyMeModal-${sectionId}`)?.querySelector('.notify-me-modal__message'),
+      modalVariantTitle: document.getElementById(`NotifyMeModal-${sectionId}`)?.querySelector('.notify-me-modal__variant-title'),
+    };
+
+    if (!elements.productForm || !elements.submitButton) {
+      return;
+    }
+
+    const updateButtonStates = (variant) => {
+  if (!variant) { return; }
+  currentVariant = variant;
+  
+  const isSoldOut = variant.available === false;
+  const isSpecialOrder = variant.available === true && variant.inventory_policy === 'continue' && variant.inventory_quantity <= 0;
+  const hasPhysicalStock = variant.available === true && variant.inventory_quantity > 0;
+  
+  let newState = 'sold-out';
+
+  // Set default button text
+  elements.buttonSpan.textContent = {{ 'products.product.add_to_cart' | t | json }};
+
+  if (isSpecialOrder) {
+    // --- START: New Logic ---
+    // If it's a special order, check the lead time.
+    if (variant.lead_time_days <= 5) {
+      // If the lead time is short, treat it as 'in-stock' for the UI.
+      newState = 'in-stock';
+    } else {
+      // Otherwise, it's a true 'special-order'.
+      newState = 'special-order';
+      elements.buttonSpan.textContent = {{ 'products.product.special_order' | t | json }};
+    }
+    // --- END: New Logic ---
+  } else if (hasPhysicalStock) {
+    newState = 'in-stock';
+  }
+  
+  elements.productForm.dataset.productFormState = newState;
+};
+    
+    // --- START: Restore all missing modal functions and listeners ---
+    const submitNotificationRequest = () => {
+      const email = elements.modalEmailInput.value.trim();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        elements.modalMessage.textContent = 'Please enter a valid email address.';
+        elements.modalMessage.style.color = 'red';
+        return;
+      }
+      elements.modalSubmitBtn.disabled = true;
+      elements.modalSubmitBtn.textContent = 'Submitting...';
+      elements.modalMessage.textContent = '';
+
+      // [NEW] Logic to check for and include the selected V3 Freehub.
+      let finalVariantTitle = currentVariant.title;
+      const freehubSelector = document.querySelector(`input[name="properties[_Freehub_Type_Selector]"]:checked`);
+      if (freehubSelector) {
+        const freehubKey = freehubSelector.value;
+        const freehubDisplayNames = { 'XD': 'SRAM XD', 'HG': 'Shimano HG', 'MS': 'Shimano MicroSpline', 'XD-R': 'SRAM XD-R', 'HG-R': 'Shimano HG-R', 'N3W': 'Campagnolo N3W' };
+        const freehubDisplayName = freehubDisplayNames[freehubKey] || freehubKey;
+        finalVariantTitle += ` / ${freehubDisplayName}`;
+      }
+
+      fetch('https://loamlabs-inventory-monitor.vercel.app/api/request-notification', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: email, 
+            variantId: currentVariant.id, 
+            productTitle: productData.title,
+            variantTitle: finalVariantTitle, // Use our new, combined title here
+            productUrl: window.location.href.split('?')[0] + '?variant=' + currentVariant.id
+          })
+      }).then(response => response.json()).then(data => {
+          if (data.success) {
+              elements.modalMessage.textContent = 'Thank you! We will notify you when this item is back in stock.';
+              elements.modalMessage.style.color = 'green';
+              setTimeout(() => { elements.modal.hidden = true; elements.modalMessage.textContent = ''; }, 3000);
+          } else { throw new Error(data.error || 'An unknown error occurred.'); }
+      }).catch(error => {
+          elements.modalMessage.textContent = 'Sorry, something went wrong. Please try again.';
+          elements.modalMessage.style.color = 'red';
+      }).finally(() => {
+          elements.modalSubmitBtn.disabled = false;
+          elements.modalSubmitBtn.textContent = 'Notify Me';
+      });
+    };
+
+    if (elements.notifyButton) {
+      elements.notifyButton.addEventListener('click', () => {
+        if (!currentVariant || !elements.modal) return;
+        elements.modal.hidden = false;
+        if (elements.modalVariantTitle) {
+          elements.modalVariantTitle.textContent = currentVariant.title;
+        }
+      });
+    }
+
+    if (elements.modalCloseBtn) {
+      elements.modalCloseBtn.addEventListener('click', () => { if (elements.modal) elements.modal.hidden = true; });
+    }
+    
+    if (elements.modalSubmitBtn) {
+      elements.modalSubmitBtn.addEventListener('click', submitNotificationRequest);
+    }
+    // --- END: Restore all missing modal functions and listeners ---
+
+    if (typeof subscribe === 'function' && typeof PUB_SUB_EVENTS !== 'undefined') {
+      subscribe(PUB_SUB_EVENTS.variantChange, (event) => {
+        if (event.data && event.data.sectionId === sectionId && event.data.variant) {
+          const fullVariantData = variantsWithInventory.find(v => v.id === event.data.variant.id);
+          if (fullVariantData) {
+            updateButtonStates(fullVariantData);
+          }
+        }
+      });
+    }
+
+    if(initialVariant) {
+        updateButtonStates(initialVariant);
+    }
+  };
+
+  initializeLoamLabsButtons();
+});
+</script>

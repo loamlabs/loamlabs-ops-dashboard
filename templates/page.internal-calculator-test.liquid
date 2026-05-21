@@ -1,0 +1,103 @@
+{% comment %} Access control: only render for staff {% endcomment %}
+{% if customer and customer.tags contains 'staff_builder' %}
+
+{% comment %}
+  This secret key and URL must match your Vercel deployment.
+  The key is exposed here in the client-side code, but that is acceptable
+  because the entire page is already protected by the staff login.
+{% endcomment %}
+{% assign vercel_url = 'https://loamlabs-spoke-automation-umber.vercel.app/api/test-calculator' %}
+{% assign vercel_secret = 'Exclusive39Perkiness00Despise8' %}
+
+<div class="page-width" style="max-width: 1200px; margin: 40px auto; font-family: sans-serif;">
+  <h1>Internal Spoke Calculator Test Harness (Live)</h1>
+  <p>This page sends data to the live Vercel function and returns the result. It is always testing the latest deployed code from GitHub.</p>
+
+  <div id="calculator-ui" style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 30px;">
+    
+    <!-- LEFT COLUMN: INPUTS (HTML is the same as before) -->
+    <div id="inputs-column">
+      <div class="input-section"><h3>General Specs</h3><div class="input-grid"><label for="spokeCount">Spoke Count</label><select id="spokeCount"><option value="24">24h</option><option value="28" selected>28h</option><option value="32">32h</option></select><label for="crossPatternL">Cross Pattern (Left)</label><input type="number" id="crossPatternL" value="3"><label for="crossPatternR">Cross Pattern (Right)</label><input type="number" id="crossPatternR" value="3"></div></div>
+      <div class="input-section"><h3>Rim Specs (mm)</h3><div class="input-grid"><label for="rimErd">Base ERD</label><input type="number" id="rimErd" value="598.5" step="0.1"><label for="rimAsymmetry">Spoke Hole Offset (Asym)</label><input type="number" id="rimAsymmetry" value="2.5" step="0.1"><label for="washerThickness">Nipple Washer Thickness</label><input type="number" id="washerThickness" value="0.8" step="0.1"></div></div>
+      <div class="input-section"><h3>Hub Specs (mm)</h3><div class="input-grid"><label for="hubType">Hub Type</label><select id="hubType"><option>Classic Flange</option><option>Straight Pull</option><option>Hook Flange</option></select><label for="pcdL">Flange Diameter (PCD) - Left</label><input type="number" id="pcdL" value="58" step="0.1"><label for="pcdR">Flange Diameter (PCD) - Right</label><input type="number" id="pcdR" value="58" step="0.1"><label for="flangeOffsetL">Flange Offset - Left</label><input type="number" id="flangeOffsetL" value="36.5" step="0.1"><label for="flangeOffsetR">Flange Offset - Right</label><input type="number" id="flangeOffsetR" value="22.5" step="0.1"><label for="shd">Spoke Hole Diameter (SHD)</label><input type="number"id="shd" value="2.6" step="0.1"><label for="spOffsetL">SP Spoke Offset - Left</label><input type="number" id="spOffsetL" value="0" step="0.1"><label for="spOffsetR">SP Spoke Offset - Right</label><input type="number" id="spOffsetR" value="0" step="0.1"></div></div>
+      <div class="input-section"><h3>Spoke Specs</h3><div class="input-grid"><label for="spokeVendor">Spoke Vendor</label><select id="spokeVendor"><option>Steel</option><option>Berd</option></select><label for="targetTension">Target Tension (kgf)</label><input type="number" id="targetTension" value="120"><label for="crossSectionArea">Cross-Section Area (mm²)</label><input type="number" id="crossSectionArea" value="1.77" step="0.01"></div></div>
+      <button id="calculate-btn">Calculate</button>
+    </div>
+
+    <!-- RIGHT COLUMN: RESULTS -->
+    <div id="results-column">
+      <div style="background: #f3f4f6; padding: 20px; border-radius: 5px; height: 100%;">
+        <h3>Live Results from Vercel</h3>
+        <pre id="results-output" style="white-space: pre-wrap; word-wrap: break-word; font-family: monospace; font-size: 14px;"></pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>.input-section{margin-bottom:30px;border:1px solid #e5e7eb;padding:20px;border-radius:8px}.input-section h3{margin-top:0;border-bottom:1px solid #e5e7eb;padding-bottom:10px;margin-bottom:15px}.input-grid{display:grid;grid-template-columns:auto 1fr;gap:15px;align-items:center}.input-grid label{font-weight:500}.input-grid input,.input-grid select{width:100%;padding:8px;border:1px solid #ccc;border-radius:4px}#calculate-btn{width:100%;padding:15px;font-size:1.2em;cursor:pointer;background-color:#333;color:white;border:none;border-radius:5px;margin-top:20px}</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const calculateBtn = document.getElementById('calculate-btn');
+  const resultsOutput = document.getElementById('results-output');
+
+  calculateBtn.addEventListener('click', async () => {
+    resultsOutput.textContent = 'Calculating...';
+    calculateBtn.disabled = true;
+
+    // Gather all inputs from the form into a simple object
+    const payload = {
+      spokeCount: parseInt(document.getElementById('spokeCount').value, 10),
+      crossL: parseInt(document.getElementById('crossPatternL').value, 10),
+      crossR: parseInt(document.getElementById('crossPatternR').value, 10),
+      rimErd: parseFloat(document.getElementById('rimErd').value),
+      rimAsymmetry: parseFloat(document.getElementById('rimAsymmetry').value),
+      washerThickness: parseFloat(document.getElementById('washerThickness').value),
+      hubType: document.getElementById('hubType').value,
+      pcd_l: parseFloat(document.getElementById('pcdL').value),
+      pcd_r: parseFloat(document.getElementById('pcdR').value),
+      flange_l: parseFloat(document.getElementById('flangeOffsetL').value),
+      flange_r: parseFloat(document.getElementById('flangeOffsetR').value),
+      shd: parseFloat(document.getElementById('shd').value),
+      spo_l: parseFloat(document.getElementById('spOffsetL').value),
+      spo_r: parseFloat(document.getElementById('spOffsetR').value),
+      spokeVendor: document.getElementById('spokeVendor').value,
+      targetTension: parseFloat(document.getElementById('targetTension').value),
+      crossSectionArea: parseFloat(document.getElementById('crossSectionArea').value),
+    };
+
+    try {
+      const response = await fetch('{{ vercel_url }}', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-internal-secret': '{{ vercel_secret }}'
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || `Server responded with status ${response.status}`);
+      }
+
+      resultsOutput.textContent = JSON.stringify(data, null, 2);
+
+    } catch (error) {
+      // --- NEW: Detailed error logging to the console ---
+      console.error("CALCULATOR FETCH ERROR:", error); 
+      resultsOutput.textContent = `ERROR:\n${error.message}\n\n(See browser console for details. Press F12 and click the 'Console' tab.)`;
+      // --- END NEW ---
+    } finally {
+      calculateBtn.disabled = false;
+    }
+  });
+});
+</script>
+
+{% else %}
+  <div class="page-width" style="text-align: center; padding: 100px 20px;">
+    <h1>Access Denied</h1><p>You must be logged in with a staff account to access this tool.</p><a href="/account/login" class="button">Login</a>
+  </div>
+{% endif %}

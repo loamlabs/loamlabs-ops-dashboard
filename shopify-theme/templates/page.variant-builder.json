@@ -1,0 +1,39 @@
+/*
+ * ------------------------------------------------------------
+ * IMPORTANT: The contents of this file are auto-generated.
+ *
+ * This file may be updated by the Shopify admin theme editor
+ * or related systems. Please exercise caution as any changes
+ * made to this file may be overwritten.
+ * ------------------------------------------------------------
+ */
+{
+  "sections": {
+    "custom_liquid_6UYctH": {
+      "type": "custom-liquid",
+      "custom_css": [
+        ".intro-content-wrapper {max-width: 138ch; margin: 0 auto 40px auto; /* Centers the block and adds bottom margin */}",
+        " /* This styles the main heading (H1) */h1 {text-align: left; font-size: 36px; margin-bottom: 0.1em;}",
+        " /* This styles the subheading (H3) */h3 {font-size: 20px; text-align: left; margin-top: 1.5em; margin-bottom: 0.5em;}",
+        " /* This ensures all paragraph text is centered */p {text-align: left;}"
+      ],
+      "name": "t:sections.custom-liquid.presets.name",
+      "settings": {
+        "custom_liquid": "<div class=\"intro-content-wrapper\">\n  <h1>Build Your Custom Wheels</h1>\n  \n  <p>Welcome to the LoamLabs Wheel Builder, the most advanced and interactive way to design your perfect custom wheelset. Start by choosing your ride below.</p>\n\n  <h3>Unmatched Component Selection</h3>\n  <p>Our tool lets you configure every detail of your custom MTB, gravel, or road bike wheels. Select from an expert-curated list of high-performance components from industry-leading brands like Onyx, We Are One, Reserve, DT Swiss, and more to create a wheelset that is perfectly matched to your bike and riding style.</p>\n</div>",
+        "color_scheme": "background-2",
+        "padding_top": 8,
+        "padding_bottom": 8
+      }
+    },
+    "main": {
+      "type": "section-variant-builder",
+      "settings": {
+        "enable_ai_agent": false
+      }
+    }
+  },
+  "order": [
+    "custom_liquid_6UYctH",
+    "main"
+  ]
+}

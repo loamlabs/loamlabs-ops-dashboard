@@ -1,0 +1,1651 @@
+/* =================================================================== */
+/* LOAMLABS SPOKE CALCULATOR STYLES                                    */
+/* =================================================================== */
+
+@media only screen and (min-width: 750px) {
+    h1, .h1 {
+  font-size: calc(var(--font-heading-scale) * 4rem);
+  text-align: left;
+    }
+}
+
+/* ========================================================== */
+/* STYLES FOR DYNAMIC SPOKE COUNT FILTERS (V2 ARCHITECTURE)   */
+/* ========================================================== */
+
+.ll-spoke-count-filter-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding-top: 0.25rem;
+}
+
+.ll-spoke-count-filter-container .ll-input-note {
+  width: 100%; /* Ensure the helper text takes the full width */
+}
+
+.ll-spoke-count-filter-container input[type="checkbox"] {
+  display: none; /* Hide the actual checkbox */
+}
+
+.ll-spoke-count-filter-container label {
+  display: inline-block;
+  padding: 0.4rem 0.8rem;
+  border: 1px solid #ccc;
+  border-radius: 20px; /* Pill shape */
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  background-color: #f0f0f0;
+  color: #555;
+  transition: all 0.2s ease-in-out;
+  margin-bottom: 0; /* Override default label margin */
+  line-height: 1.2;
+}
+
+.ll-spoke-count-filter-container label:hover {
+  border-color: #888;
+}
+
+/* Style for when the filter is selected */
+.ll-spoke-count-filter-container input[type="checkbox"]:checked + label {
+  background-color: #5A31F4;
+  color: #fff;
+  border-color: #5A31F4;
+}
+
+
+
+/* --- Dynamic Spacing and UI Refinements --- */
+
+/* This targets the container for the rim spec inputs. */
+/* By default, it has a small top margin. */
+#front-rim-manual-wrapper, #rear-rim-manual-wrapper {
+  margin-top: 1rem;
+}
+
+/* This rule is the key: When the variant dropdown becomes visible, */
+/* it automatically increases the top margin of the spec inputs below it, */
+/* creating the space it needs without leaving a permanent gap. */
+#front-rim-variant-wrapper:not(.is-hidden) + #front-rim-manual-wrapper,
+#rear-rim-variant-wrapper:not(.is-hidden) + #rear-rim-manual-wrapper {
+  margin-top: 1.5rem;
+}
+
+/* This targets the container for the hub read-only specs. */
+/* It will now only show the top border when it is NOT hidden. */
+#front-hub-readonly-specs:not(.is-hidden),
+#rear-hub-readonly-specs:not(.is-hidden) {
+  margin-top: -1rem;
+  margin-bottom: 2rem;
+  padding-top: 1rem;
+}
+
+/* This hides the "HUB TYPE" and "EST. TENSION BALANCE" labels until a selection is made. */
+#front-hub-readonly-specs .ll-result-item,
+#rear-hub-readonly-specs .ll-result-item {
+  display: none; /* Hide the items by default */
+}
+
+/* This selectively shows the items only when they are NOT hidden by the JS. */
+#front-hub-readonly-specs .ll-result-item:not(.is-hidden),
+#rear-hub-readonly-specs .ll-result-item:not(.is-hidden) {
+  display: block; /* Show the item when the is-hidden class is removed */
+}
+
+/* --- Main Layout & Grid (2x2 Grid Solution) --- */
+#spoke-calculator-app-loamlabs { margin-top: 2rem; margin-bottom: 5rem; }
+
+/* 1. Define the 2x2 grid container */
+.ll-calc-main-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr; /* Two columns */
+  grid-template-rows: auto auto;    /* Two rows that size to their content */
+  gap: 2rem;
+}
+
+/* 2. Make the wrappers "invisible" to the grid on desktop */
+/* This is the key to making the 2x2 layout work with the existing HTML */
+.ll-wheel-wrapper,
+.ll-wheel-content-container {
+    display: contents;
+}
+
+/* 3. Explicitly place each of the four main sections into the grid cells */
+#ll-front-wheel-section { grid-column: 1; grid-row: 1; } /* Top-Left */
+#ll-rear-wheel-section  { grid-column: 2; grid-row: 1; } /* Top-Right */
+#front-results-container { grid-column: 1; grid-row: 2; } /* Bottom-Left */
+#rear-results-container  { grid-column: 2; grid-row: 2; } /* Bottom-Right */
+
+
+/* 4. Use Flexbox INSIDE each grid cell and restore styling */
+.ll-wheel-section {
+  display: flex;
+  flex-direction: column;
+  padding: 1.5rem;
+  background-color: #fff;
+  border: 1px solid #ddd; /* This restores the light gray outline */
+}
+
+.ll-results-wrapper {
+  display: flex;
+  flex-direction: column;
+}
+
+.ll-input-content-wrapper, .ll-results-content-wrapper {
+  flex-grow: 1; /* This makes the content area expand, pushing actions down */
+}
+
+/* 5. Hide the mobile accordion headers on desktop */
+.ll-wheel-section-header {
+  display: none;
+}
+
+
+.ll-wheel-title { margin-top: 0; margin-bottom: 2rem; text-align: center; font-size: 1.8rem; font-weight: 600; color: #333; }
+.ll-spec-group { 
+  margin-bottom: 2.5rem;
+}
+.ll-spec-title {
+  font-size: 1.3rem;       /* Slightly larger text */
+  font-weight: 600;         /* Bolder font */
+  color: #333;               /* A dark color for good contrast */
+  background-color: #e9e6f8;  /* Light LoamLabs Purple background */
+  padding: 0.75rem 1rem;    /* More padding to create the container effect */
+  margin-bottom: 1.5rem;
+  border: 1px solid #dcd6f4;/* A subtle border in a slightly darker purple */
+  border-radius: 5px;       /* Rounded corners to soften the look */
+  border-bottom: none;
+}
+
+/* --- Hub Spec Layout Styling --- */
+
+/* Styles the wrapper for the dropdowns */
+.ll-select-wrapper {
+  padding-top: 1.5rem;
+  border-top: 1px solid #eee;
+}
+
+/* This is the container for the read-only Hub Type/Tension Balance grid. */
+/* It has no height or spacing by default. */
+#front-hub-readonly-specs, #rear-hub-readonly-specs {
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+/* This rule overrides the negative margin when in manual entry mode, preventing overlap. */
+#front-hub-manual-name-wrapper:not(.is-hidden) + #front-hub-readonly-specs:not(.is-hidden),
+#rear-hub-manual-name-wrapper:not(.is-hidden) + #rear-hub-readonly-specs:not(.is-hidden) {
+    margin-top: 1.5rem;
+    border-top: 1px solid #eee;
+}
+
+/* This styles the grid of editable hub spec inputs */
+.ll-editable-specs {
+  padding-top: .25rem;
+}
+
+/* This now styles the individual "data cards" for Hub Type and Tension Balance */
+#spoke-calculator-app-loamlabs .ll-result-item--secondary {
+  background-color: #f8f9fa; /* The light grey background */
+  border-radius: 5px;       /* Rounded corners */
+  padding: 0.4rem 1rem;    /* Add some internal padding */
+  text-align: left;       /* text inside the card */
+}
+
+/* --- Width and Alignment Helpers --- */
+/* Use this class on a wrapper to make its contents half the width of the container */
+.ll-input-wrapper--half-width {
+  max-width: calc(50% - 0.5rem); /* 50% of the container minus half the grid gap */
+}
+
+/* Defines the 2x2 grid for manual spec inputs */
+.ll-spec-grid-2x2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+.ll-spec-grid-2x2 .ll-input-wrapper {
+  margin-bottom: 0;
+}
+
+/* --- Input Field & Wrapper Styling --- */
+.ll-input-wrapper { margin-bottom: 0rem; } /* Increased default spacing */
+.ll-input-wrapper label { display: block; font-weight: 900; font-size: 1rem; } /* Standardized label spacing */
+.ll-input-wrapper input[type="number"], 
+.ll-input-wrapper input[type="text"],
+.ll-input-wrapper select { 
+  width: 100%; 
+  padding: 0.6rem; 
+  border: 1px solid #ccc; 
+  border-radius: 4px; 
+  background-color: #fff; 
+  font-size: 1.35rem; 
+  box-sizing: border-box; 
+}
+
+.ll-input-wrapper input[type="number"]:focus, 
+.ll-input-wrapper select:focus,
+#spoke-calculator-app-loamlabs .choices__inner:focus-within {
+  border-color: #5A31F4;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(90, 49, 244, 0.2);
+}
+.ll-input-grid-half { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.ll-input-grid-half > .ll-input-wrapper {
+  min-width: 0; /* This is the key: it allows grid items to shrink and enables text truncation within them. */
+}
+.ll-input-note { font-size: 0.8rem; color: #555; display: block; margin-top: 0.3rem; }
+.ll-hub-filters { margin-bottom: 1rem; padding-bottom: 1rem; }
+.ll-hub-filters > span { font-weight: 500; margin-right: 1rem; display: block; margin-bottom: 0.5rem; }
+
+/* --- Input Mode & Filter Buttons --- */
+.ll-input-mode-selector, .ll-hub-filter-buttons { 
+  display: inline-flex; 
+}
+
+.ll-input-mode-selector input[type="radio"], 
+.ll-input-mode-selector input[type="checkbox"], 
+.ll-hub-filter-buttons input[type="radio"] { 
+  display: none; 
+}
+
+.ll-input-mode-selector label, 
+.ll-hub-filter-buttons label {
+  display: inline-block;
+  padding: 0.5rem 1rem;
+  border: 1px solid #ccc;
+  cursor: pointer;
+  margin-left: -1px;
+  background-color: #f0f0f0;
+  font-weight: 500;
+  font-size: 1.1rem;
+  transition: all 0.2s;
+}
+
+.ll-input-mode-selector label:first-of-type, 
+.ll-hub-filter-buttons label:first-of-type {
+  border-top-left-radius: 5px;
+  border-bottom-left-radius: 5px;
+  margin-left: 0;
+}
+
+.ll-input-mode-selector label:last-of-type, 
+.ll-hub-filter-buttons label:last-of-type {
+  border-top-right-radius: 5px;
+  border-bottom-right-radius: 5px;
+}
+.ll-input-mode-selector input[type="radio"]:checked + label,
+.ll-spoke-count-filter-container input[type="radio"]:checked + label,
+.ll-hub-filter-buttons input[type="radio"]:checked + label,
+.ll-hub-filter-buttons label.is-checked { 
+    background-color: #5A31F4;
+    color: #fff;
+    border-color: #4e2acb; /* MODIFIED: A slightly darker purple for better contrast */
+    z-index: 1;
+    position: relative;
+}
+
+
+.ll-hub-filter-buttons label { background-color: #fff; border-color: #ddd; }
+
+.ll-input-grid-half > div .ll-input-wrapper {
+    margin-top: 1rem; /* Add some space above the nested dropdown */
+    margin-bottom: 0; /* Remove default bottom margin */
+}
+
+
+
+/* --- Suffix for Input Fields (e.g., for grams) --- */
+.ll-input-wrapper--suffix {
+  position: relative;
+}
+.ll-input-wrapper--suffix input[type="number"],
+.ll-input-wrapper--suffix input[type="text"][readonly] {
+  padding-right: 2rem; /* Make space for the 'g' */
+}
+.ll-input-wrapper--suffix::after {
+  content: 'g';
+  position: absolute;
+  top: 50%;
+  right: 1rem;
+  transform: translateY(calc(50% + 2px)); /* Fine-tune vertical alignment */
+  color: #555;
+  font-size: 0.9rem;
+  pointer-events: none; /* Allows clicking through the 'g' */
+  top: 1.5rem;
+}
+
+/* --- Help Icon (?) --- */
+.ll-help-icon { display: inline-block; color: #fff; background-color: #888; width: 16px; height: 16px; line-height: 16px; text-align: center; border-radius: 50%; font-size: 0.8rem; font-weight: bold; cursor: pointer; user-select: none; transition: background-color 0.2s; }
+.ll-help-icon:hover { background-color: #5A31F4; }
+
+.ll-disclaimer-bar {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+/* --- Hero "Pudgy" Styling for the Main Calculate Buttons --- */
+.ll-actions-bar .ll-button-primary {
+  /* --- Step 1: Define the Default "Solid" State --- */
+  background-color: #5A31F4;
+  color: #fff;
+  border: 2px solid #5A31F4;
+  cursor: pointer; 
+  
+  /* --- Step 2: "Pudgy" Shape & Font Styling --- */
+  width: auto;
+  padding: 1.1rem 3.5rem;
+  font-size: 1.2rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  border-radius: 8px;
+  
+  /* --- Hero Text Styling --- */
+  font-style: italic; /* Adds a dynamic, action-oriented feel */
+  text-shadow: 0px 1px 2px rgba(0, 0, 0, 0.2); /* Adds a subtle shadow for depth */
+
+  /* --- Step 3: Add a Smooth Transition --- */
+  transition: all 0.2s ease-in-out; 
+}
+
+/* --- Step 4: Define the "Darker" Hover State --- */
+.ll-actions-bar .ll-button-primary:hover {
+  background-color: #4e2acb;
+  border-color: #4e2acb;
+}
+
+.ll-disclaimer-content { background-color: #fdfdfd; border: 1px solid #eee; padding: 1rem; font-size: 0.9rem; color: #444; margin-bottom: 1.5rem; }
+
+.ll-result-disclaimer {
+  display: block;
+  font-size: .92rem;
+  font-style: italic;
+  color: #666;
+  margin-top: 0.75rem;
+}
+
+/* --- Total Weight Display --- */
+.ll-total-weight-display { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #eee; }
+.ll-total-weight-display h4 { margin: 0 0 0.5rem 0; font-size: 1.1rem; }
+.ll-total-weight-display span { font-size: 1.5rem; font-weight: 600; color: #5A31F4; }
+
+/* --- Modal Styling --- */
+.ll-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); display: flex; justify-content: center; align-items: flex-start; z-index: 1000; overflow-y: auto; padding: 2rem 0; box-sizing: border-box; }
+.ll-modal-content { background-color: #fff; padding: 2rem; border-radius: 8px; max-width: 500px; width: 90%; position: relative; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+.ll-modal-close { position: absolute; top: 10px; right: 15px; background: none; border: none; font-size: 2rem; cursor: pointer; color: #888; }
+.ll-modal-title { margin-top: 0; }
+.ll-modal-body ul { padding-left: 20px; }
+.ll-modal-body li { margin-bottom: 0.5rem; }
+
+/* --- Helper Classes --- */
+.is-hidden { display: none !important; }
+
+/* --- Responsive Layout --- */
+@media screen and (max-width: 989px) {
+  .ll-calc-main-grid { grid-template-columns: 1fr; }
+  .ll-actions-bar { flex-direction: column; align-items: stretch; }
+  .ll-button-primary { width: 100%; margin-top: 1rem; }
+}
+
+/* --- Styles for Spec Display Area --- */
+/* This makes the Hub Type span the full width of the grid */
+.ll-spec-display-item {
+  grid-column: 1 / -1; /* Span from the first grid line to the last */
+}
+
+/* This styles the value to look like a locked input field */
+.ll-spec-display-value {
+  width: 100%;
+  padding: 0.6rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background-color: #e9ecef; /* The 'locked' color */
+  font-size: 1rem;
+  box-sizing: border-box;
+  color: #333;
+  font-weight: 500;
+}
+
+/* --- CHOICES.JS CUSTOM STYLING OVERRIDES --- */
+
+/* This styles the main, visible dropdown box. */
+#spoke-calculator-app-loamlabs .choices__inner {
+  min-height: auto;
+  padding: 0;
+  background-color: #fff;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  font-size: 1rem;
+  overflow: hidden; /* Added to constrain the container width */
+}
+
+/* This is the inner element that holds the selected text. */
+#spoke-calculator-app-loamlabs .choices__list--single {
+  padding: 0.5rem 1rem;
+}
+
+/* This styles the TEXT of the SELECTED item inside the box. */
+#spoke-calculator-app-loamlabs .choices__list--single .choices__item {
+  color: #000000;
+  font-size: 1.3rem;
+  font-weight: 400;
+  padding: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* This specifically targets the placeholder text (e.g., "-- Select --"). */
+#spoke-calculator-app-loamlabs .choices__placeholder {
+  color: #333; /* Dark, readable text */
+  opacity: 1; /* Ensure it's not faded out by the library */
+}
+
+#spoke-calculator-app-loamlabs .choices__inner:focus-within {
+  border-color: #5A31F4;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(90, 49, 244, 0.2);
+}
+
+/* This perfectly centers the dropdown arrow. */
+#spoke-calculator-app-loamlabs .choices[data-type*="select-one"]::after {
+  top: 50%;
+  margin-top: -2.5px;
+}
+
+/* This styles the dropdown LIST that opens. */
+#spoke-calculator-app-loamlabs .choices__list--dropdown {
+  min-width: 100%;
+  width: max-content;
+}
+
+/* This styles the individual ITEMS inside the open list. */
+#spoke-calculator-app-loamlabs .choices__list--dropdown .choices__item--choice {
+  font-size: 1.3rem;
+  font-weight: 500;
+  color: #000000;
+  padding: 3px 6px;
+}
+
+#spoke-calculator-app-loamlabs .choices.is-open {
+  z-index: 5;
+}
+
+/* Ensure tooltips on disabled Choices.js items are visible */
+.choices__list--dropdown .choices__item--choice[aria-disabled="true"] {
+  pointer-events: auto !important;
+  cursor: not-allowed;
+}
+
+/* --- Mobile-Specific Overrides for Choices.js --- */
+@media screen and (max-width: 989px) {
+  /* 1. Prevent dropdown LIST from pushing the layout wider than the screen */
+  #spoke-calculator-app-loamlabs .choices__list--dropdown {
+    width: 100%;
+    word-break: break-word;
+  }
+
+  /* 2. Ensure the dropdown appears on top of all other content */
+  #spoke-calculator-app-loamlabs .choices.is-open {
+    z-index: 100 !important;
+  }
+
+  /* 3. Allow long SELECTED item text to wrap on multiple lines */
+  #spoke-calculator-app-loamlabs .choices__list--single .choices__item {
+    white-space: normal !important; /* Force wrapping on mobile */
+    overflow: visible !important;
+    text-overflow: clip !important; /* Prevent ellipsis on mobile */
+    word-break: break-word !important;
+  }
+}
+
+/* ========================================================== */
+/* LOADING INDICATOR - PULSING TITLE                          */
+/* ========================================================== */
+.ll-title-loading {
+  animation: ll-pulse 2s ease-in-out infinite;
+}
+
+@keyframes ll-pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.6; }
+  100% { opacity: 1; }
+}
+
+
+
+/* ========================================================== */
+/* RESULTS DISPLAY STYLES                                     */
+/* ========================================================== */
+
+/* This only handles the text alignment inside the results container. */
+.ll-results-wrapper {
+  text-align: center;
+}
+
+.ll-result-section {
+  padding-bottom: 2rem;
+}
+
+.ll-result-section h4 {
+  font-size: 1.2rem;
+  font-weight: 500;
+  color: #333;
+  margin-top: 1.2rem;
+  margin-bottom: .6rem;
+}
+
+/* 4-column grid for the weight breakdown */
+.ll-result-grid-4x1 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+/* Primary Results (The important numbers) */
+.ll-result-section--primary {
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.ll-result-section--primary h4 {
+  font-size: 1.4rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 1rem;
+}
+
+.ll-result-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+
+.ll-result-item {
+  padding: 0.5rem;
+  background-color: #f8f9fa;
+  border-radius: 5px;
+}
+
+.ll-result-label {
+  display: block;
+  font-size: 1rem;
+  color: #000000;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.ll-result-section--primary .ll-result-label {
+    font-size: 1.1rem; /* Increase the L/R label size */
+    font-weight: 400;
+}
+
+/* This is the big, bold number */
+.ll-result-value {
+  display: block;
+  font-size: 3.5rem; /* Larger font size */
+  font-weight: 700;   /* Bolder */
+  color: #5A31F4;     /* LoamLabs Purple */
+  line-height: 1.1;
+}
+
+.ll-result-stretch {
+  font-size: 0.85rem;
+  color: #666;
+  display: block;
+}
+
+/* Secondary Results (The less important numbers) */
+.ll-result-item--secondary {
+  /* No special background */
+}
+
+.ll-result-value--small {
+  display: inline;
+  font-size: 1.3rem; /* Smaller than primary, but still large */
+  font-weight: 600;
+  color: #333; /* A more subtle color */
+}
+.ll-wheelset-weight-display {
+    font-weight: 400; /* Makes the wheelset weight text regular weight */
+    color: var(--color-foreground-75); /* Slightly lighter text color */
+    margin-left: 0.5em; /* Adds a bit of space */
+    font-size: 1.1rem;
+}
+
+/* --- Error Message Styling --- */
+.ll-result-error {
+  background-color: #ffebee;
+  color: #c62828;
+  border: 1px solid #c62828;
+  border-radius: 5px;
+  padding: 1rem 1.5rem;
+  margin-top: 2rem;
+  text-align: center;
+}
+.ll-result-error p {
+  margin: 0;
+}
+.ll-result-grid-3x1 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+/* --- Styling for the dedicated results container box --- */
+.ll-results-group {
+  border: 1px solid #ddd;
+  padding: 1.5rem 1rem;
+  background-color: #fff;
+  /* Flexbox properties for alignment */
+  display: flex;
+  flex-direction: column;
+  height: 100%; /* Ensures it fills the grid cell */
+  margin-top: 1.1rem;
+}
+
+/* This wrapper will grow to push the buttons to the bottom */
+.ll-results-content-wrapper {
+  flex-grow: 1;
+}
+
+/* --- Disclaimer Modal Styles --- */
+.ll-disclaimer-acceptance {
+  margin-top: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ll-disclaimer-acceptance input[type="checkbox"] {
+  margin-right: 0.5rem;
+}
+.ll-disclaimer-actions {
+  margin-top: 1.5rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+}
+.ll-disclaimer-link {
+  font-size: 0.9rem;
+}
+.ll-button-primary:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+/* ========================================================== */
+/* STYLES FOR UNIFIED VIEW (V3 ARCHITECTURE)                  */
+/* ========================================================== */
+
+/* Style for the "Clear Selection" link that appears after selecting a component */
+.ll-clear-selection-link {
+  display: block;
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+  color: #5A31F4; 
+  text-decoration: underline;
+  cursor: pointer;
+  transition: color 0.2s ease-in-out;
+}
+
+.ll-clear-btn-wrapper {
+  text-align: center;
+  margin-top: 1.5rem;
+}
+
+.ll-spoke-count-filter-container input[type="checkbox"]:disabled + label,
+.ll-input-mode-selector input[type="radio"]:disabled + label {
+  background-color: #e9ecef;
+  color: #adb5bd;
+  border-color: #ced4da;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.ll-input-wrapper input:disabled, 
+.ll-input-wrapper select:disabled,
+.ll-input-wrapper input[readonly] {
+  background-color: #e9ecef !important; /* Using !important to ensure override */
+  cursor: not-allowed;
+  opacity: 0.9;
+}
+
+/* --- Input Field Validation Styling --- */
+.ll-input-wrapper.is-invalid input,
+.ll-input-wrapper.is-invalid select,
+.ll-input-wrapper.is-invalid .choices__inner {
+  border-color: #c62828 !important; /* A strong but not jarring red */
+  box-shadow: 0 0 0 1px #c62828 !important; /* A subtle glow to draw the eye */
+}
+
+/* --- Highlighting for invalid spoke count filter --- */
+.ll-input-wrapper.is-invalid .ll-spoke-count-filter-container {
+  border: 1px solid #c62828;
+  border-radius: 5px;
+  padding: 0.5rem;
+  box-shadow: 0 0 0 1px #c62828;
+}
+
+/* ========================================================== */
+/*      HIGHLIGHT ANIMATION FOR AUTO-CLEARED SECTIONS (V2)    */
+/* ========================================================== */
+
+/* This class is added by JS to trigger the animation.
+   The animation now targets the entire group for more reliability. */
+.ll-spec-group.is-highlighted {
+  animation: ll-pulse-highlight 1.5s ease-in-out 2;
+}
+
+/* The keyframe animation now targets the border and shadow of the group,
+   which is more stable than animating a child element's background. */
+@keyframes ll-pulse-highlight {
+  0% {
+    border-color: #ddd; /* The group's normal border color */
+    box-shadow: none;
+  }
+  50% {
+    border-color: #5A31F4;     /* Pulse to a vibrant purple border */
+    box-shadow: 0 0 12px rgba(90, 49, 244, 0.4); /* Add a prominent glow */
+  }
+  100% {
+    border-color: #ddd;
+    box-shadow: none;
+  }
+}
+
+/* --- Result Note/Hint Styling (More Specific) --- */
+#spoke-calculator-app-loamlabs .ll-result-note {
+  background-color: #f4f2fd; /* This is the light LoamLabs Purple */
+  border: 1px solid #dcd6f4;
+  border-radius: 5px;
+  padding: 1rem 1.5rem;
+  margin-top: 2rem;
+  text-align: center;
+  font-size: 1.3rem;
+  color: #333;
+}
+#spoke-calculator-app-loamlabs .ll-result-note strong {
+  color: #5A31F4; /* LoamLabs Purple */
+}
+#spoke-calculator-app-loamlabs .ll-result-note p {
+  margin: 0;
+}
+
+/* --- Weight Breakdown Styling --- */
+.ll-weight-breakdown-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  padding-top: 1rem;
+}
+.ll-weight-breakdown-grid .ll-result-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem;
+  border-bottom: 1px solid #eee;
+}
+.ll-breakdown-label {
+  color: #555;
+  font-size: 0.9rem;
+}
+.ll-breakdown-value {
+  color: #333;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+/* --- Expanded Results Modal & Action Bar Styling --- */
+
+/* A modifier to make this modal wider */
+.ll-modal-content--large {
+  max-width: 800px;
+}
+/* A modifier for an even wider modal for the visualizer */
+.ll-modal-content--xlarge {
+  max-width: 1000px;
+}
+#ll-expand-modal-body {
+  text-align: left;
+}
+
+/* This styles the MAIN "Calculate" button bar */
+.ll-actions-bar {
+  display: flex;
+  flex-direction: column; /* Stacks items vertically */
+  align-items: center;    /* Centers them horizontally */
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+/* --- Result Sub-Detail (for Cross Pattern) --- */
+.ll-result-sub-detail {
+  font-size: 1.4rem;
+  color: #555;
+  margin-top: -.15rem;
+  font-weight: 700;
+  display: block;
+}
+
+/* This styles the RESULTS action bar (Share/Expand) */
+.ll-results-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1rem;
+  padding-top: .5rem;
+}
+
+/* Make all buttons/wrappers in the actions bar grow equally */
+.ll-results-actions > * {
+  flex-grow: 1;
+  max-width: 250px; /* Optional: keeps buttons from getting too wide on large screens */
+}
+
+/* This adjusts the secondary button style for a cleaner look */
+.ll-button-secondary {
+  padding: 0.7rem 1.5rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #333;
+  background-color: #f0f0f0;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-grow: 1; /* Allow buttons to grow */
+  max-width: 250px; /* But cap their max width */
+}
+.ll-button-secondary:hover {
+  background-color: #e0e0e0;
+  border-color: #999;
+}
+
+.ll-manual-actions-wrapper {
+  text-align: center;
+  margin-top: 1.5rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1.5rem; /* Creates space between the button and the link */
+}
+
+/* --- Footer Links Styling --- */
+.ll-footer-links {
+  text-align: center;
+  margin-top: 2rem;
+}
+
+.ll-footer-link-separator {
+  margin: 0 0.75rem;
+  color: #999;
+  /* Prevents the user from selecting the separator text */
+  user-select: none;
+}
+
+/* --- Highlight for active/required dropdowns & inputs --- */
+#spoke-calculator-app-loamlabs .ll-input-wrapper.is-active-selection .choices__inner,
+#spoke-calculator-app-loamlabs .ll-input-wrapper.is-active-selection select,
+#spoke-calculator-app-loamlabs .ll-input-wrapper.is-active-selection input[type="number"],
+#spoke-calculator-app-loamlabs .ll-input-wrapper.is-active-selection input[type="text"] {
+  border-color: #5A31F4 !important; /* LoamLabs Purple */
+  box-shadow: 0 0 0 2px rgba(90, 49, 244, 0.2) !important;
+}
+
+/* --- Enhanced "Hero" styling for Recommended Lengths --- */
+.ll-result-section--primary.recommended-lengths h4 {
+    font-size: 1.4rem;
+}
+.ll-result-section--primary.recommended-lengths .ll-result-label {
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+.ll-result-section--primary.recommended-lengths .ll-result-value {
+    font-size: 3.5rem;
+    margin-bottom: 0.25rem;
+}
+.ll-result-section--primary.recommended-lengths .ll-result-sub-detail {
+    font-size: 1rem;
+    font-weight: 500;
+}
+
+/* --- De-emphasize the Estimated Weight value --- */
+.ll-result-section--primary.ll-result-section--weight .ll-result-value {
+  color: #333; /* Change from purple to a dark neutral color */
+  font-size: 2.9rem;
+}
+
+/* --- Subtle pulse for optional-but-recommended fields --- */
+.is-highlighted-new {
+  animation: ll-pulse-optional 1.5s ease-in-out;
+}
+
+@keyframes ll-pulse-optional {
+  0%   { background-color: transparent; }
+  50%  { background-color: #f4f2fd; } /* Light LoamLabs Purple */
+  100% { background-color: transparent; }
+}
+
+/* --- Smart Share / Split Button Styling --- */
+.ll-split-button-wrapper {
+  position: relative; /* This is the anchor for the dropdown menu */
+  display: inline-flex; /* Aligns the main button and trigger side-by-side */
+}
+
+/* Style the main button part */
+.ll-split-button-main {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  border-right: none;
+}
+
+/* Style the dropdown trigger (arrow) */
+.ll-split-button-trigger {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  padding: 0.7rem 0.1rem; /* Make it a bit tighter */
+}
+
+/* The dropdown menu itself, hidden by default */
+.ll-split-button-menu {
+  display: none;
+  position: absolute;
+  bottom: 100%; /* Position it ABOVE the button */
+  left: 0;
+  background-color: #fff;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  z-index: 10;
+  min-width: 100%;
+  margin-bottom: 0.5rem;
+}
+
+/* Show the menu when the wrapper is open */
+.ll-split-button-wrapper.is-open .ll-split-button-menu {
+  display: block;
+}
+
+/* Style the individual links in the menu */
+.ll-split-button-menu-item {
+  display: block;
+  padding: 0.75rem 1rem;
+  color: #333;
+  text-decoration: none;
+  white-space: nowrap;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.ll-split-button-menu-item:hover {
+  background-color: #f0f0f0;
+}
+
+/* --- Logic for SIMPLE mode --- */
+.ll-split-button-wrapper.is-simple-mode .ll-split-button-trigger {
+  display: none; /* Hide the dropdown trigger */
+}
+.ll-split-button-wrapper.is-simple-mode .ll-split-button-main {
+  /* Make the main button look like a normal, single button */
+  border-top-right-radius: 5px;
+  border-bottom-right-radius: 5px;
+  border-right: 1px solid #ccc;
+}
+
+/* ========================================================== */
+/* STYLES FOR WHEEL VISUALIZATION MODAL                       */
+/* ========================================================== */
+
+#ll-visualize-modal-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.5rem;
+  padding-top: 1rem; 
+}
+
+#ll-wheel-canvas-container {
+  flex-grow: 1;
+  display: flex;
+  justify-content: center;
+}
+
+/* --- Split rules and increased width for controls column --- */
+#ll-visualize-controls-container {
+  flex-basis: 220px; /* Increased width to prevent wrapping */
+  flex-shrink: 0;
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border-radius: 5px;
+}
+
+#ll-visualize-data-container {
+  flex-basis: 170px; /* Original width */
+  flex-shrink: 0;
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border-radius: 5px;
+}
+
+#ll-visualize-controls-container h4,
+#ll-visualize-data-container h4 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 0.75rem;
+}
+
+.ll-vis-control-group {
+  margin-bottom: 1rem;
+}
+
+.ll-vis-control-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.ll-vis-data-item {
+  margin-bottom: 1rem;
+}
+
+.ll-vis-data-label {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #555;
+  margin-bottom: 0.25rem;
+}
+
+.ll-vis-data-value {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #5A31F4;
+}
+
+/* --- Custom Checkboxes & Radio Buttons in Modal --- */
+#ll-visualize-modal-body .ll-vis-control-group input[type="checkbox"],
+#ll-visualize-modal-body .ll-vis-control-group input[type="radio"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background-color: #fff;
+  margin: 0 0.5rem 0 0;
+  font: inherit;
+  color: currentColor;
+  width: 1.15em;
+  height: 1.15em;
+  border: 0.15em solid #adb5bd;
+  border-radius: 0.15em;
+  transform: translateY(-0.075em);
+  display: inline-grid;
+  place-content: center;
+  cursor: pointer;
+  transition: all 0.1s ease-in-out;
+}
+
+#ll-visualize-modal-body .ll-vis-control-group input[type="radio"] {
+  border-radius: 50%;
+}
+
+#ll-visualize-modal-body .ll-vis-control-group input[type="checkbox"]:checked,
+#ll-visualize-modal-body .ll-vis-control-group input[type="radio"]:checked {
+  background-color: #5A31F4;
+  border-color: #5A31F4;
+}
+
+#ll-visualize-modal-body .ll-vis-control-group input[type="checkbox"]:checked {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3e%3cpath fill='none' stroke='%23fff' stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='M6 10l3 3l6-6'/%3e%3c/svg%3e");
+}
+
+#ll-visualize-modal-body .ll-vis-control-group input[type="radio"]:checked {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3ccircle cx='8' cy='8' r='4' fill='white'/%3e%3c/svg%3e");
+}
+
+/* --- Styles Visualizer Modal Header --- */
+.ll-visualize-modal-header {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.5rem; /* Add some space below the header */
+}
+
+#vis-rotation-arrow-img {
+  width: 50px;
+  height: 50px;
+  opacity: 0.75;
+  transition: transform 0.3s ease-in-out; /* Smooth rotation on flip */
+}
+
+/* --- Custom Range Sliders in Modal --- */
+/* This re-styles the existing sliders to use the LoamLabs purple theme */
+#ll-visualize-modal-body input[type=range] {
+  accent-color: #5A31F4; /* Modern browser support */
+}
+
+/* Fallback/custom styling for WebKit browsers (Chrome, Safari) */
+#ll-visualize-modal-body input[type=range]::-webkit-slider-runnable-track {
+  background: #e9e6f8;
+  border: 1px solid #dcd6f4;
+}
+
+#ll-visualize-modal-body input[type=range]::-webkit-slider-thumb {
+  background: #5A31F4;
+}
+
+/* This makes the canvas scale down gracefully instead of overflowing the modal */
+#ll-wheel-canvas-container #ll-wheel-canvas {
+  max-width: 100%;
+  height: auto;
+}
+
+/* This styles the container for the mobile buttons for better layout */
+@media screen and (max-width: 768px) {
+  #ll-visualize-controls-container .ll-vis-control-group[style*="display: grid"] {
+    grid-template-columns: 1fr 1fr; /* Arrange Reset/Print buttons side-by-side */
+    gap: 1rem;
+  }
+}
+
+/* Desktop layout for the button container */
+.ll-vis-action-buttons {
+  margin-top: 1rem;
+  text-align: center;
+  display: grid; /* Stacks buttons vertically by default */
+  gap: 0.5rem;
+}
+
+.ll-vis-action-buttons .ll-input-note {
+  margin-top: 0.75rem;
+}
+
+/* Mobile layout for the button container */
+@media screen and (max-width: 768px) {
+  .ll-vis-action-buttons {
+    grid-template-columns: 1fr 1fr; /* Arrange Reset/Print buttons side-by-side */
+    gap: 1rem;
+  }
+
+  /* Make the help text span both columns below the buttons */
+  .ll-vis-action-buttons .ll-input-note {
+    grid-column: 1 / -1;
+  }
+}
+
+
+/* ========================================================== */
+/* RESPONSIVE STYLES FOR MAIN CALCULATOR (MOBILE)             */
+/* ========================================================== */
+
+/* --- Truncate long text in dropdowns to prevent overflow --- */
+#spoke-calculator-app-loamlabs .choices__list--single .choices__item {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* Add a little padding to the right to not crowd the arrow */
+  padding-right: 20px !important; 
+}
+
+
+@media screen and (max-width: 989px) {
+  /* --- Accordion Styles for Main Sections --- */
+  .ll-wheel-section-header {
+    display: block; 
+    font-size: 1.5rem;
+    padding: 1rem 1.5rem;
+    background-color: #f0f0f0;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    margin-bottom: 0;
+    cursor: pointer;
+    position: relative;
+    user-select: none;
+  }
+
+  .ll-wheel-section-header::after {
+    content: '▼';
+    position: absolute;
+    right: 1.5rem;
+    top: 50%;
+    transform: translateY(-50%) rotate(0deg);
+    transition: transform 0.3s ease;
+    font-size: 1rem;
+    color: #333;
+  }
+
+  .ll-wheel-wrapper.is-open .ll-wheel-section-header::after {
+    transform: translateY(-50%) rotate(180deg);
+  }
+
+  .ll-wheel-content-container {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.5s ease-in-out;
+  }
+  
+  .ll-wheel-wrapper.is-open .ll-wheel-content-container {
+    max-height: 4000px; /* Large value to allow full expansion */
+  }
+  
+  /* --- 2x2 GRID OVERRIDES FOR MOBILE --- */
+  /* This section ensures the desktop grid is disabled on smaller screens, */
+  /* allowing the accordion to work correctly. */
+
+  /* 1. Revert the main container from a grid to simple stacked blocks */
+  .ll-calc-main-grid {
+      display: block;
+      gap: 1rem;
+  }
+  
+  /* 2. Revert the "invisible" wrappers back to being visible blocks for the accordion */
+  .ll-wheel-wrapper,
+  .ll-wheel-content-container {
+      display: block;
+  }
+
+  /* 3. Revert the flexbox behavior inside the sections */
+  .ll-wheel-section, .ll-results-wrapper {
+      display: block;
+  }
+
+  /* 4. Combine mobile-specific padding and border rules */
+  .ll-wheel-section {
+    padding-left: 1rem;
+    padding-right: 1rem;
+    border-top: none;
+    padding-top: 1rem;
+  }
+}
+
+/* ========================================================== */
+/* RESPONSIVE STYLES FOR VISUALIZATION MODAL (MOBILE)         */
+/* ========================================================== */
+
+@media screen and (max-width: 768px) {
+  /* Make the modal almost full screen */
+  .ll-modal-content--xlarge {
+    max-width: 95vw;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  /* Switch the main layout to a vertical stack */
+  #ll-visualize-modal-body {
+    flex-direction: column;
+    align-items: stretch; /* Make children full width */
+  }
+
+  /* Make the canvas smaller and maintain its aspect ratio */
+  #ll-wheel-canvas {
+    width: 100%;
+    height: auto;
+  }
+
+  /* Make side panels full width */
+  #ll-visualize-controls-container,
+  #ll-visualize-data-container {
+    flex-basis: 100%;
+    order: 2; /* Ensure canvas is on top */
+  }
+  #ll-visualize-controls-container {
+      order: 1; /* Controls come before data */
+  }
+
+  /* --- Accordion Styles --- */
+  .ll-vis-accordion-header {
+    cursor: pointer;
+    position: relative;
+    padding-right: 25px; /* Make space for the arrow */
+  }
+
+  /* Create the arrow icon */
+  .ll-vis-accordion-header::after {
+    content: '▼';
+    position: absolute;
+    right: 5px;
+    top: 50%;
+    transform: translateY(-50%) rotate(0deg);
+    transition: transform 0.3s ease;
+    font-size: 0.8rem;
+    color: #555;
+  }
+
+  /* Rotate the arrow when open */
+  .ll-vis-accordion-panel.is-open .ll-vis-accordion-header::after {
+    transform: translateY(-50%) rotate(180deg);
+  }
+
+  /* Hide the content by default */
+  .ll-vis-accordion-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease-in-out;
+    padding-top: 0;
+  }
+
+  /* Show the content when open */
+  .ll-vis-accordion-panel.is-open .ll-vis-accordion-content {
+    max-height: 1000px; /* Increased to ensure all controls are visible */
+    padding-top: 1rem; /* Add space when open */
+  }
+}
+
+/* --- Pro Tip and Modal Refinements --- */
+
+/* SS1: Make the "Pro Tip" title slightly larger */
+#spoke-calculator-app-loamlabs .ll-result-note strong {
+  font-size: 1.4rem;
+}
+
+/* SS2: Reduce the empty space around the horizontal line in modals */
+#ll-modal-body hr {
+  margin-top: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+/* --- Spoke Count Button Refinements (V2) --- */
+
+/* Target the container specifically by its ID for higher priority */
+#front-spoke-count-filters, #rear-spoke-count-filters {
+  display: flex; /* Ensure it's a flex container */
+  width: 100%;   /* Make sure it takes up the full available width */
+}
+
+/* Make each button's wrapper div grow to fill space */
+.ll-spoke-count-filter-container > div {
+  flex: 1 1 0; /* Modern flex shorthand for grow, shrink, and basis */
+}
+
+/* Style the label to fill its container and have readable text */
+.ll-spoke-count-filter-container label {
+  width: 100%;
+  text-align: center;
+  font-size: 1rem;
+  color: #333; /* Darker, readable text */
+  font-weight: 500;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+
+/* --- Base Button Styles --- */
+
+/* This creates the default solid purple look for any primary button */
+.ll-button-primary {
+  display: inline-block;
+  padding: 0.8rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #fff;
+  background-color: #5A31F4;
+  border: 2px solid #5A31F4;
+  border-radius: 5px;
+  cursor: pointer;
+  text-align: center;
+  transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
+}
+
+/* A slightly darker purple on hover for a nice effect */
+.ll-button-primary:hover {
+  background-color: #4e2acb;
+  border-color: #4e2acb;
+}
+
+/* --- Spoke Choice Modal Refinements --- */
+
+/* Target the container inside the modal to add spacing */
+#ll-spoke-choices-container {
+  display: flex;
+  justify-content: center; /* Center the buttons horizontally */
+  gap: 1rem; /* Add padding between the spoke count options */
+  margin-top: 1.5rem; /* Add some space above the buttons */
+  margin-bottom: 2.5rem;
+}
+
+/* Target the labels to make the text bigger and darker */
+#ll-spoke-choices-container label {
+  font-size: 1.1rem; /* Increase font size */
+  color: #333;
+  padding-left: 1.5rem; /* Add more horizontal padding */
+  padding-right: 1.5rem;
+}
+
+/* For selected spoke count button text color in modal */
+#ll-spoke-choices-container input[type="radio"]:checked + label {
+  background-color: #5A31F4; /* Ensures the background is LoamLabs Purple */
+  color: #fff; /* This is the key: changes the text color to white */
+  border-color: #5A31F4; /* Makes the border match */
+}
+
+/* ========================================================== */
+/*      STALE RESULTS DISPLAY STYLES                          */
+/* ========================================================== */
+.ll-results-group.is-stale {
+  opacity: 0.5; /* Visually dims the content */
+  pointer-events: none; /* Prevents interaction with buttons when stale */
+  position: relative;
+  transition: opacity 0.3s ease-in-out; /* Smooth transition for visual change */
+}
+
+/* Overlay message when results are stale */
+.ll-results-group.is-stale::after {
+  content: 'Recalculate Required';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: rgba(255, 255, 255, 0.9); /* Semi-transparent white background */
+  padding: 1rem 1.5rem;
+  border-radius: 8px;
+  font-size: 1.3rem;
+  font-weight: bold;
+  color: #5A31F4; /* LoamLabs Purple */
+  border: 2px solid #5A31F4;
+  white-space: nowrap; /* Keep the message on a single line */
+  z-index: 2; /* Ensure it's above other content */
+}
+
+/* Hide the overlay on small screens to avoid excessive clutter */
+@media screen and (max-width: 480px) {
+  .ll-results-group.is-stale::after {
+    font-size: 1rem;
+    padding: 0.8rem 1rem;
+    white-space: normal; /* Allow message to wrap on very small screens */
+  }
+}
+
+/* Add this CSS block for the visualizer warning message */
+.ll-vis-warning-message {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  background-color: #fffbe6; /* Light yellow */
+  border: 1px solid #ffe58f;   /* Darker yellow border */
+  border-radius: 4px;
+  font-size: 0.95rem;
+  color: #614700;           /* Dark text for readability */
+  line-height: 1.5;
+}
+.ll-vis-warning-message strong {
+  color: #000;
+}
+
+/* Visualizer context note */
+.ll-vis-context-note {
+  margin-top: -0.5rem; /* Pull it closer to the title */
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  background-color: #e9e6f8; /* Light LoamLabs Purple */
+  border: 1px solid #dcd6f4;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #333;
+  line-height: 1.5;
+  text-align: center;
+}
+.ll-vis-context-note strong {
+  color: #5A31F4; /* LoamLabs Purple */
+}
+
+/* ========================================================== */
+/* STYLES FOR PAIRED HUB HOLE OPTION              */
+/* ========================================================== */
+
+.ll-spec-group-option {
+  margin-top: 2rem;
+  padding: 1rem 1.5rem;
+  background-color: #f8f9fa;
+  border-radius: 5px;
+  /* This creates the two columns */
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center; /* This vertically centers the content */
+  gap: 1rem;
+  /* This is the key: set a default height and allow it to transition */
+  min-height: 58px; /* Adjust this value slightly if needed to match your design */
+  transition: min-height 0.3s ease-in-out;
+}
+
+/* When the input field is visible, the container will grow smoothly */
+.ll-spec-group-option.is-active {
+  align-items: start; /* Pin content to the top when expanded */
+}
+
+/* This style makes the label align properly when the container grows */
+.ll-spec-group-option.is-active > label {
+    padding-top: 0.6rem;
+}
+
+/* When preparing to print, this will temporarily override the modal's
+   transform property, which is known to cause rendering bugs
+   with html2canvas at different browser zoom levels. */
+.is-printing .ll-modal-content {
+  transform: none !important;
+}
+
+/* ========================================================== */
+/* STYLES FOR ERD/NSD TOGGLE & REFINED GRID (V4.4 FINAL)      */
+/* ========================================================== */
+
+.ll-erd-toggle-wrapper {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 0.7rem;
+  margin-top: 1rem;
+}
+
+.ll-erd-toggle-wrapper input[type="radio"] {
+  display: none; /* Hide the actual radio button */
+}
+
+/* Base style for the toggle buttons */
+.ll-erd-toggle-wrapper label {
+  padding: 0.5rem 1rem;
+  border: 1px solid #ccc;
+  cursor: pointer;
+  background-color: #f0f0f0;
+  font-weight: 500;
+  font-size: 1.1rem;
+  transition: all 0.2s;
+  margin-left: -1px;
+}
+
+.ll-erd-toggle-wrapper label:first-of-type {
+  border-top-left-radius: 5px;
+  border-bottom-left-radius: 5px;
+  margin-left: 0;
+}
+
+.ll-erd-toggle-wrapper label:last-of-type {
+  border-top-right-radius: 5px;
+  border-bottom-right-radius: 5px;
+}
+
+/* Active state - uses the correct purple and white text */
+.ll-erd-toggle-wrapper input[type="radio"]:checked + label,
+.ll-erd-toggle-wrapper label.is-checked {
+  background-color: #5A31F4;
+  color: #fff;
+  border-color: #4e2acb;
+  z-index: 1;
+  position: relative;
+}
+
+/* Style for the disabled/grayed-out input field */
+.ll-input-wrapper.is-disabled label {
+  color: #999;
+}
+
+.ll-input-wrapper.is-disabled input {
+  background-color: #f8f9fa !important;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* ========================================================== */
+/* STYLES FOR SPOKE & NIPPLE SECTION GRID (V4.5)              */
+/* ========================================================== */
+
+.ll-spec-grid-spokes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+
+/* This targets the manual weight input specifically and places it in the second column */
+#front-nipple-manual-weight-wrapper,
+#rear-nipple-manual-weight-wrapper {
+  grid-column: 2 / 3;
+}
+
+/* These column wrappers don't need much styling, but they can be used for future adjustments. */
+.ll-spoke-column,
+.ll-nipple-column {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem; /* Creates consistent spacing between items within each column */
+}
+
+/* Reset any specific top margins on elements moved into the new grid to prevent double-spacing. */
+.ll-spec-grid-spokes .ll-input-wrapper {
+  margin-top: 0;
+  padding-top: 0;
+}
+
+/* ========================================================== */
+/* STYLES FOR BUILD HEADER & NAME FIELD                       */
+/* ========================================================== */
+
+.ll-build-header {
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background-color: #f4f2fd; /* Light LoamLabs Purple */
+  border: 1px solid #dcd6f4;
+  border-radius: 8px;
+}
+
+.ll-build-header .ll-input-wrapper label {
+  font-size: 1.1rem;
+  color: #5A31F4;
+  margin-bottom: 0.5rem;
+}
+
+.ll-build-header input[type="text"] {
+  background-color: #fff;
+  border: 1px solid #ccc;
+  font-size: 1.5rem; /* Larger for high visibility */
+  font-weight: 600;
+  color: #333;
+}

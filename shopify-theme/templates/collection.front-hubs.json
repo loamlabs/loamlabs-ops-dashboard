@@ -1,0 +1,61 @@
+/*
+ * ------------------------------------------------------------
+ * IMPORTANT: The contents of this file are auto-generated.
+ *
+ * This file may be updated by the Shopify admin theme editor
+ * or related systems. Please exercise caution as any changes
+ * made to this file may be overwritten.
+ * ------------------------------------------------------------
+ */
+{
+  "sections": {
+    "banner": {
+      "type": "main-collection-banner",
+      "disabled": true,
+      "settings": {
+        "show_collection_description": true,
+        "show_collection_image": false,
+        "color_scheme": "background-1"
+      }
+    },
+    "custom_liquid_PAaFrL": {
+      "type": "custom-liquid",
+      "custom_css": [
+        "h2 {text-align: center; font-size: 36px;}",
+        ".collection-read-more {max-width: 75ch; margin-left: auto; margin-right: auto; text-align: center;}"
+      ],
+      "name": "t:sections.custom-liquid.presets.name",
+      "settings": {
+        "custom_liquid": "code\nHtml\n<h2>High-Performance Front Hubs for Your Custom Build</h2>\n<div class=\"collection-read-more\">\n  <p>The front hub is the anchor of your wheel's steering precision and rolling efficiency. Our selection of high-performance front hubs is curated for maximum reliability and performance, whether you're building a lightweight climbing wheelset or a bombproof enduro rig. <span class=\"read-more-toggle\">[<span class=\"text-expand\">Read More...</span><span class=\"text-collapse\">Read Less</span>]</span></p>\n  <div class=\"read-more-content--full\">\n    <p>We stock the best front hubs from leading brands like Onyx, DT Swiss, and Industry Nine, covering all major axle standards including Boost, Superboost, and Lefty. Choose from 6-Bolt or Centerlock brake interfaces to perfectly match your setup and create a wheel that's built for purpose.</p>\n  </div>\n</div>",
+        "color_scheme": "background-2",
+        "padding_top": 20,
+        "padding_bottom": 20
+      }
+    },
+    "product-grid": {
+      "type": "main-collection-product-grid",
+      "settings": {
+        "products_per_page": 16,
+        "columns_desktop": 4,
+        "columns_mobile": "2",
+        "color_scheme": "",
+        "image_ratio": "square",
+        "image_shape": "default",
+        "show_secondary_image": true,
+        "show_vendor": true,
+        "show_rating": false,
+        "quick_add": "standard",
+        "enable_filtering": true,
+        "filter_type": "vertical",
+        "enable_sorting": true,
+        "padding_top": 36,
+        "padding_bottom": 36
+      }
+    }
+  },
+  "order": [
+    "banner",
+    "custom_liquid_PAaFrL",
+    "product-grid"
+  ]
+}

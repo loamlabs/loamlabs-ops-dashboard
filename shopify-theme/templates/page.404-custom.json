@@ -1,0 +1,72 @@
+/*
+ * ------------------------------------------------------------
+ * IMPORTANT: The contents of this file are auto-generated.
+ *
+ * This file may be updated by the Shopify admin theme editor
+ * or related systems. Please exercise caution as any changes
+ * made to this file may be overwritten.
+ * ------------------------------------------------------------
+ */
+{
+  "sections": {
+    "main": {
+      "type": "main-page",
+      "settings": {
+        "padding_top": 0,
+        "padding_bottom": 0
+      }
+    },
+    "image_banner_mtKB8Q": {
+      "type": "image-banner",
+      "blocks": {
+        "heading_EinXm9": {
+          "type": "heading",
+          "settings": {
+            "heading": "<strong>SORRY!</strong>",
+            "heading_size": "h0"
+          }
+        },
+        "text_EpcrUC": {
+          "type": "text",
+          "settings": {
+            "text": "<strong>We apologize, the page you are looking for doesn't exist.  While we deal with various bike parts, we mainly focus on custom hand built wheels.  Feel free to build a set or contact us with any questions.</strong>",
+            "text_style": "body"
+          }
+        },
+        "buttons_aqWFGV": {
+          "type": "buttons",
+          "settings": {
+            "button_label_1": "Custom Wheel Builder",
+            "button_link_1": "shopify://pages/custom-wheel-builder",
+            "button_style_secondary_1": false,
+            "button_label_2": "Contact Us",
+            "button_link_2": "shopify://pages/contact-us",
+            "button_style_secondary_2": false
+          }
+        }
+      },
+      "block_order": [
+        "heading_EinXm9",
+        "text_EpcrUC",
+        "buttons_aqWFGV"
+      ],
+      "settings": {
+        "image_2": "shopify://shop_images/P1022472_1_18e06f6e-fc4b-4452-a9af-b2742355204b.jpg",
+        "image_overlay_opacity": 20,
+        "image_height": "medium",
+        "image_behavior": "none",
+        "desktop_content_position": "middle-center",
+        "desktop_content_alignment": "center",
+        "show_text_box": false,
+        "color_scheme": "inverse",
+        "stack_images_on_mobile": true,
+        "mobile_content_alignment": "center",
+        "show_text_below": true
+      }
+    }
+  },
+  "order": [
+    "main",
+    "image_banner_mtKB8Q"
+  ]
+}

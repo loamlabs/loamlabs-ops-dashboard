@@ -1,0 +1,118 @@
+<div class="color-{{ section.settings.color_scheme }} gradient">
+  <div class="page-width">
+    
+    <div class="intro-content-wrapper">
+      <h1>{{ article.title }}</h1>
+      {% if section.settings.show_excerpt and article.excerpt != blank %}
+        <p class="article-excerpt">{{ article.excerpt }}</p>
+      {% endif %}
+    </div>
+
+    {% if article.image %}
+      <div class="article-featured-image">
+        <img src="{{ article.image | image_url: width: 1200 }}" alt="{{ article.image.alt | escape }}">
+      </div>
+    {% endif %}
+
+    <div class="article-content-wrapper">
+      <div class="article-main-content">
+        {{ article.content }}
+      </div>
+      
+      {% if section.settings.show_sidebar %}
+        <aside class="article-sidebar">
+          <h3>Recent Articles</h3>
+          {% for article in blog.articles limit: 5 %}
+            <a href="{{ article.url }}">{{ article.title }}</a>
+          {% endfor %}
+        </aside>
+      {% endif %}
+    </div>
+
+    {% comment %} Start: Added Comments Section {% endcomment %}
+    {% if section.settings.show_comments %}
+      <div class="article-comments-wrapper">
+        {% if blog.comments_enabled? %}
+          {% if article.comments_count > 0 %}
+            <h2 class="h3">Comments</h2>
+            <ul class="comments">
+              {% for comment in article.comments %}
+                <li id="{{ comment.id }}" class="comment">
+                  <div class="comment-author">
+                    <strong>{{ comment.author }}</strong>
+                  </div>
+                  <div class="comment-date">
+                    {{ comment.created_at | time_tag: format: 'month_day_year' }}
+                  </div>
+                  <div class="comment-content">
+                    {{ comment.content }}
+                  </div>
+                </li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+    
+          {% form 'new_comment', article %}
+            <h2 class="h3">Leave a comment</h2>
+    
+            {{ form.errors | default_errors }}
+    
+            <div class="grid">
+              <div class="grid__item medium-up--one-half">
+                <label for="CommentAuthor">Name</label>
+                {% comment %} Updated Line Below {% endcomment %}
+                <input type="text" name="comment[author]" id="CommentAuthor" value="{% if customer %}{{ customer.name }}{% else %}{{ form.author }}{% endif %}" required>
+              </div>
+              <div class="grid__item medium-up--one-half">
+                <label for="CommentEmail">Email</label>
+                {% comment %} Updated Line Below {% endcomment %}
+                <input type="email" name="comment[email]" id="CommentEmail" value="{% if customer %}{{ customer.email }}{% else %}{{ form.email }}{% endif %}" required>
+              </div>
+            </div>
+    
+            <label for="CommentBody">Message</label>
+            <textarea name="comment[body]" id="CommentBody" required>{{ form.body }}</textarea>
+    
+            <p style="font-size: 0.9em; margin-top: 1em;">Please note, comments must be approved before they are published.</p>
+    
+            <input type="submit" class="button" value="Post comment">
+          {% endform %}
+        {% endif %}
+      </div>
+    {% endif %}
+    {% comment %} End: Added Comments Section {% endcomment %}
+
+  </div>
+</div>
+
+{% schema %}
+{
+  "name": "LoamLabs Article",
+  "settings": [
+    {
+      "type": "color_scheme",
+      "id": "color_scheme",
+      "label": "Color scheme",
+      "default": "scheme-1"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_excerpt",
+      "label": "Show article excerpt",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_sidebar",
+      "label": "Show sidebar with recent posts",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_comments",
+      "label": "Show comments section",
+      "default": true
+    }
+  ]
+}
+{% endschema %}

@@ -1,0 +1,734 @@
+<script>
+  // This object is for analytics and detailed data
+  window._loamlabs_customer_data = {};
+  {% if customer %}
+    window._loamlabs_customer_data = {
+      isLoggedIn: true,
+      id: {{ customer.id | json }},
+      email: {{ customer.email | json }},
+      first_name: {{ customer.first_name | json }},
+      last_name: {{ customer.last_name | json }},
+      tags: {{ customer.tags | json }} // <-- This is the new line
+    };
+  {% else %}
+    window._loamlabs_customer_data = { isLoggedIn: false };
+  {% endif %}
+
+  // This simple object is used by the builder for the discount logic
+  window.loamlabs = window.loamlabs || {};
+  window.loamlabs.customer = {
+    isLoggedIn: {% if customer %}true{% else %}false{% endif %}
+  };
+</script>
+
+{% comment %} --- Add LZ-String Compression Library for Shareable Links --- {% endcomment %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js"></script>
+                                                                                        
+{% comment %} Load the builder-specific CSS {% endcomment %}
+{{ 'variant-builder.css' | asset_url | stylesheet_tag }}
+
+{% comment %} Main container for the builder {% endcomment %}
+<div id="variant-builder-container" class="variant-builder-container" data-storefront-api-token="{{ settings.storefront_api_token | escape }}">
+  
+  <div>{{ page.content }}</div>
+
+  {% comment %} --- Error Step --- {% endcomment %}
+  <div id="step-0" class="builder-step" data-step="0" style="display: none;"><h2>Configuration Error</h2><p class="error-message">Error.</p></div>
+
+  {% comment %} --- Step 1 --- {% endcomment %}
+  <div id="step-1" class="builder-step" data-step="1" style="display: none;">
+    <h2>Step 1: Choose Your Ride</h2>
+
+<!-- START: Image Slider Block -->
+<div class="image-slider-container">
+    <ul class="image-slider-list">
+        <!-- The first <li> will ALWAYS be the initial image shown. -->
+        <!-- All subsequent images will rotate randomly. -->
+        <li class="slider-image-item">
+            <img src="https://cdn.shopify.com/s/files/1/0801/1530/2707/files/step1main.jpg?v=1752464881" 
+              alt="LOAMLABS - Custom Wheel Builders">
+        </li>
+        <li class="slider-image-item">
+            <img src="https://cdn.shopify.com/s/files/1/0801/1530/2707/files/step1b.jpg?v=1752464881" 
+              alt="Hand Built Wheels - LoamLabs">
+        </li>
+        <li class="slider-image-item">
+            <img src="https://cdn.shopify.com/s/files/1/0801/1530/2707/files/step1c.jpg?v=1752464881" 
+              alt="Wheel builds in progress">
+        </li>
+        <li class="slider-image-item">
+            <img src="https://cdn.shopify.com/s/files/1/0801/1530/2707/files/step1d.jpg?v=1752464881" 
+              alt="Hand built custom Berd wheels">
+        </li>
+        <li class="slider-image-item">
+            <img src="https://cdn.shopify.com/s/files/1/0801/1530/2707/files/step1e.jpg?v=1752464881" 
+              alt="wheels posing">
+        </li>
+        <li class="slider-image-item">
+            <img src="https://cdn.shopify.com/s/files/1/0801/1530/2707/files/step1f.jpg?v=1752464881" 
+              alt="Berd builds up close">
+        </li>
+    </ul>
+</div>
+<!-- END: New HTML block -->
+    
+    <div class="step-1-selection-container">
+      <div class="selection-row" data-group-type="ridingStyle"><div class="selection-label">
+    <span class="info-tooltip-trigger" data-tooltip-text="Determines available hub spacing and wheel sizes. Mountain includes Boost/SuperBoost spacing (e.g., 15x110, 12x148). Gravel/Road includes standard non-boost spacing (e.g., 12x100, 12x142).">(?)</span>
+        <h4>Riding Style</h4>
+</div><div class="selection-options options"><button type="button" class="selection-button builder-button" data-selection-type="ridingStyle" data-value="gravelroad">Gravel / Road</button><button type="button" class="selection-button builder-button" data-selection-type="ridingStyle" data-value="mtb">Mountain</button><button type="button" class="selection-button builder-button" data-selection-type="ridingStyle" data-value="hybrid">Hybrid: Gr/Rd/Mtb</button></div></div>
+      <div class="selection-row" data-group-type="buildType"><div class="selection-label">
+    <span class="info-tooltip-trigger" data-tooltip-text="Choose a complete front and rear Wheel Set, or build a Front or Rear wheel individually.">(?)</span>
+    <h4>Build Type</h4>
+      </div><div class="selection-options options"><button type="button" class="selection-button builder-button" data-selection-type="buildType" data-value="Wheel Set">Wheel Set</button><button type="button" class="selection-button builder-button" data-selection-type="buildType" data-value="Front">Front Wheel Only</button><button type="button" class="selection-button builder-button" data-selection-type="buildType" data-value="Rear">Rear Wheel Only</button></div></div>
+
+<!-- START: Customer Supplied Components Section -->
+      <div id="customer-supplied-section" class="selection-row is-disabled" data-group-type="customerSupplied">
+        <div class="selection-label">
+          <h4>Using Your Own Components?</h4>
+        </div>
+        <div class="selection-options options customer-supplied-options">
+          <div class="component-group-row">
+            <label><input type="checkbox" class="customer-supplied-checkbox" data-component="rim" data-position="front"> Front Rim</label>
+            <label><input type="checkbox" class="customer-supplied-checkbox" data-component="rim" data-position="rear"> Rear Rim</label>
+          </div>
+          <div class="component-group-row">
+            <label><input type="checkbox" class="customer-supplied-checkbox" data-component="hub" data-position="front"> Front Hub</label>
+            <label><input type="checkbox" class="customer-supplied-checkbox" data-component="hub" data-position="rear"> Rear Hub</label>
+          </div>
+        </div>
+      </div>
+<!-- END: Customer Supplied Components Section -->
+      
+    </div>
+    <div class="builder-navigation nav-step-1">
+      {% comment %} --- RESET BUTTON REMOVED ---
+       <button type="button" id="step-1-reset-button" class="reset-build-button button builder-button" style="display: none;">Reset</button>
+      {% endcomment %}
+       <button type="button" id="step-1-next-button" class="next-step-button button builder-button" data-target-step="2" disabled>Next: Specs</button>
+    </div>
+  </div>
+
+  {% comment %} --- Step 2 --- {% endcomment %}
+  <div id="step-2" class="builder-step" data-step="2" style="display: none;">
+    <h2>Step 2: Dial In Your Specs</h2>
+    <div id="step-2-spec-container" class="step-2-selection-container">
+        {% comment %} Spec Rows {% endcomment %}
+        <div class="spec-group selection-row" data-spec-name="frontWheelSize" data-build-type-filter="Front|Wheel Set" data-wheel-position="front"><div class="selection-label">
+    <span class="info-tooltip-trigger" data-tooltip-text="Mountain: 29ers roll over obstacles easily, while 27.5 wheels are more nimble and playful. Mullet/MX setups (29 Front, 27.5 Rear) offer a balance of both. Gravel/Road: 700c is standard for speed and efficiency. 650b allows for wider, higher-volume tires for comfort and traction on rougher terrain.">(?)</span>
+    <h4>Front Wheel Size</h4>
+        </div><div class="spec-options selection-options"><button type="button" class="spec-option-button builder-button" data-spec-group="frontWheelSize" data-value='29"' data-riding-style="mtb">29"</button><button type="button" class="spec-option-button builder-button" data-spec-group="frontWheelSize" data-value='27.5"' data-riding-style="mtb">27.5"</button><button type="button" class="spec-option-button builder-button" data-spec-group="frontWheelSize" data-value="700c" data-riding-style="gravelroad">700c</button><button type="button" class="spec-option-button builder-button" data-spec-group="frontWheelSize" data-value="650b" data-riding-style="gravelroad">650b</button></div></div>
+        <div class="spec-group selection-row" data-spec-name="rearWheelSize" data-build-type-filter="Rear|Wheel Set" data-wheel-position="rear"><div class="selection-label">
+    <span class="info-tooltip-trigger" data-tooltip-text="Mountain: 29ers roll over obstacles easily, while 27.5 wheels are more nimble and playful. Mullet/MX setups (29 Front, 27.5 Rear) offer a balance of both. Gravel/Road: 700c is standard for speed and efficiency. 650b allows for wider, higher-volume tires for comfort and traction on rougher terrain.">(?)</span>
+<h4>Rear Wheel Size</h4>
+        </div><div class="spec-options selection-options"><button type="button" class="spec-option-button builder-button" data-spec-group="rearWheelSize" data-value='29"' data-riding-style="mtb">29"</button><button type="button" class="spec-option-button builder-button" data-spec-group="rearWheelSize" data-value='27.5"' data-riding-style="mtb">27.5"</button><button type="button" class="spec-option-button builder-button" data-spec-group="rearWheelSize" data-value="700c" data-riding-style="gravelroad">700c</button><button type="button" class="spec-option-button builder-button" data-spec-group="rearWheelSize" data-value="650b" data-riding-style="gravelroad">650b</button></div></div>
+        <!-- Front Spoke Count (Now Dynamic) -->
+        <div class="spec-group selection-row" data-spec-name="frontSpokeCount" data-build-type-filter="Front|Wheel Set">
+          <div class="selection-label">
+            <span class="info-tooltip-trigger" data-tooltip-text="Determines wheel strength and weight. 32h is the strongest and best for aggressive riding or heavier riders. 28h is a great all-around balance. 24h is the lightest, ideal for XC or lightweight road/gravel builds.">(?)</span>
+            <h4>Front Spoke Count</h4>
+          </div>
+          <div class="spec-options selection-options" id="front-spoke-count-container">
+            <!-- JavaScript will populate buttons here based on your actual product data -->
+          </div>
+        </div>
+
+        <!-- Rear Spoke Count (Now Dynamic) -->
+        <div class="spec-group selection-row" data-spec-name="rearSpokeCount" data-build-type-filter="Rear|Wheel Set">
+          <div class="selection-label">
+            <span class="info-tooltip-trigger" data-tooltip-text="Determines wheel strength and weight. 32h is the strongest and best for aggressive riding or heavier riders. 28h is a great all-around balance. 24h is the lightest, ideal for XC or lightweight road/gravel builds.">(?)</span>
+            <h4>Rear Spoke Count</h4>
+          </div>
+          <div class="spec-options selection-options" id="rear-spoke-count-container">
+            <!-- JavaScript will populate buttons here based on your actual product data -->
+          </div>
+        </div>
+        <!-- Brake Style -->
+        <div class="spec-group selection-row" data-spec-name="brakeStyle" data-build-type-filter="Front|Rear|Wheel Set">
+          <div class="selection-label">
+            <span class="info-tooltip-trigger" data-tooltip-text="6-Bolt and Centerlock are for Disc Brakes. Rim Brake is for bikes where the brake pads grip the rim surface directly.">(?)</span>
+            <h4>Brake Style</h4>
+          </div>
+          <div class="spec-options selection-options">
+            <button type="button" class="spec-option-button builder-button" data-spec-group="brakeStyle" data-value="6-Bolt" data-riding-style="both">6-Bolt</button>
+            <button type="button" class="spec-option-button builder-button" data-spec-group="brakeStyle" data-value="Centerlock" data-riding-style="both">Centerlock</button>
+            <button type="button" class="spec-option-button builder-button" data-spec-group="brakeStyle" data-value="Rim Brake" data-riding-style="gravelroad">Rim Brake</button>
+          </div>
+        </div>
+
+         <!-- Front Hub Spacing -->
+<div class="spec-group selection-row" data-spec-name="frontHubSpacing" data-build-type-filter="Front|Wheel Set">
+    <div class="selection-label">
+        <span class="info-tooltip-trigger" data-tooltip-text="This is the width of your front fork.">(?)</span>
+        <h4>Front Hub Spacing</h4>
+    </div>
+    <div class="spec-options selection-options" id="front-hub-spacing-container">
+        <!-- JS will populate buttons here -->
+    </div>
+</div>
+
+<!-- Rear Hub Spacing -->
+<div class="spec-group selection-row" data-spec-name="rearHubSpacing" data-build-type-filter="Rear|Wheel Set">
+    <div class="selection-label">
+        <span class="info-tooltip-trigger" data-tooltip-text="This is the width of your rear frame.">(?)</span>
+        <h4>Rear Hub Spacing</h4>
+    </div>
+    <div class="spec-options selection-options" id="rear-hub-spacing-container">
+        <!-- JS fills this -->
+    </div>
+</div>
+        </div>
+        <!-- Freehub Type -->
+<div class="spec-group selection-row" data-spec-name="freehubType" data-build-type-filter="Rear|Wheel Set">
+    <div class="selection-label">
+        <span class="info-tooltip-trigger" data-tooltip-text="This must match your cassette. XD/XDR is for SRAM 11/12-speed. MicroSpline (MS) is for Shimano 12-speed. HG is for Shimano 8-11 speed MTB and most other cassettes. HG11 is for 11-speed road.">(?)</span>
+        <h4>Freehub Type</h4>
+    </div>
+    <div class="spec-options selection-options">
+        <button type="button" class="spec-option-button builder-button" data-spec-group="freehub" data-value="HG" data-riding-style="mtb">Shimano HG</button>
+        <button type="button" class="spec-option-button builder-button" data-spec-group="freehub" data-value="HG-R" data-riding-style="gravelroad">Shimano HG Road</button>
+        <button type="button" class="spec-option-button builder-button" data-spec-group="freehub" data-value="MS" data-riding-style="both">Shimano MicroSpline</button>
+        <button type="button" class="spec-option-button builder-button" data-spec-group="freehub" data-value="XD" data-riding-style="mtb">SRAM XD</button>
+        <button type="button" class="spec-option-button builder-button" data-spec-group="freehub" data-value="XD-R" data-riding-style="gravelroad">SRAM XDR</button>
+        <button type="button" class="spec-option-button builder-button" data-spec-group="freehub" data-value="Campy 11/12s" data-riding-style="gravelroad">Campy 11/12s</button>
+        <button type="button" class="spec-option-button builder-button" data-spec-group="freehub" data-value="Campy N3W" data-riding-style="both">Campy N3W</button>
+    </div>
+</div>
+    </div>
+    <div class="builder-navigation nav-step-2-3">
+      {% comment %} --- RESET BUTTON REMOVED ---
+      <button type="button" class="reset-build-button button builder-button">Reset</button>
+      {% endcomment %}
+      <button type="button" id="step-2-back-button" class="prev-step-button button builder-button" data-target-step="1">Back: Style</button>
+      <button type="button" id="step-2-next-button" class="next-step-button button builder-button" data-target-step="3" disabled>Next: Components</button>
+    </div>
+  </div>
+
+{% comment %} --- Step 3 --- {% endcomment %}
+<div id="step-3" class="builder-step" data-step="3" style="display: none;">
+
+    <!-- START: Add this new loading overlay element -->
+    <div id="builder-edit-loading-overlay" style="display: none;">
+      <div class="loading-spinner"></div>
+      <p>Preparing your custom build for editing...</p>
+    </div>
+
+      <!-- START: Step 3 Header with Integrated Back Button -->
+   <div class="step-3-header-wrapper">
+     <h2>Step 3: Choose Your Components</h2>
+     <button type="button" id="step-3-back-button-TOP" class="prev-step-button button builder-button" data-target-step="2">Back: Specs</button>
+   </div>
+
+         <div id="spec-adjuster-section" class="spec-adjuster-section">
+    <div id="spec-adjuster-wrapper" class="spec-adjuster-position-wrapper">
+      <div id="front-spec-adjusters" class="spec-adjuster-column" style="display: none;">
+          <!-- JS will populate the Front spec group here -->
+      </div>
+
+      <div id="center-spec-adjusters" class="spec-adjuster-column" style="display: none;">
+          <!-- JS will populate the Brake Style group here -->
+      </div>
+
+      <div id="rear-spec-adjusters" class="spec-adjuster-column" style="display: none;">
+          <!-- JS will populate the Rear spec group here -->
+      </div>
+    </div>
+</div>
+
+<!-- START: Step 3 Refresh Loading Overlay (SECTION 6) -->
+<div id="builder-step3-refresh-overlay" style="display: none;">
+  <div class="loading-spinner"></div>
+  <p>Updating components for new selection...</p>
+</div>
+<!-- END: Step 3 Refresh Loading Overlay -->
+
+<!-- START: Spec Change Confirmation Modal (SECTION 6) -->
+<div id="spec-change-confirm-modal" class="builder-modal" style="display: none;">
+    <div class="builder-modal-content" style="max-width: 500px;">
+        <button type="button" class="builder-modal-close-btn" id="spec-change-modal-close-btn" aria-label="Close modal">×</button>
+        <h3 id="spec-change-modal-title">Update Specification?</h3>
+        <div id="spec-change-modal-body" class="builder-modal-body">
+            <!-- Dynamic content will be inserted here by JS -->
+        </div>
+        <div id="spec-change-modal-footer" class="builder-modal-footer" style="justify-content: space-around;">
+            <button type="button" id="spec-change-modal-cancel-btn" class="button builder-button button--secondary">Cancel</button>
+            <button type="button" id="spec-change-modal-confirm-btn" class="button builder-button builder-button--cta">Confirm</button>
+        </div>
+    </div>
+</div>
+<!-- END: Spec Change Confirmation Modal -->
+
+
+     {% comment %} --- Rims --- {% endcomment %}
+     <div class="component-section" id="component-section-rims">
+       <div class="component-position-wrapper">
+         <div id="front-rim-subsection" class="component-subsection position-subsection" data-position="Front" style="display: none;">
+           <h4>Front Rim <span class="component-spec-context" id="front-rim-spec-context"></span></h4>
+           <div class="component-filters" id="front-rim-filters">
+             <div class="vendor-filter-area">
+               {% comment %} Vendor H4 and Buttons Populated Here by JS {% endcomment %}
+             </div>
+           </div>
+           <div class="component-action-buttons-container" id="front-rim-action-buttons">
+             {% comment %} JS will populate this. Example:
+             <button type="button" class="builder-button match-pair-button front-match-pair-button" style="display: none;">Match Rear Rim</button>
+             <button type="button" class="builder-button cancel-change-button button--link-style front-cancel-change-button" data-action="cancel-component-change" style="display: none;">Cancel</button>
+             {% endcomment %}
+           </div>
+           <div class="component-options-wrapper">
+             <div class="component-loading" id="front-rim-loading" style="display: none;">Loading...</div>
+             <div class="component-error" id="front-rim-error" style="display: none;"></div>
+             <div class="component-options" id="front-rim-options-container"><p class="selection-prompt centered-bold-prompt">Front rims loading...</p></div>
+             <div class="component-selected-image" id="front-rim-image-container" data-component-type="Rim" data-position="Front" style="display: none; cursor: pointer;" title="Click to change selection"></div>
+           </div>
+           <div class="component-selection-summary" id="front-rim-selection">
+             <span>Selected Front Rim: None</span>
+           </div>
+         </div>
+         <div id="rear-rim-subsection" class="component-subsection position-subsection" data-position="Rear" style="display: none;">
+           <h4>Rear Rim <span class="component-spec-context" id="rear-rim-spec-context"></span></h4>
+           <div class="component-filters" id="rear-rim-filters">
+             <div class="vendor-filter-area">
+               {% comment %} Vendor H4 and Buttons Populated Here by JS {% endcomment %}
+             </div>
+           </div>
+           <div class="component-action-buttons-container" id="rear-rim-action-buttons">
+              {% comment %} JS will populate this. Example:
+              <button type="button" class="builder-button match-pair-button rear-match-pair-button" style="display: none;">Match Front Rim</button>
+              <button type="button" class="builder-button cancel-change-button button--link-style rear-cancel-change-button" data-action="cancel-component-change" style="display: none;">Cancel</button>
+              {% endcomment %}
+           </div>
+           <div class="component-options-wrapper">
+             <div class="component-loading" id="rear-rim-loading" style="display: none;">Loading...</div>
+             <div class="component-error" id="rear-rim-error" style="display: none;"></div>
+             <div class="component-options" id="rear-rim-options-container"><p class="selection-prompt centered-bold-prompt">Rear rims loading...</p></div>
+             <div class="component-selected-image" id="rear-rim-image-container" data-component-type="Rim" data-position="Rear" style="display: none; cursor: pointer;" title="Click to change selection"></div>
+           </div>
+           <div class="component-selection-summary" id="rear-rim-selection">
+             <span>Selected Rear Rim: None</span>
+           </div>
+         </div>
+       </div>
+     </div>
+
+     {% comment %} --- Hubs --- {% endcomment %}
+     <div class="component-section" id="component-section-hubs">
+       <div class="component-position-wrapper">
+         <div id="front-hub-subsection" class="component-subsection position-subsection" data-position="Front" style="display: none;">
+           <h4>Front Hub <span class="component-spec-context" id="front-hub-spec-context"></span></h4>
+           <div class="component-filters" id="front-hub-filters">
+             <div class="vendor-filter-area">
+               {% comment %} Vendor H4 and Buttons Populated Here by JS {% endcomment %}
+             </div>
+           </div>
+           <div class="component-action-buttons-container" id="front-hub-action-buttons">
+              {% comment %} JS will populate this. Example:
+              <button type="button" class="builder-button match-pair-button front-match-pair-button" style="display: none;">Match Rear Hub</button>
+              <button type="button" class="builder-button cancel-change-button button--link-style front-cancel-change-button" data-action="cancel-component-change" style="display: none;">Cancel</button>
+              {% endcomment %}
+           </div>
+           <div class="component-options-wrapper">
+             <div class="component-loading" id="front-hub-loading" style="display: none;">Loading...</div>
+             <div class="component-error" id="front-hub-error" style="display: none;"></div>
+             <div class="component-options" id="front-hub-options-container"><p class="selection-prompt centered-bold-prompt">Front hubs loading...</p></div>
+             <div class="component-selected-image" id="front-hub-image-container" data-component-type="Hub" data-position="Front" style="display: none; cursor: pointer;" title="Click to change selection"></div>
+           </div>
+           <div class="component-selection-summary" id="front-hub-selection">
+             <span>Selected Front Hub: None</span>
+           </div>
+         </div>
+         <div id="rear-hub-subsection" class="component-subsection position-subsection" data-position="Rear" style="display: none;">
+           <h4>Rear Hub <span class="component-spec-context" id="rear-hub-spec-context"></span></h4>
+           <div class="component-filters" id="rear-hub-filters">
+              <div class="vendor-filter-area">
+               {% comment %} Vendor H4 and Buttons Populated Here by JS {% endcomment %}
+             </div>
+           </div>
+           <div class="component-action-buttons-container" id="rear-hub-action-buttons">
+              {% comment %} JS will populate this. Example:
+              <button type="button" class="builder-button match-pair-button rear-match-pair-button" style="display: none;">Match Front Hub</button>
+              <button type="button" class="builder-button cancel-change-button button--link-style rear-cancel-change-button" data-action="cancel-component-change" style="display: none;">Cancel</button>
+              {% endcomment %}
+           </div>
+           <div class="component-options-wrapper">
+             <div class="component-loading" id="rear-hub-loading" style="display: none;">Loading...</div>
+             <div class="component-error" id="rear-hub-error" style="display: none;"></div>
+             <div class="component-options" id="rear-hub-options-container"><p class="selection-prompt centered-bold-prompt">Rear hubs loading...</p></div>
+             <div class="component-selected-image" id="rear-hub-image-container" data-component-type="Hub" data-position="Rear" style="display: none; cursor: pointer;" title="Click to change selection"></div>
+           </div>
+           <div class="component-selection-summary" id="rear-hub-selection">
+             <span>Selected Rear Hub: None</span>
+           </div>
+         </div>
+       </div>
+     </div>
+
+     {% comment %} --- Spokes --- {% endcomment %}
+     <div class="component-section" id="component-section-spokes">
+       <div class="component-position-wrapper">
+         <div id="front-spokes-subsection" class="component-subsection position-subsection" data-position="Front" style="display: none;">
+           <h4>Front Spokes</h4>
+           <div class="component-filters" id="front-spokes-filters">
+             <div class="vendor-filter-area">
+               {% comment %} Vendor H4 and Buttons Populated Here by JS {% endcomment %}
+             </div>
+           </div>
+           <div class="component-action-buttons-container" id="front-spokes-action-buttons">
+              {% comment %} JS will populate this. Example:
+              <button type="button" class="builder-button match-pair-button front-match-pair-button" style="display: none;">Match Rear Spokes</button>
+              <button type="button" class="builder-button cancel-change-button button--link-style front-cancel-change-button" data-action="cancel-component-change" style="display: none;">Cancel</button>
+              {% endcomment %}
+           </div>
+           <div class="component-options-wrapper">
+             <div class="component-loading" id="front-spokes-loading" style="display: none;">Loading...</div>
+             <div class="component-error" id="front-spokes-error" style="display: none;"></div>
+             <div class="component-options" id="front-spokes-options-container"><p class="selection-prompt centered-bold-prompt">Front spokes loading...</p></div>
+             <div class="component-selected-image" id="front-spokes-image-container" data-component-type="Spokes" data-position="Front" style="display: none; cursor: pointer;" title="Click to change selection"></div>
+           </div>
+           <div class="component-selection-summary" id="front-spokes-selection">
+             <span>Selected Front Spokes: None</span>
+           </div>
+         </div>
+         <div id="rear-spokes-subsection" class="component-subsection position-subsection" data-position="Rear" style="display: none;">
+           <h4>Rear Spokes</h4>
+           <div class="component-filters" id="rear-spokes-filters">
+             <div class="vendor-filter-area">
+               {% comment %} Vendor H4 and Buttons Populated Here by JS {% endcomment %}
+             </div>
+           </div>
+           <div class="component-action-buttons-container" id="rear-spokes-action-buttons">
+              {% comment %} JS will populate this. Example:
+              <button type="button" class="builder-button match-pair-button rear-match-pair-button" style="display: none;">Match Front Spokes</button>
+              <button type="button" class="builder-button cancel-change-button button--link-style rear-cancel-change-button" data-action="cancel-component-change" style="display: none;">Cancel</button>
+              {% endcomment %}
+           </div>
+           <div class="component-options-wrapper">
+             <div class="component-loading" id="rear-spokes-loading" style="display: none;">Loading...</div>
+             <div class="component-error" id="rear-spokes-error" style="display: none;"></div>
+             <div class="component-options" id="rear-spokes-options-container"><p class="selection-prompt centered-bold-prompt">Rear spokes loading...</p></div>
+             <div class="component-selected-image" id="rear-spokes-image-container" data-component-type="Spokes" data-position="Rear" style="display: none; cursor: pointer;" title="Click to change selection"></div>
+           </div>
+           <div class="component-selection-summary" id="rear-spokes-selection">
+             <span>Selected Rear Spokes: None</span>
+           </div>
+         </div>
+       </div>
+     </div>
+
+     {% comment %} --- Nipples --- {% endcomment %}
+     <div class="component-section" id="component-section-nipples">
+       <div class="component-position-wrapper">
+         <div id="front-nipples-subsection" class="component-subsection position-subsection" data-position="Front" style="display: none;">
+           <h4>Front Nipples</h4>
+           <div class="component-filters" id="front-nipples-filters">
+             <div class="vendor-filter-area">
+               {% comment %} Vendor H4 and Buttons Populated Here by JS {% endcomment %}
+             </div>
+           </div>
+           <div class="component-action-buttons-container" id="front-nipples-action-buttons">
+              {% comment %} JS will populate this. Example:
+              <button type="button" class="builder-button match-pair-button front-match-pair-button" style="display: none;">Match Rear Nipples</button>
+              <button type="button" class="builder-button cancel-change-button button--link-style front-cancel-change-button" data-action="cancel-component-change" style="display: none;">Cancel</button>
+              {% endcomment %}
+           </div>
+           <div class="component-options-wrapper">
+             <div class="component-loading" id="front-nipples-loading" style="display: none;">Loading...</div>
+             <div class="component-error" id="front-nipples-error" style="display: none;"></div>
+             <div class="component-options" id="front-nipples-options-container"><p class="selection-prompt centered-bold-prompt">Front spoke nipples loading...</p></div>
+             <div class="component-selected-image" id="front-nipples-image-container" data-component-type="Nipples" data-position="Front" style="display: none; cursor: pointer;" title="Click to change selection"></div>
+           </div>
+           <div class="component-selection-summary" id="front-nipples-selection">
+             <span>Selected Front Nipples: None</span>
+           </div>
+         </div>
+         <div id="rear-nipples-subsection" class="component-subsection position-subsection" data-position="Rear" style="display: none;">
+           <h4>Rear Nipples</h4>
+           <div class="component-filters" id="rear-nipples-filters">
+             <div class="vendor-filter-area">
+               {% comment %} Vendor H4 and Buttons Populated Here by JS {% endcomment %}
+             </div>
+           </div>
+           <div class="component-action-buttons-container" id="rear-nipples-action-buttons">
+              {% comment %} JS will populate this. Example:
+              <button type="button" class="builder-button match-pair-button rear-match-pair-button" style="display: none;">Match Front Nipples</button>
+              <button type="button" class="builder-button cancel-change-button button--link-style rear-cancel-change-button" data-action="cancel-component-change" style="display: none;">Cancel</button>
+              {% endcomment %}
+           </div>
+           <div class="component-options-wrapper">
+             <div class="component-loading" id="rear-nipples-loading" style="display: none;">Loading...</div>
+             <div class="component-error" id="rear-nipples-error" style="display: none;"></div>
+             <div class="component-options" id="rear-nipples-options-container"><p class="selection-prompt centered-bold-prompt">Rear spoke nipples loading...</p></div>
+             <div class="component-selected-image" id="rear-nipples-image-container" data-component-type="Nipples" data-position="Rear" style="display: none; cursor: pointer;" title="Click to change selection"></div>
+           </div>
+           <div class="component-selection-summary" id="rear-nipples-selection">
+             <span>Selected Rear Nipples: None</span>
+           </div>
+         </div>
+       </div>
+     </div>
+
+          {% comment %} --- Valve Stems --- {% endcomment %}
+     <div class="component-section" id="component-section-valvestems">
+       <div class="component-position-wrapper">
+         <div id="front-valvestem-subsection" class="component-subsection position-subsection" data-position="Front" style="display: none;">
+           <h4>Front Valve Stem <span class="optional-badge">(Optional)</span></h4>
+
+           <div class="component-filters" id="front-valvestem-filters">
+             <div class="vendor-filter-area">
+               {% comment %} Vendor H4 and Buttons Populated Here by JS {% endcomment %}
+             </div>
+           </div>
+
+           <div class="component-action-buttons-container" id="front-valvestem-action-buttons">
+             {% comment %} JS will populate this for "Cancel Change" when changing. Match pair not applicable unless rim depth logic is in. {% endcomment %}
+           </div>
+
+           <div class="component-options-wrapper">
+             <div class="component-loading" id="front-valvestem-loading" style="display: none;">Loading...</div>
+             <div class="component-error" id="front-valvestem-error" style="display: none;"></div>
+             
+             <div class="component-options" id="front-valvestem-options-container">
+               <p id="front-valvestem-selection-prompt" class="selection-prompt centered-bold-prompt">Please select a Rim to see compatible Valve Stems.</p>
+               {% comment %} Model cards and variant buttons will be populated by JS here {% endcomment %}
+             </div>
+
+             <div class="component-selected-image" id="front-valvestem-image-container" data-component-type="ValveStem" data-position="Front" style="display: none; cursor: pointer;" title="Click to change selection">
+                {% comment %} JS populates this with the <img> tag {% endcomment %}
+             </div>
+           </div>
+
+           <div class="component-selection-summary" id="front-valvestem-selection">
+             <span>Selected Front Valve Stem: None</span>
+           </div>
+           <button id="remove-front-valvestem-button" class="builder-button button--secondary remove-valvestem-button" data-position="front" style="display:none; margin-top: 10px;">Remove Valve Stem</button>
+
+         </div>
+
+         <div id="rear-valvestem-subsection" class="component-subsection position-subsection" data-position="Rear" style="display: none;">
+            <h4>Rear Valve Stem <span class="optional-badge">(Optional)</span></h4>
+
+            <div class="component-filters" id="rear-valvestem-filters">
+              <div class="vendor-filter-area">
+                {% comment %} Vendor H4 and Buttons Populated Here by JS {% endcomment %}
+              </div>
+            </div>
+
+            <div class="component-action-buttons-container" id="rear-valvestem-action-buttons">
+                {% comment %} JS will populate this {% endcomment %}
+            </div>
+
+            <div class="component-options-wrapper">
+              <div class="component-loading" id="rear-valvestem-loading" style="display: none;">Loading...</div>
+              <div class="component-error" id="rear-valvestem-error" style="display: none;"></div>
+
+              <div class="component-options" id="rear-valvestem-options-container">
+                <p id="rear-valvestem-selection-prompt" class="selection-prompt centered-bold-prompt">Please select a Rim to see compatible Valve Stems.</p>
+                {% comment %} Model cards and variant buttons will be populated by JS here {% endcomment %}
+              </div>
+              
+              <div class="component-selected-image" id="rear-valvestem-image-container" data-component-type="ValveStem" data-position="Rear" style="display: none; cursor: pointer;" title="Click to change selection">
+                {% comment %} JS populates this with the <img> tag {% endcomment %}
+              </div>
+            </div>
+             
+            <div class="component-selection-summary" id="rear-valvestem-selection">
+              <span>Selected Rear Valve Stem: None</span>
+            </div>
+            <button id="remove-rear-valvestem-button" class="builder-button button--secondary remove-valvestem-button" data-position="rear" style="display:none; margin-top: 10px;">Remove Valve Stem</button>
+         </div>
+       </div>
+     </div>
+     {% comment %} --- END VALVE STEM SECTION --- {% endcomment %}
+
+
+{% comment %} --- Build Summary --- {% endcomment %}
+<div id="build-summary" class="build-summary">
+  
+  <div class="build-summary-main-content">
+    <h2 class="build-summary-title">Your Build Summary</h2>
+    <div class="summary-line-item summary-item-weight">
+        <span>Est. Total Weight:</span>
+        <span id="estimated-weight-value">-- g</span>
+    </div>
+    <div id="summary-content" class="summary-content-area">
+        <p>Select options to begin.</p>
+    </div>
+    <div class="summary-discount-container"></div>
+  </div>
+
+  <!-- This is the new dedicated footer row -->
+  <div class="build-summary-footer">
+<div class="summary-actions-left">
+  <!-- CHANGE THE ID ON THE LINE BELOW -->
+  <button type="button" id="step-3-back-button-bottom" class="prev-step-button button builder-button" data-target-step="2">Back: Specs</button>
+  <div id="builder-save-load-controls">
+      <button type="button" id="save-current-build-btn" class="button builder-button">Save Current Build</button>
+      <button type="button" id="my-saved-builds-btn" class="button builder-button">My Saved Builds</button>
+      {%- if customer and customer.tags contains 'staff_builder' -%}
+        <button type="button" id="admin-share-build-button" class="button button--secondary" disabled>Share Build</button>
+      {%- endif -%}
+  </div>
+</div>
+    <div class="summary-subtotal-wrapper">
+      <div class="summary-subtotal">
+        <span>Subtotal:</span>
+        <span id="subtotal-value">$0.00</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div id="build-validation-summary" class="build-validation-summary" style="display: none;"></div>
+
+<!-- DEDICATED CONTAINER FOR THE FINAL CTA BUTTONS -->
+<div class="builder-navigation nav-bottom-step3">
+    <button type="button" id="step-3-add-to-cart-button-bottom" class="add-to-cart-button button builder-button--primary" disabled>Add Build to Cart</button>
+    <button type="button" id="step-3-back-to-cart-button" class="button builder-button--secondary" style="display: none;" onclick="redirectToCart()">Back to Cart</button>
+</div>
+
+<div class="builder-policy-disclaimer">
+    By placing this order, you agree to our <a href="/policies/refund-policy" target="_blank">Custom Order Policy</a>.
+</div>
+
+</div> {% comment %} This closes <div id="variant-builder-container" ...> {% endcomment %}
+
+{% comment %} +++ START: ADDONS MODAL HTML +++ {% endcomment %}
+  <div id="addons-modal" class="addons-modal" style="display: none;">
+      <div class="addons-modal-content">
+          <button type="button" class="addons-modal-close-btn" aria-label="Close modal">×</button>
+          <h3 id="addons-modal-title">Component Add-ons</h3>
+          <div id="addons-modal-body" class="addons-modal-body">
+              <!-- Addon options will be dynamically inserted here -->
+              <p>Loading add-on options...</p>
+          </div>
+          <div id="addons-modal-footer" class="addons-modal-footer">
+              <button type="button" id="addons-modal-done-btn" class="builder-button">Done</button>
+          </div>
+      </div>
+  </div>
+{% comment %} +++ END: ADDONS MODAL HTML +++ {% endcomment %}
+
+{% comment %} +++ START: MY SAVED BUILDS MODAL HTML +++ {% endcomment %}
+<div id="saved-builds-modal" class="builder-modal" style="display: none;">
+    <div class="builder-modal-content">
+        <button type="button" class="builder-modal-close-btn" id="saved-builds-modal-close-btn" aria-label="Close modal">×</button>
+        <h3 id="saved-builds-modal-title">My Saved Wheel Builds</h3>
+        <div id="saved-builds-modal-body" class="builder-modal-body">
+            {% comment %} Saved builds will be listed here by JS {% endcomment %}
+            <p>Loading saved builds...</p>
+        </div>
+        <div id="saved-builds-modal-footer" class="builder-modal-footer">
+            <p class="builder-modal-disclaimer"><strong>Please note:</strong> These saved builds are stored in your current web browser. Clearing your browser's data or using a different browser/device will result in these saves being lost.</p>
+            <button type="button" id="saved-builds-modal-done-btn" class="button builder-button">Done</button>
+        </div>
+    </div>
+</div>
+{% comment %} +++ END: MY SAVED BUILDS MODAL HTML +++ {% endcomment %}
+
+{% comment %} +++ START: LAST ACTIVE BUILD PROMPT MODAL HTML +++ {% endcomment %}
+<div id="last-active-build-prompt-modal" class="builder-modal" style="display: none;">
+    <div class="builder-modal-content" style="max-width: 500px;">
+        <h3 id="last-active-build-prompt-title">We found an in-progress wheel build from your last session.</h3>
+        <div id="last-active-build-prompt-body" class="builder-modal-body">
+            <p>Resume Previous Build?</p>
+            </div>
+        <div id="last-active-build-prompt-footer" class="builder-modal-footer" style="justify-content: space-around;">
+            <button type="button" id="resume-last-active-btn" class="button builder-button builder-button--cta">Resume Build</button>
+            <button type="button" id="start-new-active-btn" class="button builder-button button--secondary">Start New</button>
+        </div>
+    </div>
+</div>
+{% comment %} +++ END: LAST ACTIVE BUILD PROMPT MODAL HTML +++ {% endcomment %}
+
+{% comment %} +++ START: CUSTOMER SUPPLIED CONFIRMATION MODAL HTML +++ {% endcomment %}
+<div id="customer-supplied-modal" class="builder-modal" style="display: none;">
+    <div class="builder-modal-content">
+        <button type="button" class="builder-modal-close-btn" id="customer-supplied-modal-close-btn" aria-label="Close modal">×</button>
+        <h3 id="customer-supplied-modal-title">Confirmation Required</h3>
+        <div id="customer-supplied-modal-body" class="builder-modal-body">
+            <!-- Dynamic content will be inserted here by JS -->
+        </div>
+        <div id="customer-supplied-modal-footer" class="builder-modal-footer">
+            <label class="modal-confirm-label">
+                <input type="checkbox" id="customer-supplied-modal-checkbox">
+                <span id="customer-supplied-modal-checkbox-label">I understand</span>
+            </label>
+            <button type="button" id="customer-supplied-modal-confirm-btn" class="button builder-button" disabled>Confirm</button>
+        </div>
+    </div>
+</div>
+{% comment %} +++ END: CUSTOMER SUPPLIED CONFIRMATION MODAL HTML +++ {% endcomment %}
+  
+{% comment %} --- JavaScript Configuration & Initialization --- {% endcomment %}
+<script>
+  /* Ensure Storefront Token is passed */
+  window.loamlabs = window.loamlabs || {};
+  function showBuilderConfigError(message) { console.error("Builder Config Error:", message); const step0 = document.getElementById('step-0'); const step0Msg = step0 ? step0.querySelector('.error-message') : null; const step1 = document.getElementById('step-1'); const step2 = document.getElementById('step-2'); const step3 = document.getElementById('step-3'); const summary = document.getElementById('build-summary'); if (step0 && step0Msg) { step0Msg.textContent = message; step0.style.display = 'flex'; step0.style.flexDirection = 'column'; step0.style.alignItems = 'center'; } else { (document.getElementById('variant-builder-container') || document.body).innerHTML = `<div style="color: red; border: 1px solid red; padding: 15px; text-align: center;">${message}</div>`; } if (step1) step1.style.display = 'none'; if (step2) step2.style.display = 'none'; if (step3) step3.style.display = 'none'; if (summary) summary.style.display = 'none'; }
+  const builderContainerElement = document.getElementById('variant-builder-container');
+  let storefrontToken = '';
+  if (!builderContainerElement) {
+    console.error("CRITICAL: Builder container 'variant-builder-container' not found in DOM.");
+  } else {
+    storefrontToken = builderContainerElement.dataset.storefrontApiToken;
+    if (!storefrontToken || storefrontToken.trim() === '') {
+      storefrontToken = ''; // Ensure it's empty if invalid
+      showBuilderConfigError('Configuration Error: Storefront API access token is missing or invalid. Please check Theme settings.');
+    }
+  }
+  if (storefrontToken) {
+    window.loamlabs.builderConfig = { storefrontApiToken: storefrontToken };
+    console.log("Builder Config Initialized with Token.");
+  } else {
+    window.loamlabs.builderConfig = { storefrontApiToken: null }; // Ensure config object exists even if token is missing
+  }
+</script>
+
+{% comment %} --- Load the main JavaScript file for the builder --- {% endcomment %}
+<script src="{{ 'variant-builder.js' | asset_url }}" defer="defer"></script>
+ 
+{% if section.settings.enable_ai_agent %}
+  {% render 'shop-tech-agent' %}
+{% endif %}
+
+{% schema %}
+  {
+    "name": "Variant Wheel Builder",
+    "class": "section-variant-builder",
+    "settings": [
+      {
+        "type": "header",
+        "content": "Builder Setup (V2.15.2)",
+        "info": "Storefront API Token read via JS from theme settings (or section setting below - JS uses data attribute)."
+      },
+       {
+        "type": "text",
+        "id": "storefront_api_token",
+        "label": "Storefront API Token (Fallback)",
+        "info": "Only used if data-attribute on container is missing. Set in Theme settings preferably."
+       }
+    ],
+    "settings": [
+      {
+        "type": "header",
+        "content": "Builder Setup (V2.15.2)"
+      },
+      {
+        "type": "header",
+        "content": "AI Agent"
+      },
+      {
+        "type": "checkbox",
+        "id": "enable_ai_agent",
+        "label": "Enable 'Ask Lead Tech' Agent",
+        "default": true,
+        "info": "Unchecking this will hide the AI Agent and restore the standard Shopify Chat on this page."
+      }
+    ],
+    "presets": [
+      {
+        "name": "Variant Wheel Builder"
+      }
+    ]
+  }
+{% endschema %}

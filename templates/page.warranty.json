@@ -1,0 +1,156 @@
+/*
+ * ------------------------------------------------------------
+ * IMPORTANT: The contents of this file are auto-generated.
+ *
+ * This file may be updated by the Shopify admin theme editor
+ * or related systems. Please exercise caution as any changes
+ * made to this file may be overwritten.
+ * ------------------------------------------------------------
+ */
+{
+  "sections": {
+    "rich_text_YwrHyx": {
+      "type": "rich-text",
+      "blocks": {
+        "text_PXwXGd": {
+          "type": "text",
+          "settings": {
+            "text": "<h1><strong>LoamLabs Warranty</strong></h1>"
+          }
+        }
+      },
+      "block_order": [
+        "text_PXwXGd"
+      ],
+      "settings": {
+        "desktop_content_position": "center",
+        "content_alignment": "center",
+        "color_scheme": "inverse",
+        "full_width": true,
+        "padding_top": 12,
+        "padding_bottom": 12
+      }
+    },
+    "main": {
+      "type": "main-page",
+      "disabled": true,
+      "settings": {
+        "padding_top": 20,
+        "padding_bottom": 0
+      }
+    },
+    "image_banner_t3NEEj": {
+      "type": "image-banner",
+      "blocks": {
+        "heading_gAY6wc": {
+          "type": "heading",
+          "settings": {
+            "heading": "",
+            "heading_size": "h1"
+          }
+        },
+        "text_fCn4WH": {
+          "type": "text",
+          "settings": {
+            "text": "<em>We guarantee LoamLabs wheels for life because we know they will last. We build using only the highest quality components and we put great effort into our wheel building and quality-control processes to reduce the chance of failure.</em>",
+            "text_style": "body"
+          }
+        }
+      },
+      "block_order": [
+        "heading_gAY6wc",
+        "text_fCn4WH"
+      ],
+      "settings": {
+        "image": "shopify://shop_images/reserve-42-49-dt240-cxray.jpg",
+        "image_overlay_opacity": 0,
+        "image_height": "small",
+        "image_behavior": "none",
+        "desktop_content_position": "middle-center",
+        "desktop_content_alignment": "center",
+        "show_text_box": false,
+        "color_scheme": "inverse",
+        "stack_images_on_mobile": true,
+        "mobile_content_alignment": "center",
+        "show_text_below": true
+      }
+    },
+    "rich_text_KNpw3W": {
+      "type": "rich-text",
+      "blocks": {
+        "text_gTWVen": {
+          "type": "text",
+          "settings": {
+            "text": "<h2><strong>CUSTOM WHEEL GUARANTEE</strong></h2><h3>We pride ourselves in the value you will get from a set of LoamLabs handcrafted wheels.<br/><br/>A wheel set free from abuse and neglect will go the distance. Unless something gets jammed into it, a wheel should not break spokes. Unless you whack something really hard, the wheel will never go significantly out of true. With the use of our custom wheel specific equipment, we can ensure your wheels spokes won’t pop and ping when new and that spoke tension won’t “settle” after a few rides. <br/><br/>The hub’s bearings will wear with use (that’s normal and unavoidable), but until they’re worn-out, nothing strange will happen to the wheelset. And if something weird does happen we’re here to help take care of it.We offer a comprehensive warranty to put right any issues with your wheel within our control - particularly the quality of components and the wheel building process.*Warranty applies to wheels hand built by LoamLabs using all components purchased through LoamLabs.*Customer responsible for shipping costs to and from LoamLabs.</h3><h2><strong>LIFETIME TRUING</strong></h2><h3>LoamLabs offers free lifetime truing for all custom-built wheels. We can confidently make this offer because a well-built wheel shouldn't need to be retouched after it leaves the builder's stand so as long as it is not damaged (dinged, cracked, bent, etc).<br/><br/>There's a common misconception that you need to bring back a hand built wheel after a break-in period for a \"touch up.\" While it's possible that a wheel may need a slight adjustment from time to time, that is absolutely the exception, not the rule. <br/><br/>The LoamLabs process ensures spoke tension is uniformly balanced and set at a magnitude appropriate for the components used.*Lifetime Truing applies to wheels hand built by LoamLabs using all components purchased through LoamLabs.  *Customer responsible for shipping costs to and from LoamLabs.</h3><h2><strong>REPAIRS</strong></h2><h3>Things happens. If you crash, run into a pothole, back your car into your bike, or do anything else to damage your LoamLabs wheel, we can usually repair it. We perform repairs as quickly as possible and at reasonable rates. <br/>If a rim, spokes or hub are damaged, please visit our <a href=\"https://loamlabsusa.com/pages/wheel-repair\">Wheel Repair</a> section before shipping or dropping off any items to get a repair estimate.*Customer responsible for shipping costs to and from LoamLabs</h3>"
+          }
+        }
+      },
+      "block_order": [
+        "text_gTWVen"
+      ],
+      "settings": {
+        "desktop_content_position": "center",
+        "content_alignment": "center",
+        "color_scheme": "inverse",
+        "full_width": true,
+        "padding_top": 40,
+        "padding_bottom": 52
+      }
+    },
+    "image_banner_mtKB8Q": {
+      "type": "image-banner",
+      "blocks": {
+        "heading_EinXm9": {
+          "type": "heading",
+          "settings": {
+            "heading": "",
+            "heading_size": "h0"
+          }
+        },
+        "text_nqfY4W": {
+          "type": "text",
+          "settings": {
+            "text": "",
+            "text_style": "subtitle"
+          }
+        },
+        "buttons_aqWFGV": {
+          "type": "buttons",
+          "settings": {
+            "button_label_1": "Custom Wheel Builder",
+            "button_link_1": "shopify://pages/custom-wheel-builder",
+            "button_style_secondary_1": true,
+            "button_label_2": "Contact Us",
+            "button_link_2": "shopify://pages/contact-us",
+            "button_style_secondary_2": true
+          }
+        }
+      },
+      "block_order": [
+        "heading_EinXm9",
+        "text_nqfY4W",
+        "buttons_aqWFGV"
+      ],
+      "settings": {
+        "image_2": "shopify://shop_images/P1022472_1_18e06f6e-fc4b-4452-a9af-b2742355204b.jpg",
+        "image_overlay_opacity": 20,
+        "image_height": "medium",
+        "image_behavior": "none",
+        "desktop_content_position": "middle-center",
+        "desktop_content_alignment": "center",
+        "show_text_box": false,
+        "color_scheme": "inverse",
+        "stack_images_on_mobile": true,
+        "mobile_content_alignment": "center",
+        "show_text_below": true
+      }
+    }
+  },
+  "order": [
+    "rich_text_YwrHyx",
+    "main",
+    "image_banner_t3NEEj",
+    "rich_text_KNpw3W",
+    "image_banner_mtKB8Q"
+  ]
+}

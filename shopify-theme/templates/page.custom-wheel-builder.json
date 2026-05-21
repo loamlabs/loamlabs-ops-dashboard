@@ -1,0 +1,77 @@
+/*
+ * ------------------------------------------------------------
+ * IMPORTANT: The contents of this file are auto-generated.
+ *
+ * This file may be updated by the Shopify admin theme editor
+ * or related systems. Please exercise caution as any changes
+ * made to this file may be overwritten.
+ * ------------------------------------------------------------
+ */
+{
+  "sections": {
+    "rich_text_AM3Ajh": {
+      "type": "rich-text",
+      "blocks": {
+        "text_CX6dYJ": {
+          "type": "text",
+          "settings": {
+            "text": "<h1><strong>Custom Wheel Builder</strong></h1>"
+          }
+        },
+        "text_XBRjLB": {
+          "type": "text",
+          "settings": {
+            "text": "<h2><strong>Custom hand built bicycle wheels tailored to your riding style.</strong></h2><h3>Choose your ideal rim, hub, spokes, and add-ons, and we'll meticulously build your wheels to ensure <strong>precision</strong>, <strong>performance</strong>, and <strong>longevity</strong>.</h3>"
+          }
+        }
+      },
+      "block_order": [
+        "text_CX6dYJ",
+        "text_XBRjLB"
+      ],
+      "settings": {
+        "desktop_content_position": "center",
+        "content_alignment": "left",
+        "color_scheme": "background-2",
+        "full_width": true,
+        "padding_top": 20,
+        "padding_bottom": 32
+      }
+    },
+    "rich_text_4xzeAJ": {
+      "type": "rich-text",
+      "blocks": {
+        "text_aBxYGa": {
+          "type": "text",
+          "settings": {
+            "text": "<h1>Ready to turn your cycling dreams into reality? </h1><h4>Choose LoamLabs, where we offer custom bicycle wheels tailored to your unique needs and riding style.<br/>As a professional custom wheel builder in the industry, we take the time to get to know you, your bike, and your specific requirements to offer custom bicycle wheels that exceed your expectations!</h4><h5><strong>10% off of your first order with code WELCOME at checkout</strong></h5>"
+          }
+        }
+      },
+      "block_order": [
+        "text_aBxYGa"
+      ],
+      "disabled": true,
+      "settings": {
+        "desktop_content_position": "center",
+        "content_alignment": "center",
+        "color_scheme": "",
+        "full_width": true,
+        "padding_top": 0,
+        "padding_bottom": 0
+      }
+    },
+    "main": {
+      "type": "main-page",
+      "settings": {
+        "padding_top": 28,
+        "padding_bottom": 28
+      }
+    }
+  },
+  "order": [
+    "main",
+    "rich_text_AM3Ajh",
+    "rich_text_4xzeAJ"
+  ]
+}

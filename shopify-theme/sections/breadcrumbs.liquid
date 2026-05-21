@@ -1,0 +1,66 @@
+<style>
+  .breadcrumbs {
+    font-size: 1.3rem;
+    margin-bottom: 2rem;
+    padding: 0;
+    width: 100%;
+    text-align: left;
+  }
+  .breadcrumbs__list { list-style-type: none; margin: 0; }
+  .breadcrumbs__item { display: inline-block; }
+  .breadcrumbs__item:not(:last-child)::after { content: '/'; margin: 0 0.5em; color: #888; }
+  .breadcrumbs__link { text-decoration: none; color: #555; }
+  .breadcrumbs__link:hover { text-decoration: underline; }
+  .breadcrumbs__link--current { font-weight: bold; color: #121212; }
+</style>
+
+<nav class="breadcrumbs" aria-label="Breadcrumbs">
+  <ol class="breadcrumbs__list">
+    <li class="breadcrumbs__item">
+      <a class="breadcrumbs__link" href="/">Home</a>
+    </li>
+
+    {%- if template contains 'collection' -%}
+      
+      {% comment %} --- START: Smart Breadcrumb Logic --- {% endcomment %}
+      {%- if collection.handle contains 'rims' or collection.handle contains 'rim' -%}
+        <li class="breadcrumbs__item">
+          <a class="breadcrumbs__link" href="/pages/shop-our-rims">Shop Our Rms</a>
+        </li>
+      {%- elsif collection.handle contains 'hubs' or collection.handle contains 'hub' -%}
+         <li class="breadcrumbs__item">
+           <a class="breadcrumbs__link" href="/pages/shop-our-hubs">Shop Our Hubs</a>
+         </li>
+      {%- else -%}
+        <li class="breadcrumbs__item">
+          <a class="breadcrumbs__link" href="/collections">Products</a>
+        </li>
+      {%- endif -%}
+      {% comment %} --- END: Smart Breadcrumb Logic --- {% endcomment %}
+
+      <li class="breadcrumbs__item">
+        <span class="breadcrumbs__link--current">{{ collection.title }}</span>
+      </li>
+
+    {%- elsif template contains 'page' -%}
+      {%- if page.template_suffix == 'collection-landing' or page.template_suffix == 'landing-rims' or page.template_suffix == 'collection-landing-hubs' -%}
+        <li class="breadcrumbs__item">
+          <a class="breadcrumbs__link" href="/collections">Products</a>
+        </li>
+      {%- endif -%}
+      <li class="breadcrumbs__item">
+        <span class="breadcrumbs__link--current">{{ page.title }}</span>
+      </li>
+      
+    {%- elsif template contains 'blog' or template contains 'article' -%}
+        <li class="breadcrumbs__item">
+          <a class="breadcrumbs__link" href="{{ blog.url }}">{{ blog.title }}</a>
+        </li>
+        {% if article %}
+          <li class="breadcrumbs__item">
+            <span class="breadcrumbs__link--current">{{ article.title }}</span>
+          </li>
+        {% endif %}
+    {%- endif -%}
+  </ol>
+</nav>

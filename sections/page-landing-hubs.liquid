@@ -1,0 +1,117 @@
+<div class="in-page-nav">
+        <a href="#shop-by-brand">Shop by Brand</a>
+        <a href="#shop-by-type">Shop by Type</a>
+        <a href="#shop-by-interface">Shop by Brake Interface</a>
+      </div>
+    </div>
+    
+    <div class="color-{{ section.settings.color_scheme }} gradient">
+  <div class="page-width">
+
+    {% comment %} --- LOGO URLS (Hubs) --- {% endcomment %}
+    {%- assign all_hubs_logo = '' -%}
+    {%- assign front_hubs_logo = '' -%}
+    {%- assign rear_hubs_logo = '' -%}
+    {%- assign six_bolt_logo = '' -%}
+    {%- assign centerlock_logo = '' -%}
+    {%- assign berd_logo = 'https://cdn.shopify.com/s/files/1/0801/1530/2707/files/berd_logo.png?v=1699143265' -%}
+    {%- assign chrisking_logo = 'https://cdn.shopify.com/s/files/1/0801/1530/2707/files/chris_king_logo.png?v=1714916560' -%}
+    {%- assign dtswiss_hub_logo = 'https://cdn.shopify.com/s/files/1/0801/1530/2707/files/DT_Swiss_logo_46fa1c93-2429-459b-8d43-2654f7a75395.png?v=1699132779' -%}
+    {%- assign erase_logo = 'https://cdn.shopify.com/s/files/1/0801/1530/2707/files/erase_logo.png?v=1773244926' -%}
+    {%- assign ethirteen_hub_logo = 'https://cdn.shopify.com/s/files/1/0801/1530/2707/files/ethirteen_logo.png?v=1727132811' -%}
+    {%- assign hope_logo = 'https://cdn.shopify.com/s/files/1/0801/1530/2707/files/hope_logo_1.png?v=1699134752' -%}
+    {%- assign i9_logo = 'https://cdn.shopify.com/s/files/1/0801/1530/2707/files/i9_logo_1_583fb958-2834-4cc1-a9dc-de520fe66b38.png?v=1699135982' -%}
+    {%- assign oneup_logo = 'https://cdn.shopify.com/s/files/1/0801/1530/2707/files/OneUp-Logo-Border-1000px.jpg?v=1720801793' -%}
+    {%- assign onyx_logo = 'https://cdn.shopify.com/s/files/1/0801/1530/2707/files/onyx_logo_1_82371636-2b18-4d6e-94b7-cf7da7c69c11.png?v=1699141730' -%}
+    {%- assign p321_logo = 'https://cdn.shopify.com/s/files/1/0801/1530/2707/files/p321_logo_926028cb-da3e-4e10-985b-bbd1c683ef12.png?v=1712685862' -%}
+    {%- assign raceface_hub_logo = 'https://cdn.shopify.com/s/files/1/0801/1530/2707/files/raceface_logo_1_250cbcad-a0f8-4850-a393-3765ef1d47a5.png?v=1699147463' -%}
+    {%- assign spank_hub_logo = 'https://cdn.shopify.com/s/files/1/0801/1530/2707/files/SPANK-LOGO.png?v=1699136478' -%}
+    {%- assign tairin_logo = 'https://cdn.shopify.com/s/files/1/0801/1530/2707/files/tairin_logo.webp?v=1757656786' -%}
+    {%- assign tune_logo = 'https://cdn.shopify.com/s/files/1/0801/1530/2707/files/logo_tune_81a29cec-9b89-4ef1-96cd-55df2b58292c.png?v=1714545980' -%}
+
+    <!-- SHOP BY BRAND SECTION -->
+    <div class="landing-page-section" id="shop-by-brand">
+      <h2>Shop by Brand</h2>
+      <div class="flex-container">
+        <!-- BERD -->
+<div class="flex-item">
+  <a href="/collections/berd-hubs">
+    <div class="flex-item-content-wrapper">
+      {% if berd_logo != blank %}
+        <img src="{{ berd_logo }}" alt="BERD Logo" class="flex-item-logo">
+      {% else %}
+        <h3>BERD Hubs</h3>
+      {% endif %}
+    </div>
+    <p>Optimized with hook flanges for PolyLight fiber spokes.</p>
+  </a>
+</div>
+        <!-- Chris King -->
+        <div class="flex-item"><a href="/collections/chris-king-hubs"><div class="flex-item-content-wrapper">{% if chrisking_logo != blank %}<img src="{{ chrisking_logo }}" alt="Chris King Hubs Logo" class="flex-item-logo">{% else %}<h3>Chris King Hubs</h3>{% endif %}</div><p>Precision engineered for a lifetime of performance.</p></a></div>
+        <!-- DT Swiss -->
+        <div class="flex-item"><a href="/collections/dt-swiss-hubs"><div class="flex-item-content-wrapper">{% if dtswiss_hub_logo != blank %}<img src="{{ dtswiss_hub_logo }}" alt="DT Swiss Hubs Logo" class="flex-item-logo">{% else %}<h3>DT Swiss Hubs</h3>{% endif %}</div><p>Legendary Swiss engineering and reliability.</p></a></div>
+        <!-- ERASE Components -->
+        <div class="flex-item"><a href="/collections/erase-components-hubs"><div class="flex-item-content-wrapper">{% if erase_logo != blank %}<img src="{{ erase_logo }}" alt="ERASE Components Hubs Logo" class="flex-item-logo">{% else %}<h3>ERASE Components Hubs</h3>{% endif %}</div><p>Precision engineered for the ultimate cycling experience.</p></a></div>
+        <!-- e*thirteen -->
+        <div class="flex-item"><a href="/collections/e-thirteen-hubs"><div class="flex-item-content-wrapper">{% if ethirteen_hub_logo != blank %}<img src="{{ ethirteen_hub_logo }}" alt="e*thirteen Hubs Logo" class="flex-item-logo">{% else %}<h3>e*thirteen Hubs</h3>{% endif %}</div><p>Race-proven hubs for aggressive gravity riding.</p></a></div>
+        <!-- Hope -->
+        <div class="flex-item"><a href="/collections/hope-hubs"><div class="flex-item-content-wrapper">{% if hope_logo != blank %}<img src="{{ hope_logo }}" alt="Hope Hubs Logo" class="flex-item-logo">{% else %}<h3>Hope Hubs</h3>{% endif %}</div><p>Durable, UK-made hubs for all mountain conditions.</p></a></div>
+        <!-- Industry Nine -->
+        <div class="flex-item"><a href="/collections/industry-nine-hubs"><div class="flex-item-content-wrapper">{% if i9_logo != blank %}<img src="{{ i9_logo }}" alt="Industry Nine Hubs Logo" class="flex-item-logo">{% else %}<h3>Industry Nine Hubs</h3>{% endif %}</div><p>Lightning-fast engagement, made in the USA.</p></a></div>
+        <!-- OneUp -->
+        <div class="flex-item"><a href="/collections/oneup-hubs"><div class="flex-item-content-wrapper">{% if oneup_logo != blank %}<img src="{{ oneup_logo }}" alt="OneUp Hubs Logo" class="flex-item-logo">{% else %}<h3>OneUp Hubs</h3>{% endif %}</div><p>Reliable and easy-to-service hubs for the trail.</p></a></div>
+        <!-- ONYX -->
+        <div class="flex-item"><a href="/collections/onyx-hubs"><div class="flex-item-content-wrapper">{% if onyx_logo != blank %}<img src="{{ onyx_logo }}" alt="ONYX Hubs Logo" class="flex-item-logo">{% else %}<h3>ONYX Hubs</h3>{% endif %}</div><p>Silent, instant engagement with a sprag clutch.</p></a></div>
+        <!-- Project321 -->
+        <div class="flex-item"><a href="/collections/project321-hubs"><div class="flex-item-content-wrapper">{% if p321_logo != blank %}<img src="{{ p321_logo }}" alt="Project321 Hubs Logo" class="flex-item-logo">{% else %}<h3>Project321 Hubs</h3>{% endif %}</div><p>High-engagement with tunable sound.</p></a></div>
+        <!-- Race Face -->
+        <div class="flex-item"><a href="/collections/race-face-hubs"><div class="flex-item-content-wrapper">{% if raceface_hub_logo != blank %}<img src="{{ raceface_hub_logo }}" alt="Race Face Hubs Logo" class="flex-item-logo">{% else %}<h3>Race Face Hubs</h3>{% endif %}</div><p>Bombproof hubs for aggressive trail riding.</p></a></div>
+        <!-- Spank -->
+        <div class="flex-item"><a href="/collections/spank-hubs"><div class="flex-item-content-wrapper">{% if spank_hub_logo != blank %}<img src="{{ spank_hub_logo }}" alt="Spank Hubs Logo" class="flex-item-logo">{% else %}<h3>Spank Hubs</h3>{% endif %}</div><p>Durable hubs for gravity and dirt jump.</p></a></div>
+        <!-- Tairin -->
+        <div class="flex-item"><a href="/collections/tairin-hubs"><div class="flex-item-content-wrapper">{% if tairin_logo != blank %}<img src="{{ tairin_logo }}" alt="Tairin Hubs Logo" class="flex-item-logo">{% else %}<h3>Tairin Hubs</h3>{% endif %}</div><p>Solid performance and smart value.</p></a></div>
+        <!-- Tune -->
+        <div class="flex-item"><a href="/collections/tune-hubs"><div class="flex-item-content-wrapper">{% if tune_logo != blank %}<img src="{{ tune_logo }}" alt="Tune Hubs Logo" class="grid-item-logo">{% else %}<h3>Tune Hubs</h3>{% endif %}</div><p>Ultralight German engineering for every gram saved.</p></a></div>
+      </div>
+    </div>
+    
+    <!-- SHOP BY TYPE SECTION -->
+    <div class="landing-page-section" id="shop-by-type">
+      <h2>Shop by Type</h2>
+      <div class="flex-container">
+        <!-- All Hubs -->
+        <div class="flex-item"><a href="/collections/all-hubs"><div class="flex-item-content-wrapper">{% if all_hubs_logo != blank %}<img src="{{ all_hubs_logo }}" alt="All Hubs" class="flex-item-logo">{% else %}<h3>View All Hubs</h3>{% endif %}</div><p>Browse our entire catalog of front and rear hubs.</p></a></div>
+        <!-- Front Hubs -->
+        <div class="flex-item"><a href="/collections/front-hubs"><div class="flex-item-content-wrapper">{% if front_hubs_logo != blank %}<img src="{{ front_hubs_logo }}" alt="Front Hubs" class="flex-item-logo">{% else %}<h3>Front Hubs</h3>{% endif %}</div><p>The anchor of your wheel's steering and precision.</p></a></div>
+        <!-- Rear Hubs -->
+        <div class="flex-item"><a href="/collections/rear-hubs"><div class="flex-item-content-wrapper">{% if rear_hubs_logo != blank %}<img src="{{ rear_hubs_logo }}" alt="Rear Hubs" class="flex-item-logo">{% else %}<h3>Rear Hubs</h3>{% endif %}</div><p>The powerhouse of your drivetrain.</p></a></div>
+      </div>
+    </div>
+
+    <!-- SHOP BY BRAKE INTERFACE SECTION -->
+    <div class="landing-page-section" id="shop-by-interface">
+      <h2>Shop by Brake Interface</h2>
+      <div class="flex-container">
+        <!-- 6-Bolt -->
+        <div class="flex-item"><a href="/collections/6-bolt-hubs"><div class="flex-item-content-wrapper">{% if six_bolt_logo != blank %}<img src="{{ six_bolt_logo }}" alt="6-Bolt Hubs" class="flex-item-logo">{% else %}<h3>6-Bolt Hubs</h3>{% endif %}</div><p>The classic standard for strength and reliability.</p></a></div>
+        <!-- Centerlock -->
+        <div class="flex-item"><a href="/collections/centerlock-hubs"><div class="flex-item-content-wrapper">{% if centerlock_logo != blank %}<img src="{{ centerlock_logo }}" alt="Centerlock Hubs" class="flex-item-logo">{% else %}<h3>Centerlock Hubs</h3>{% endif %}</div><p>The modern choice for lightweight performance.</p></a></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+{% schema %}
+{
+  "name": "Page Landing Hubs",
+  "settings": [
+    {
+      "type": "color_scheme",
+      "id": "color_scheme",
+      "label": "Color scheme",
+      "default": "scheme-1"
+    }
+  ]
+}
+{% endschema %}

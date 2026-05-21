@@ -1,0 +1,37 @@
+/*
+ * ------------------------------------------------------------
+ * IMPORTANT: The contents of this file are auto-generated.
+ *
+ * This file may be updated by the Shopify admin theme editor
+ * or related systems. Please exercise caution as any changes
+ * made to this file may be overwritten.
+ * ------------------------------------------------------------
+ */
+{
+  "sections": {
+    "custom_liquid_pCf8Fx": {
+      "type": "custom-liquid",
+      "name": "t:sections.custom-liquid.presets.name",
+      "settings": {
+        "custom_liquid": "<div class=\"intro-content-wrapper\">\n      <h1>{{ page.title }}</h1>\n      {%- if page.metafields.custom.landing_page_content != blank -%}\n        <div class=\"page-intro-content\">{{ page.metafields.custom.landing_page_content }}</div>\n      {%- endif -%}\n    </div>",
+        "color_scheme": "background-2",
+        "padding_top": 8,
+        "padding_bottom": 16
+      }
+    },
+    "custom_liquid_kWRqqn": {
+      "type": "custom-liquid",
+      "name": "t:sections.custom-liquid.presets.name",
+      "settings": {
+        "custom_liquid": "{%- comment -%}\n  Define a list of the exact blog handles you want to display.\n  You can find the handle in the \"Search engine listing\" section for each blog.\n{%- endcomment -%}\n{%- assign blog_handles = 'wheel-talk,maintenance-repair,the-loamlabs-journal,wheel-building-tech' | split: ',' -%}\n\n<div class=\"page-width\">\n  <div class=\"blog-landing-grid\">\n    {%- for handle in blog_handles -%}\n      {%- assign blog = blogs[handle] -%}\n      <div class=\"blog-category-section\">\n        <h2 class=\"blog-category-title\"><a href=\"{{ blog.url }}\">{{ blog.title }}</a></h2>\n        \n        {%- if blog.metafields.custom.intro_content != blank -%}\n          <p class=\"blog-category-description\">{{ blog.metafields.custom.intro_content }}</p>\n        {%- endif -%}\n\n        <div class=\"latest-articles-grid\">\n          {%- for article in blog.articles limit: 3 -%}\n            <div class=\"article-card\">\n              <a href=\"{{ article.url }}\">\n                {%- if article.image -%}\n                  <div class=\"article-card-image\">\n                    <img src=\"{{ article.image | image_url: width: 400, height: 250, crop: 'center' }}\" alt=\"{{ article.image.alt | escape }}\">\n                  </div>\n                {%- endif -%}\n                <div class=\"article-card-content\">\n                  <h3>{{ article.title }}</h3>\n                  <span>Read More →</span>\n                </div>\n              </a>\n            </div>\n          {%- endfor -%}\n        </div>\n      </div>\n    {%- endfor -%}\n  </div>\n</div>",
+        "color_scheme": "",
+        "padding_top": 40,
+        "padding_bottom": 52
+      }
+    }
+  },
+  "order": [
+    "custom_liquid_pCf8Fx",
+    "custom_liquid_kWRqqn"
+  ]
+}

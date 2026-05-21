@@ -1,0 +1,257 @@
+/*
+ * ------------------------------------------------------------
+ * IMPORTANT: The contents of this file are auto-generated.
+ *
+ * This file may be updated by the Shopify admin theme editor
+ * or related systems. Please exercise caution as any changes
+ * made to this file may be overwritten.
+ * ------------------------------------------------------------
+ */
+{
+  "sections": {
+    "main": {
+      "type": "main-product",
+      "blocks": {
+        "vendor": {
+          "type": "text",
+          "settings": {
+            "text": "{{ product.vendor }}",
+            "text_style": "uppercase"
+          }
+        },
+        "title": {
+          "type": "title",
+          "settings": {}
+        },
+        "price": {
+          "type": "price",
+          "settings": {}
+        },
+        "variant_picker": {
+          "type": "variant_picker",
+          "settings": {
+            "picker_type": "button",
+            "swatch_shape": "circle"
+          }
+        },
+        "quantity_selector": {
+          "type": "quantity_selector",
+          "disabled": true,
+          "settings": {}
+        },
+        "buy_buttons": {
+          "type": "buy_buttons",
+          "settings": {
+            "show_dynamic_checkout": true,
+            "show_gift_card_recipient": true
+          }
+        },
+        "description": {
+          "type": "description",
+          "settings": {}
+        },
+        "share": {
+          "type": "share",
+          "settings": {
+            "share_label": "Share"
+          }
+        }
+      },
+      "block_order": [
+        "vendor",
+        "title",
+        "price",
+        "variant_picker",
+        "quantity_selector",
+        "buy_buttons",
+        "description",
+        "share"
+      ],
+      "settings": {
+        "enable_sticky_info": true,
+        "color_scheme": "scheme-1",
+        "media_size": "large",
+        "constrain_to_viewport": true,
+        "media_fit": "contain",
+        "gallery_layout": "stacked",
+        "media_position": "left",
+        "image_zoom": "lightbox",
+        "mobile_thumbnails": "hide",
+        "hide_variants": true,
+        "enable_video_looping": false,
+        "padding_top": 36,
+        "padding_bottom": 12
+      }
+    },
+    "collapsible_content_qQJ8rt": {
+      "type": "collapsible-content",
+      "blocks": {
+        "collapsible_row_NCLa4t": {
+          "type": "collapsible_row",
+          "settings": {
+            "heading": "Product Details",
+            "icon": "none",
+            "row_content": "<ul><li>Intended Use: Gravel</li><li>Inner rim width: 23mm</li><li>Recommended Tire Size: 33c – 45c</li><li>Tubeless Optimized; Tube Compatible</li></ul><h3><strong>LIGHTNESS AND WIDTH</strong></h3><p>We set out to create a wheel that would maximize speed, fun and reliability while riding out-there terrain. At only 330 grams, the G23 is the lightest 700c tubeless rim ENVE produces. This makes for instant acceleration and endless ascending capability. The wide and shallow rim geometry gives a compliant ride quality over chatter, and allows for use with a wide range of tire sizes. Big tires = big grip, which gives the G23 confidence-inspiring descending capability over its road-oriented siblings. </p><h3><strong>TIRE SAVING TECH</strong></h3><p>With an inner rim width of 23mm, the G23 is designed to be paired with gravel treads between 35 and 45mm. Tires in these widths provide control and traction that optimize the experience of gravel riding endeavors. Many tires in this spec however do not offer much by way of pinch-flat protection. The forward-looking G23 uses our Wide Hookless Bead anti-flat technology to combat ride-ending pothole encounters. Wide beads provide a larger, more forgiving surface during bottom outs, protecting the tire from the dreaded pinch-flat. This technology means you can ride the tire pressures you want, confidently, without limitations. </p><h3><strong>TUBELESS DOMINANCE</strong></h3><p>G series wheels are intended for tubeless applications and feature a molded bead-lock to ensure that your tires will remain secure and sealed to the rim over even the roughest terrain. Despite ‘minimum PSI’ markings to the contrary, many riders are experimenting with pressure setting in the 20s, thanks to the bead-lock and Wide Hookless Bead technologies.</p><p>Simply put, the G23 exceeds the performance and ride quality demands of serious mixed surface cyclists. Armed against pinch flats, with a tough, relentless but refined character, it is the king of the road, path and trail. </p>",
+            "page": ""
+          }
+        },
+        "collapsible_row_FQgJLx": {
+          "type": "collapsible_row",
+          "settings": {
+            "heading": "Front Wheel Specs",
+            "icon": "none",
+            "row_content": "<p><strong>Rim Weight: </strong>330g<br/><strong>Wheelset Weight: </strong>1922g<br/><strong>Internal Rim Width: </strong>23mm<br/><strong>Hole Count: </strong>24<br/><strong>Depth: </strong>25mm<br/><strong>Spokes: </strong>Spaim CX-Ray<br/><strong>ERD: </strong>608mm +/- 2mm<br/><strong>Spoke Tension: </strong>120kgf<br/><strong>Brake Type: </strong>Centerlock</p>",
+            "page": ""
+          }
+        },
+        "collapsible_row_xQqEiP": {
+          "type": "collapsible_row",
+          "settings": {
+            "heading": "Rear Wheel Specs",
+            "icon": "none",
+            "row_content": "<p><strong>Rim Weight: </strong>330g<br/><strong>Wheelset Weight: </strong>1922g<br/><strong>Internal Rim Width: </strong>23mm<br/><strong>Hole Count: </strong>24<br/><strong>Depth: </strong>25mm<br/><strong>Spokes: </strong>Spaim CX-Ray<br/><strong>ERD: </strong>608mm +/- 2mm<br/><strong>Spoke Tension: </strong>120kgf<br/><strong>Brake Type: </strong>Centerlock</p>",
+            "page": ""
+          }
+        }
+      },
+      "block_order": [
+        "collapsible_row_NCLa4t",
+        "collapsible_row_FQgJLx",
+        "collapsible_row_xQqEiP"
+      ],
+      "name": "t:sections.collapsible_content.presets.name",
+      "settings": {
+        "caption": "",
+        "heading": "",
+        "heading_size": "h1",
+        "heading_alignment": "center",
+        "layout": "section",
+        "container_color_scheme": "background-1",
+        "color_scheme": "background-2",
+        "open_first_collapsible_row": false,
+        "image": "shopify://shop_images/G23_700C_c1ee9d7a-5d03-4768-8c13-fd2c2ed7a7d9.png",
+        "image_ratio": "adapt",
+        "desktop_layout": "image_second",
+        "padding_top": 16,
+        "padding_bottom": 0
+      }
+    },
+    "multicolumn_iRqteX": {
+      "type": "multicolumn",
+      "blocks": {
+        "column_hMCta8": {
+          "type": "column",
+          "settings": {
+            "image": "shopify://shop_images/g23_feature4.webp",
+            "title": "WIDE HOOKLESS BEADS",
+            "text": "<p>As carbon rims have become hookless and increasingly more durable, we have transitioned from rim failures to tire failures. Wearing a tire tread down to the casing is a thing of the past as most tires are lucky if they survive 50 miles of aggressive riding over obstacle laden terrain. While destroying an expensive tire on a weekly basis isn’t affordable, it’s a complete interruption of flow, and an utter buzzkill with a flat tire, regulated to the side of the trail.</p><p>ENVE’s wide hookless bead is the result of 2 years of carbon mountain bike rim development to address this above scenario. The result is a rim shape that features a wider leading edge of the hookless bead. This broad surface creates a more forgiving platform on which the tire can bottom out, and proves extremely effective in reducing the likelihood of “pinch” or “snake-bite” style flat.</p><p>In addition to greatly improving tire performance and reliability, the wide hookless bead design beefs up the leading edge of the rim and allows for greater impact resistance.</p><p>ENVE Wide Hookless Bead (Patent Pending) delivers:</p><ul><li>60% improvement in pinch flat resistance over other hookless rims</li><li>Ability to run lower tire pressure and improve traction and rolling resistance</li><li>The option to run lighter weight tires if desired</li><li>A more forgiving buffer between rim and trail</li><li>Greater impact resistance</li></ul>",
+            "link_label": "",
+            "link": ""
+          }
+        },
+        "column_Na6DLn": {
+          "type": "column",
+          "settings": {
+            "image": "shopify://shop_images/g23_feature2.webp",
+            "title": "MOUNTAIN STRONG, ROAD FAST",
+            "text": "<p>ENVE’s patented Molded Spoke Hole Technology offers a variety of benefits that ultimately result in a more durable and reliable carbon fiber rim and wheel. Visit Why ENVE for more details.</p><p>At ENVE, product strength and durability are always top design priorities. Here’s a glimpse into the G Series toughness and the standard by which all other gravel wheels will be judged.</p><h3><strong>G SERIES IMPACT STRENGTH COMPARISON</strong></h3><ul><li>Tested to ENVE mountain impact standard</li><li>Rated for unsuspended to lightly suspended bikes under the assumptions that technical terrain and obstacles are negotiated at lower speeds than mountain bike</li><li>Mountain strong, but not ENVE mountain strong.</li><li>While these wheels are stronger than many mountain bike wheels in the market, they rate just below the elevated impact strength of our new M Series</li></ul>",
+            "link_label": "",
+            "link": ""
+          }
+        },
+        "column_EWz7K8": {
+          "type": "column",
+          "settings": {
+            "image": "shopify://shop_images/g23_feature1.webp",
+            "title": "HIGH VOLUME",
+            "text": "<h4>G23 = 700c x 23mm Internal Rim Width x 35 – 45mm tires</h4><p>Riders looking for maximum versatility, speed and efficiency will gravitate towards the G23 paired with a 40mm tire. There’s a reason this is the most popular tire size in gravel right now.</p>",
+            "link_label": "",
+            "link": ""
+          }
+        }
+      },
+      "block_order": [
+        "column_hMCta8",
+        "column_Na6DLn",
+        "column_EWz7K8"
+      ],
+      "settings": {
+        "title": "",
+        "heading_size": "h0",
+        "image_width": "full",
+        "image_ratio": "adapt",
+        "button_label": "",
+        "button_link": "",
+        "columns_desktop": 3,
+        "column_alignment": "left",
+        "background_style": "primary",
+        "color_scheme": "accent-2",
+        "columns_mobile": "1",
+        "swipe_on_mobile": false,
+        "padding_top": 12,
+        "padding_bottom": 12
+      }
+    },
+    "related-products": {
+      "type": "related-products",
+      "settings": {
+        "heading": "<strong>You may also like...</strong>",
+        "heading_size": "h1",
+        "products_to_show": 4,
+        "columns_desktop": 4,
+        "columns_mobile": "2",
+        "color_scheme": "background-1",
+        "image_ratio": "square",
+        "image_shape": "default",
+        "show_secondary_image": true,
+        "show_vendor": false,
+        "show_rating": false,
+        "padding_top": 36,
+        "padding_bottom": 28
+      }
+    },
+    "17153508473e77e58a": {
+      "type": "apps",
+      "blocks": {
+        "judge_me_reviews_review_widget_Kwgrkd": {
+          "type": "shopify://apps/judge-me-reviews/blocks/review_widget/61ccd3b1-a9f2-4160-9fe9-4fec8413e5d8",
+          "settings": {
+            "review_data": "sample_data",
+            "max_width": 1200
+          }
+        }
+      },
+      "block_order": [
+        "judge_me_reviews_review_widget_Kwgrkd"
+      ],
+      "settings": {
+        "include_margins": true
+      }
+    },
+    "image_banner_3fXdkj": {
+      "type": "image-banner",
+      "name": "t:sections.image-banner.presets.name",
+      "settings": {
+        "image": "shopify://shop_images/Screenshot_2025-10-01_111306.png",
+        "image_overlay_opacity": 0,
+        "image_height": "medium",
+        "image_behavior": "none",
+        "desktop_content_position": "middle-center",
+        "desktop_content_alignment": "center",
+        "show_text_box": true,
+        "color_scheme": "background-1",
+        "stack_images_on_mobile": true,
+        "mobile_content_alignment": "center",
+        "show_text_below": true
+      }
+    }
+  },
+  "order": [
+    "main",
+    "collapsible_content_qQJ8rt",
+    "multicolumn_iRqteX",
+    "related-products",
+    "17153508473e77e58a",
+    "image_banner_3fXdkj"
+  ]
+}

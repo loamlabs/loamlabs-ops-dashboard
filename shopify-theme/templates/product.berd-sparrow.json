@@ -1,0 +1,357 @@
+/*
+ * ------------------------------------------------------------
+ * IMPORTANT: The contents of this file are auto-generated.
+ *
+ * This file may be updated by the Shopify admin theme editor
+ * or related systems. Please exercise caution as any changes
+ * made to this file may be overwritten.
+ * ------------------------------------------------------------
+ */
+{
+  "sections": {
+    "main": {
+    "type": "main-product",
+      "blocks": {
+        "vendor": {
+          "type": "text",
+          "settings": {
+            "text": "{{ product.vendor }}",
+            "text_style": "uppercase"
+          }
+        },
+        "title": {
+          "type": "title",
+          "settings": {}
+        },
+        "price": {
+          "type": "price",
+          "settings": {}
+        },
+        "variant_picker": {
+          "type": "variant_picker",
+          "settings": {
+            "picker_type": "button",
+            "swatch_shape": "circle"
+          }
+        },
+        "quantity_selector": {
+          "type": "quantity_selector",
+          "settings": {}
+        },
+        "buy_buttons": {
+          "type": "buy_buttons",
+          "settings": {
+            "show_dynamic_checkout": true,
+            "show_gift_card_recipient": true
+          }
+        },
+        "description": {
+          "type": "description",
+          "settings": {}
+        },
+        "share": {
+          "type": "share",
+          "settings": {
+            "share_label": "Share"
+          }
+        }
+      },
+      "block_order": [
+        "vendor",
+        "title",
+        "price",
+        "variant_picker",
+        "quantity_selector",
+        "buy_buttons",
+        "description",
+        "share"
+      ],
+      "settings": {
+        "enable_sticky_info": true,
+        "color_scheme": "scheme-1",
+        "media_size": "large",
+        "constrain_to_viewport": true,
+        "media_fit": "contain",
+        "gallery_layout": "stacked",
+        "mobile_thumbnails": "hide",
+        "media_position": "left",
+        "image_zoom": "lightbox",
+        "hide_variants": true,
+        "enable_video_looping": false,
+        "padding_top": 36,
+        "padding_bottom": 12
+      }
+    },
+    "multicolumn_fj7wD9": {
+      "type": "multicolumn",
+      "blocks": {
+        "column_4q7tHm": {
+          "type": "column",
+          "settings": {
+            "title": "",
+            "text": "<p>The Berd Sparrow Carbon Gravel Wheels are the lightest 25 mm internal production gravel wheelset on the market today! Even though Sparrow wheels weigh only 1,065 grams for the complete wheelset (1,108 grams with tape and valves) they are still tough enough to handle anything your off-pavement adventures can throw at them.</p><p><br/></p><p>The Sparrow Wheels are equipped to handle 28c road tires all the way up to 50c mud slingers so no matter where you are going and how you are riding, you can mount up whatever rubber is needed for the adventure!</p>",
+            "link_label": "",
+            "link": ""
+          }
+        },
+        "column_GHiR6M": {
+          "type": "column",
+          "settings": {
+            "title": "",
+            "text": "<p>At the center of the Sparrow wheels are the all-new Berd Talon Gravel/Road hubs. Berd TALON hubs feature a clean spoke interface designed to work exclusively with Berd spokes. The TALON hubs also include removable end caps for easy serviceability, centerlock brake mounts, and a durable black anodized finish. </p><p><br/>The dual-sprung 36 tooth ratchet mechanism is designed to be easy to service and offers excellent reliability! Most importantly, the Talon Gravel/Road hubs are available with Shimano Microspline freehubs for 12-speed GRX cassettes in addition to Sram XDR and the traditional Shimano 11SP road freehub body.</p><p><br/></p>",
+            "link_label": "",
+            "link": ""
+          }
+        },
+        "column_EWA3ba": {
+          "type": "column",
+          "settings": {
+            "title": "",
+            "text": "<p>Berd Sparrow wheels come built around our flagship Berd Talon Road hubs, along with black Industry Nine Solix Centerlock hubs or Onyx Vesper Hook Flange hubs. The Onyx option is available in 12x142 (Including SingleSpeed),12x148, and 12x157 SuperBoost rear spacing. Please allow up to 4-6 weeks for delivery of Onyx Vesper Hook Flange wheels.<br/></p><p><br/>Strong, light, and smooth - Berd Sparrow wheels are the complete package. Come fly with us today!</p><p></p>",
+            "link_label": "",
+            "link": ""
+          }
+        }
+      },
+      "block_order": [
+        "column_4q7tHm",
+        "column_GHiR6M",
+        "column_EWA3ba"
+      ],
+      "settings": {
+        "title": "",
+        "heading_size": "h1",
+        "image_width": "full",
+        "image_ratio": "adapt",
+        "button_label": "",
+        "button_link": "",
+        "columns_desktop": 3,
+        "column_alignment": "left",
+        "background_style": "none",
+        "color_scheme": "",
+        "columns_mobile": "1",
+        "swipe_on_mobile": false,
+        "padding_top": 24,
+        "padding_bottom": 0
+      }
+    },
+    "rich_text_8dE4qP": {
+      "type": "rich-text",
+      "blocks": {
+        "heading_TkVTjk": {
+          "type": "heading",
+          "settings": {
+            "heading": "Details",
+            "heading_size": "h1"
+          }
+        }
+      },
+      "block_order": [
+        "heading_TkVTjk"
+      ],
+      "settings": {
+        "desktop_content_position": "center",
+        "content_alignment": "center",
+        "color_scheme": "background-2",
+        "full_width": true,
+        "padding_top": 4,
+        "padding_bottom": 4
+      }
+    },
+    "customizable_table_YaXUMc": {
+      "type": "customizable-table",
+      "settings": {
+        "columns": 2,
+        "rows": 11,
+        "max_width": 1100,
+        "pc_alignment": "left",
+        "mobile_alignment": "left",
+        "cell_border_style": "inner_borders",
+        "cell_padding": "10px",
+        "margin_top": "20px",
+        "margin_bottom": "20px",
+        "text_weight": "normal",
+        "text_size": "16",
+        "text_color": "#000000",
+        "cell_text_1_1": "Wheelset Weight:",
+        "cell_text_1_2": "Industry Nine - 1,394 grams, Berd Talon - 1,444 grams, Onyx Vesper Hook Flange - 1,494 grams",
+        "cell_text_1_3": "Cell 3",
+        "cell_text_2_1": "Internal Rim Width:",
+        "cell_text_2_2": "30 mm",
+        "cell_text_2_3": "",
+        "cell_text_3_1": "Rim Size:",
+        "cell_text_3_2": "29\"",
+        "cell_text_3_3": "",
+        "cell_text_4_1": "Spoke Count:",
+        "cell_text_4_2": "28 (front & rear)",
+        "cell_text_4_3": "",
+        "cell_text_5_1": "Disc Brake Type:",
+        "cell_text_5_2": "Centerlock",
+        "cell_text_5_3": "",
+        "cell_text_6_1": "Tire Compatibility:",
+        "cell_text_6_2": "2.3\" - 2.7\" ",
+        "cell_text_6_3": "",
+        "cell_text_7_1": "Maximum Tire Pressure:",
+        "cell_text_7_2": "45 psi",
+        "cell_text_7_3": "",
+        "cell_text_8_1": "Suggested Weight Limit:",
+        "cell_text_8_2": "280 lbs",
+        "cell_text_8_3": "",
+        "cell_text_9_1": "TALON Spoke Lengths:",
+        "cell_text_9_2": "294 mm (F Left) 296 mm (F Right), 296 mm (R Left) 293 mm (R Right)",
+        "cell_text_9_3": "Cell 27",
+        "cell_text_10_1": "Industry Nine Hydra Spoke Lengths:",
+        "cell_text_10_2": "291 mm (F Left) 294 mm (F Right), 292 mm (R Left) 287 mm (R Right)",
+        "cell_text_10_3": "Cell 30",
+        "cell_text_11_1": "Onyx Hook Flange Spoke Lengths:",
+        "cell_text_11_2": "296 mm (F Left) 298 mm (F Right), 298 mm (R Left) 295 mm (R Right)",
+        "cell_text_11_3": "Cell 33",
+        "cell_text_12_1": "",
+        "cell_text_12_2": "",
+        "cell_text_12_3": "Cell 36"
+      }
+    },
+    "multicolumn_iRqteX": {
+      "type": "multicolumn",
+      "blocks": {
+        "column_hMCta8": {
+          "type": "column",
+          "settings": {
+            "image": "shopify://shop_images/SparrowRimProfile_1024x1024_2x_7d235a4d-7f80-4f7b-b303-965fc47cf42f.webp",
+            "title": "<strong>Rim Profile</strong>",
+            "text": "<p>With a wide 3.75 mm rim lip, Berd's new rims spread out tire/rim impacts across a larger surface area to prevent tire and rim damage during acute impacts.</p>",
+            "link_label": "",
+            "link": ""
+          }
+        },
+        "column_Na6DLn": {
+          "type": "column",
+          "settings": {
+            "image": "shopify://shop_images/SPARROW_6of7_1024x1024_2x_cdf8e81b-3fcc-47e7-a0d7-e48100f5196e.webp",
+            "title": "<strong>Lightweight</strong>",
+            "text": "<p>Not only are Sparrow wheels lightweight, but they also provide an extremely smooth ride with the damping qualities of Berd spokes soaking up those chunky gravel sections and reducing the high-frequency vibrations that travel from the road to the rider.</p>",
+            "link_label": "",
+            "link": ""
+          }
+        },
+        "column_bUxeep": {
+          "type": "column",
+          "settings": {
+            "image": "shopify://shop_images/strength_240x240_b8243ba7-6fc7-4434-bdf1-6cdaf3477cdc.jpg",
+            "title": "<strong>Rim Technology</strong>",
+            "text": "<p>Berd spokes are made from an advanced polymer called ultra high molecular weight polyethylene (UHMWPE) that has 12 times the strength-to-weight ratio of steel and floats on water. Berd spokes have an improved fatigue life compared to steel and are impervious to the elements.</p>",
+            "link_label": "",
+            "link": ""
+          }
+        }
+      },
+      "block_order": [
+        "column_hMCta8",
+        "column_Na6DLn",
+        "column_bUxeep"
+      ],
+      "settings": {
+        "title": "",
+        "heading_size": "h0",
+        "image_width": "full",
+        "image_ratio": "adapt",
+        "button_label": "",
+        "button_link": "",
+        "columns_desktop": 3,
+        "column_alignment": "center",
+        "background_style": "none",
+        "color_scheme": "background-2",
+        "columns_mobile": "1",
+        "swipe_on_mobile": false,
+        "padding_top": 24,
+        "padding_bottom": 0
+      }
+    },
+    "image_banner_8fnrkD": {
+      "type": "image-banner",
+      "blocks": {
+        "text_Mjbz6h": {
+          "type": "text",
+          "settings": {
+            "text": "Tipping the scales at an insane light 1,108 grams with valves and rim tape, these are the lightest gravel specific wheels I have ridden and reviewed. Priced at $2,195, they beat their pants off of premium wheelset offerings in terms of price and weight, which says a lot about the R&D that Berd has put into this wheelset. These Berd sparrows have set the benchmark. - Gravel Cyclist",
+            "text_style": "body"
+          }
+        }
+      },
+      "block_order": [
+        "text_Mjbz6h"
+      ],
+      "settings": {
+        "image": "shopify://shop_images/SPARROW_4of7_1024x1024_2x_4379a7df-ae24-482b-9020-a0705472b23e.webp",
+        "image_2": "shopify://shop_images/SPARROW_2of7_1024x1024_2x_563f63c4-d315-4e1c-9a0a-850e91039c7f.webp",
+        "image_overlay_opacity": 0,
+        "image_height": "small",
+        "image_behavior": "none",
+        "desktop_content_position": "middle-center",
+        "desktop_content_alignment": "left",
+        "show_text_box": true,
+        "color_scheme": "inverse",
+        "stack_images_on_mobile": true,
+        "mobile_content_alignment": "center",
+        "show_text_below": true
+      }
+    },
+    "related-products": {
+      "type": "related-products",
+      "settings": {
+        "heading": "<strong>You may also like...</strong>",
+        "heading_size": "h1",
+        "products_to_show": 4,
+        "columns_desktop": 4,
+        "columns_mobile": "2",
+        "color_scheme": "background-1",
+        "image_ratio": "square",
+        "image_shape": "default",
+        "show_secondary_image": true,
+        "show_vendor": false,
+        "show_rating": false,
+        "padding_top": 36,
+        "padding_bottom": 28
+      }
+    },
+    "1715350806234ef43b": {
+      "type": "apps",
+      "settings": {
+        "include_margins": true
+      }
+    },
+    "1715350829ed146159": {
+      "type": "apps",
+      "settings": {
+        "include_margins": true
+      }
+    },
+    "17153508473e77e58a": {
+      "type": "apps",
+      "blocks": {
+        "judge_me_reviews_review_widget_Kwgrkd": {
+          "type": "shopify://apps/judge-me-reviews/blocks/review_widget/61ccd3b1-a9f2-4160-9fe9-4fec8413e5d8",
+          "settings": {}
+        }
+      },
+      "block_order": [
+        "judge_me_reviews_review_widget_Kwgrkd"
+      ],
+      "settings": {
+        "include_margins": true
+      }
+    }
+  },
+  "order": [
+    "main",
+    "multicolumn_fj7wD9",
+    "rich_text_8dE4qP",
+    "customizable_table_YaXUMc",
+    "multicolumn_iRqteX",
+    "image_banner_8fnrkD",
+    "related-products",
+    "1715350806234ef43b",
+    "1715350829ed146159",
+    "17153508473e77e58a"
+  ]
+}

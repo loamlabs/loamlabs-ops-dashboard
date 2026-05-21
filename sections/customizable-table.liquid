@@ -1,0 +1,427 @@
+{% comment %}
+  This is the customizable-table.liquid file containing the code for the customizable table section.
+  You can customize the number of columns, rows, alignment, cell text, and table style. Created by Spac-es 2023.
+{% endcomment %}
+
+{% assign table_settings = section.settings %}
+
+{%- assign cell_texts = "" | split: "" -%}
+
+{%- for row in (1..table_settings.rows) -%}
+  {%- assign rowData = "" | split: "" -%}
+  {%- for column in (1..table_settings.columns) -%}
+    {%- assign cellTextId = "cell_text_" | append: row | append: "_" | append: column -%}
+    {%- assign cellText = section.settings[cellTextId] -%}
+    {%- assign rowData = rowData | push: cellText -%}
+  {%- endfor -%}
+  {%- assign cell_texts = cell_texts | push: rowData -%}
+{%- endfor %}
+<div class="table-container" style="margin-top: {{ table_settings.margin_top }}; margin-bottom: {{ table_settings.margin_bottom }};">
+  <table class="custom-table" style="border-collapse: collapse; width: 100%;">
+    <tbody>
+      {% for row in (1..table_settings.rows) %}
+        <tr>
+          {% for column in (1..table_settings.columns) %}
+            {% assign cellTextId = "cell_text_" | append: row | append: "_" | append: column %}
+            {% assign cellText = section.settings[cellTextId] %}
+            {% assign alignment = table_settings.pc_alignment %}
+            {% if section.is_mobile %}
+              {% assign alignment = table_settings.mobile_alignment %}
+            {% endif %}
+            {% assign cellBorderStyle = table_settings.cell_border_style %}
+            {% case cellBorderStyle %}
+              {% when 'all_borders' %}
+                {% assign cellBorderStyleValue = 'border: 1px solid #000000;' %}
+              {% when 'outer_borders' %}
+                {% if row == 1 %}
+                  {% assign cellBorderStyleValue = 'border-top: 1px solid #000000;' %}
+                {% elsif row == table_settings.rows %}
+                  {% assign cellBorderStyleValue = 'border-bottom: 1px solid #000000;' %}
+                {% else %}
+                  {% assign cellBorderStyleValue = '' %}
+                {% endif %}
+                {% if column == 1 %}
+                  {% assign cellBorderStyleValue = cellBorderStyleValue | append: 'border-left: 1px solid #000000;' %}
+                {% elsif column == table_settings.columns %}
+                  {% assign cellBorderStyleValue = cellBorderStyleValue | append: 'border-right: 1px solid #000000;' %}
+                {% endif %}
+              {% when 'inner_borders' %}
+                {% if row != 1 and row != table_settings.rows %}
+                  {% assign cellBorderStyleValue = 'border-top: 1px solid #000000; border-bottom: 1px solid #000000;' %}
+                {% else %}
+                  {% assign cellBorderStyleValue = '' %}
+                {% endif %}
+                {% if column != 1 and column != table_settings.columns %}
+                  {% assign cellBorderStyleValue = cellBorderStyleValue | append: 'border-left: 1px solid #000000; border-right: 1px solid #000000;' %}
+                {% endif %}
+                {% if table_settings.columns == 2 and column == 1 %}
+                  {% assign cellBorderStyleValue = cellBorderStyleValue | append: 'border-right: 1px solid #000000;' %}
+                {% endif %}
+              {% else %}
+                {% assign cellBorderStyleValue = '' %}
+            {% endcase %}
+            <td style="text-align: {{ alignment }}; padding: {{ table_settings.cell_padding }}; {{ cellBorderStyleValue }}">
+              {{ cellText }}
+            </td>
+          {% endfor %}
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<style>
+  .table-container {
+    margin: 0 auto;
+    max-width: {{ table_settings.max_width }}px;
+    margin-top: {{ table_settings.margin_top }};
+    margin-bottom: {{ table_settings.margin_bottom }};
+  }
+  .custom-table {
+    border-collapse: collapse;
+    width: 100%;
+  }
+  .custom-table th {
+    text-align: {{ table_settings.pc_alignment }};
+    padding: {{ table_settings.cell_padding }};
+  }
+  .custom-table td {
+    font-weight: {% if table_settings.text_weight == "bold" %} bold {% else %} normal {% endif %};
+    font-size: {{ table_settings.text_size | replace: "px", "" }}px;
+    color: {{ table_settings.text_color }};
+  }
+</style>
+{% schema %}
+{
+  "name": "Customizable Table",
+  "settings": [
+    {
+      "type": "range",
+      "id": "columns",
+      "label": "Number of Columns",
+      "min": 1,
+      "max": 3,
+      "step": 1,
+      "default": 2
+    },
+    {
+      "type": "range",
+      "id": "rows",
+      "label": "Number of Rows",
+      "min": 1,
+      "max": 12,
+      "step": 1,
+      "default": 12
+    },
+    {
+      "type": "range",
+      "id": "max_width",
+      "label": "Maximum Section Width",
+      "min": 0,
+      "max": 2000,
+      "step": 20,
+      "default": 1100
+    },
+    {
+      "type": "select",
+      "id": "pc_alignment",
+      "label": "Alignment on PC devices",
+      "options": [
+        { "value": "left", "label": "Left" },
+        { "value": "right", "label": "Right" },
+        { "value": "center", "label": "Center" }
+      ],
+      "default": "left"
+    },
+    {
+      "type": "select",
+      "id": "mobile_alignment",
+      "label": "Alignment on non-PC devices",
+      "options": [
+        { "value": "left", "label": "Left" },
+        { "value": "right", "label": "Right" },
+        { "value": "center", "label": "Center" }
+      ],
+      "default": "left"
+    },
+    {
+      "type": "radio",
+      "id": "cell_border_style",
+      "label": "Cell Border Style",
+      "options": [
+        { "value": "all_borders", "label": "All Borders" },
+        { "value": "outer_borders", "label": "Outer Borders" },
+        { "value": "inner_borders", "label": "Inner Borders" }
+      ],
+      "default": "inner_borders"
+    },
+    {
+      "type": "text",
+      "id": "cell_padding",
+      "label": "Cell Padding (in pixels)",
+      "default": "10px"
+    },
+    {
+      "type": "text",
+      "id": "margin_top",
+      "label": "Margin Top (in pixels)",
+      "default": "20px"
+    },
+    {
+      "type": "text",
+      "id": "margin_bottom",
+      "label": "Margin Bottom (in pixels)",
+      "default": "20px"
+    },
+    {
+      "type": "select",
+      "id": "text_weight",
+      "label": "Text Weight",
+      "default": "normal",
+      "options": [
+        {
+          "value": "normal",
+          "label": "Normal"
+        },
+        {
+          "value": "bold",
+          "label": "Bold"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "text_size",
+      "label": "Text Size",
+      "default": "16"
+    },
+    {
+      "type": "color",
+      "id": "text_color",
+      "label": "Text Color",
+      "default": "#000000"
+    },
+    {
+      "type": "text",
+      "id": "cell_text_1_1",
+      "label": "Cell Text (1, 1)",
+      "default": "Cell 1"
+    },
+    {
+      "type": "text",
+      "id": "cell_text_1_2",
+      "label": "Cell Text (1, 2)",
+      "default": "Cell 2"
+    },
+    {
+      "type": "text",
+      "id": "cell_text_1_3",
+      "label": "Cell Text (1, 3)",
+      "default": "Cell 3"
+    },
+    {
+      "type": "text",
+      "id": "cell_text_2_1",
+      "label": "Cell Text (2, 1)",
+      "default": "Cell 4"
+    },
+    {
+      "type": "text",
+      "id": "cell_text_2_2",
+      "label": "Cell Text (2, 2)",
+      "default": "Cell 5"
+    },
+    {
+      "type": "text",
+      "id": "cell_text_2_3",
+      "label": "Cell Text (2, 3)",
+      "default": "Cell 6"
+    },
+    {
+      "type": "text",
+      "id": "cell_text_3_1",
+      "label": "Cell Text (3, 1)",
+      "default": "Cell 7"
+    },
+    {
+      "type": "text",
+      "id": "cell_text_3_2",
+      "label": "Cell Text (3, 2)",
+      "default": "Cell 8"
+    },
+    {
+      "type": "text",
+      "id": "cell_text_3_3",
+      "label": "Cell Text (3, 3)",
+      "default": "Cell 9"
+    },
+    {
+      "type": "text",
+      "id": "cell_text_4_1",
+      "label": "Cell Text (4, 1)",
+      "default": "Cell 10"
+    },
+    {
+      "type": "text",
+      "id": "cell_text_4_2",
+      "label": "Cell Text (4, 2)",
+      "default": "Cell 11"
+    },
+    {
+      "type": "text",
+      "id": "cell_text_4_3",
+      "label": "Cell Text (4, 3)",
+      "default": "Cell 12"
+    },
+    {
+      "type": "text",
+      "id": "cell_text_5_1",
+      "label": "Cell Text (5, 1)",
+      "default": "Cell 13"
+    },
+    {
+      "type": "text",
+      "id": "cell_text_5_2",
+      "label": "Cell Text (5, 2)",
+      "default": "Cell 14"
+    },
+    {
+      "type": "text",
+      "id": "cell_text_5_3",
+      "label": "Cell Text (5, 3)",
+      "default": "Cell 15"
+    },
+    {
+      "type": "text",
+      "id": "cell_text_6_1",
+      "label": "Cell Text (6, 1)",
+      "default": "Cell 16"
+    },
+    {
+      "type": "text",
+      "id": "cell_text_6_2",
+      "label": "Cell Text (6, 2)",
+      "default": "Cell 17"
+    },
+    {
+      "type": "text",
+      "id": "cell_text_6_3",
+      "label": "Cell Text (6, 3)",
+      "default": "Cell 18"
+    },
+    {
+      "type": "text",
+      "id": "cell_text_7_1",
+      "label": "Cell Text (7, 1)",
+      "default": "Cell 19"
+    },
+    {
+      "type": "text",
+      "id": "cell_text_7_2",
+      "label": "Cell Text (7, 2)",
+      "default": "Cell 20"
+    },
+    {
+      "type": "text",
+      "id": "cell_text_7_3",
+      "label": "Cell Text (7, 3)",
+      "default": "Cell 21"
+    },
+    {
+      "type": "text",
+      "id": "cell_text_8_1",
+      "label": "Cell Text (8, 1)",
+      "default": "Cell 22"
+    },
+    {
+      "type": "text",
+      "id": "cell_text_8_2",
+      "label": "Cell Text (8, 2)",
+      "default": "Cell 23"
+    },
+    {
+      "type": "text",
+      "id": "cell_text_8_3",
+      "label": "Cell Text (8, 3)",
+      "default": "Cell 24"
+    },
+    {
+      "type": "text",
+      "id": "cell_text_9_1",
+      "label": "Cell Text (9, 1)",
+      "default": "Cell 25"
+    },
+    {
+      "type": "text",
+      "id": "cell_text_9_2",
+      "label": "Cell Text (9, 2)",
+      "default": "Cell 26"
+    },
+    {
+      "type": "text",
+      "id": "cell_text_9_3",
+      "label": "Cell Text (9, 3)",
+      "default": "Cell 27"
+    },
+    {
+      "type": "text",
+      "id": "cell_text_10_1",
+      "label": "Cell Text (10, 1)",
+      "default": "Cell 28"
+    },
+    {
+      "type": "text",
+      "id": "cell_text_10_2",
+      "label": "Cell Text (10, 2)",
+      "default": "Cell 29"
+    },
+    {
+      "type": "text",
+      "id": "cell_text_10_3",
+      "label": "Cell Text (10, 3)",
+      "default": "Cell 30"
+    },
+    {
+      "type": "text",
+      "id": "cell_text_11_1",
+      "label": "Cell Text (11, 1)",
+      "default": "Cell 31"
+    },
+    {
+      "type": "text",
+      "id": "cell_text_11_2",
+      "label": "Cell Text (11, 2)",
+      "default": "Cell 32"
+    },
+    {
+      "type": "text",
+      "id": "cell_text_11_3",
+      "label": "Cell Text (11, 3)",
+      "default": "Cell 33"
+    },
+    {
+      "type": "text",
+      "id": "cell_text_12_1",
+      "label": "Cell Text (12, 1)",
+      "default": "Cell 34"
+    },
+    {
+      "type": "text",
+      "id": "cell_text_12_2",
+      "label": "Cell Text (12, 2)",
+      "default": "Cell 35"
+    },
+    {
+      "type": "text",
+      "id": "cell_text_12_3",
+      "label": "Cell Text (12, 3)",
+      "default": "Cell 36"
+    }
+  ],
+  "presets": [
+    {
+      "name": "Customizable Table",
+      "category": "Presets"
+    }
+  ]
+}
+{% endschema %}

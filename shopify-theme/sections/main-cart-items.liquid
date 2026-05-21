@@ -1,0 +1,281 @@
+{{ 'component-cart.css' | asset_url | stylesheet_tag }}
+{{ 'component-cart-items.css' | asset_url | stylesheet_tag }}
+{{ 'component-totals.css' | asset_url | stylesheet_tag }}
+{{ 'component-price.css' | asset_url | stylesheet_tag }}
+{{ 'component-discounts.css' | asset_url | stylesheet_tag }}
+{{ 'quantity-popover.css' | asset_url | stylesheet_tag }}
+
+{%- style -%}
+
+/* --- LOAMLABS FIX: Ensure cart quantity input number is always visible --- */
+.cart-item .quantity__input {
+  width: 4.5rem;
+  min-width: 4rem; /* Prevents the input from collapsing on small screens */
+  text-align: center; /* Ensures the number is centered */
+  /* The following lines prevent default mobile browser styling from hiding the text */
+  -webkit-appearance: none;
+  appearance: none;
+  background-color: transparent;
+  color: currentColor;
+}
+  
+.hub-bundle-wrapper {
+    border: 1px solid rgba(var(--color-foreground), 0.2);
+    border-radius: var(--radius-medium);
+    margin-top: 1.5rem;
+    position: relative;
+    padding-top: 1.2rem;
+  }
+
+  .hub-bundle-wrapper::before {
+    content: 'Hub & Freehub Bundle';
+    position: absolute;
+    top: -0.8rem;
+    left: 1.5rem;
+    background-color: rgb(var(--color-background));
+    color: rgba(var(--color-foreground), 0.75);
+    font-size: 1.2rem;
+    padding: 0 0.5rem;
+    letter-spacing: 0.05rem;
+    text-transform: uppercase;
+    margin-top: 20px;
+  }
+  
+  @media screen and (max-width: 749px) {
+    .hub-bundle-wrapper {
+      padding-top: 2rem;
+      display: block;
+      width: 100%;
+      padding-top: 40px;
+      margin-bottom: 15px;
+    }
+    .hub-bundle-wrapper > .cart-item {
+        border-top: 1px solid rgba(var(--color-foreground), 0.1);
+        padding-top: 10px;
+    }
+    .hub-bundle-wrapper > .cart-item:first-child {
+        border-top: none;
+    }
+    .bundle-quantity-controls {
+      padding-bottom: 30px;
+    }
+  }
+  
+.section-{{ section.id }}-padding {
+  padding-top: {{ section.settings.padding_top | times: 0.75 | round: 0 }}px;
+  padding-bottom: {{ section.settings.padding_bottom | times: 0.75 | round: 0 }}px;
+}
+@media screen and (min-width: 750px) {
+  .section-{{ section.id }}-padding {
+    padding-top: {{ section.settings.padding_top }}px;
+    padding-bottom: {{ section.settings.padding_bottom }}px;
+  }
+  .page-width { letter-spacing: normal !important; }
+}
+
+.cart-item.visually-hidden { display: none !important; }
+.bundle-quantity-controls { display: flex; align-items: center; gap: 3rem; height: 4.4rem; }
+.bundle-quantity-controls .cart-quantity[data-group-item] { width: 4.0rem; height: 3.5rem; border-radius: var(--input-border-radius, 4px); border: var(--input-border-width, 1px) solid rgba(var(--color-foreground), var(--input-border-opacity, 0.55)); display: flex; justify-content: center; align-items: center; flex-shrink: 0; margin-right: 0; }
+.bundle-quantity-controls .cart-quantity[data-group-item] button, .bundle-quantity-controls .cart-quantity[data-group-item] input { display: none !important; }
+
+cart-edit-button > a.button--tertiary,
+cart-remove-button > a.button--tertiary,
+a.button--add-accessories-plus.button--tertiary {
+    border: none !important; background-color: transparent !important; padding: 0 !important; display: flex; justify-content: center; align-items: center;
+    width: 3.5rem !important; height: 3.5rem !important; min-width: 0 !important; min-height: 0 !important;
+    border-radius: var(--button-radius, 4px); transition: background-color var(--duration-short) ease; color: rgb(var(--color-foreground)) !important;
+    flex-shrink: 0; cursor: pointer; box-sizing: border-box;
+}
+cart-edit-button > a.button--tertiary .svg-wrapper,
+cart-remove-button > a.button--tertiary .svg-wrapper,
+a.button--add-accessories-plus.button--tertiary .svg-wrapper { width: 1.8rem; height: 1.8rem; display: flex; align-items: center; justify-content: center; }
+cart-edit-button > a.button--tertiary .svg-wrapper svg,
+cart-remove-button > a.button--tertiary .svg-wrapper svg,
+a.button--add-accessories-plus.button--tertiary .svg-wrapper svg { fill: currentColor; width: 100%; height: 100%; }
+
+cart-edit-button > a.button--tertiary:hover { background-color: rgba(var(--color-accent-1, 0, 0, 255), 0.1) !important; }
+a.button--add-accessories-plus.button--tertiary:hover { background-color: rgba(75, 152, 88, 0.1) !important; }
+cart-remove-button > a.button--tertiary:hover { background-color: rgba(var(--color-error, 255, 0, 0), 0.1) !important; }
+
+.cart-item__name { margin-bottom: 0; font-weight: bold; }
+.build-id-line { margin-top: 2px; margin-bottom: 15px; font-size: 0.70em; line-height: 1.3; }
+.build-id { font-size: 1em; color: rgba(var(--color-foreground), 0.7); font-weight: normal; }
+
+.cart-item[data-group-ref],
+.cart-item[data-accessory-bundle-ref] {
+    border: 1px solid rgba(var(--color-foreground), 0.1);
+    border-radius: var(--media-border-radius);
+    margin-bottom: 20px;
+}
+.cart-item[data-accessory-bundle-ref] .build-id-line { margin-bottom: 15px; }
+
+.custom-build-components ul,
+.custom-accessory-bundle-components ul { list-style: none; padding-left: 0; margin: 0; font-size: 0.85em; line-height: 1.4; }
+.custom-build-components > ul > li,
+.custom-accessory-bundle-components > ul > li { margin: 0 0 18px 0; padding: 0; display: block; }
+.custom-build-components > ul > li:last-child,
+.custom-accessory-bundle-components > ul > li:last-child { margin-bottom: 0; }
+.custom-build-components ul li,
+.custom-accessory-bundle-components ul li { display: block; margin-bottom: 3px; }
+.custom-build-components ul li.component-category-title,
+.custom-accessory-bundle-components ul li.component-category-title { margin-top: 15px; margin-bottom: 12px; }
+.custom-build-components > ul > li:first-child.component-category-title,
+.custom-accessory-bundle-components > ul > li:first-child.component-category-title { margin-top: 0; }
+.custom-build-components ul li .component-name,
+.custom-accessory-bundle-components ul li .component-name { white-space: normal !important; word-break: break-word !important; overflow-wrap: break-word !important; }
+.custom-build-components > ul > li > strong,
+.custom-accessory-bundle-components > ul > li > strong { display: block; margin-bottom: -10px !important; margin-top: 0 !important; padding: 0 !important; line-height: 1.2 !important; font-weight: bold; }
+.custom-build-components ul.component-list-indented { list-style: none; padding-left: 15px !important; margin-top: 6px; margin-bottom: 0; }
+.custom-build-components ul.component-list-indented li { margin-bottom: 2px; }
+.custom-build-components ul.component-list-indented li:last-child { margin-bottom: 12px; }
+.custom-build-components .addon-text { font-size: 1em; color: rgba(var(--color-foreground), 0.65); padding-left: 10px; display: block; font-style: italic; }
+.custom-build-components ul.component-list-indented > li.optional-addons-heading { margin-top: 6px; margin-bottom:-10px; display: block; padding-left: 0 !important; }
+.custom-build-components ul.component-list-indented > li.optional-addons-heading strong { font-size: 1em; line-height: 1.2; padding: 0; margin: 0; }
+.custom-accessory-bundle-components ul.component-list-indented { list-style: none; padding-left: 15px; margin-top: 6px; }
+.custom-accessory-bundle-components ul.component-list-indented li { margin-bottom: 12px; }
+.custom-accessory-bundle-components ul.component-list-indented li:last-child { margin-bottom: 0; }
+.custom-accessory-bundle-components ul.component-list-indented li .component-name { display: block !important; }
+.cart-item__lead-time { display: flex; align-items: center; gap: 8px; margin-top: 15px; padding: 8px 12px; font-size: 0.85em; background-color: rgba(var(--color-foreground), 0.04); border: 1px solid rgba(var(--color-foreground), 0.1); border-radius: var(--media-border-radius); color: rgba(var(--color-foreground), 0.85); }
+.cart-item__lead-time svg { flex-shrink: 0; color: rgba(var(--color-foreground), 0.6); }
+
+{%- endstyle -%}
+
+{%- unless settings.cart_type == 'drawer' -%}
+  <script src="{{ 'cart.js' | asset_url }}" defer="defer"></script>
+{%- endunless -%}
+
+<script src="{{ 'quantity-popover.js' | asset_url }}" defer="defer"></script>
+
+<cart-items class="gradient color-{{ section.settings.color_scheme }} isolate{% if cart == empty %} is-empty{% else %} section-{{ section.id }}-padding{% endif %}">
+  <div class="page-width">
+    <div class="title-wrapper-with-link">
+      <h1 class="title title--primary">{{ 'sections.cart.title' | t }}</h1>
+      <a href="{{ routes.all_products_collection_url }}" class="underlined-link">
+        {{- 'general.continue_shopping' | t -}}
+      </a>
+    </div>
+
+    <div id="cart-level-accessory-notification" class="cart-notifications" style="display: none; border: 1px solid orange; padding: 10px; margin-bottom: 15px;"></div>
+    <div id="cart-accessory-notifications" class="cart-notifications"></div>
+    
+    <div class="cart__warnings">
+      <h1 class="cart__empty-text">{{ 'sections.cart.empty' | t }}</h1>
+      <a href="{{ routes.all_products_collection_url }}" class="button">
+        {{ 'general.continue_shopping' | t }}
+      </a>
+      {%- if shop.customer_accounts_enabled and customer == null -%}
+        <h2 class="cart__login-title">{{ 'sections.cart.login.title' | t }}</h2>
+        <p class="cart__login-paragraph">
+          {{ 'sections.cart.login.paragraph_html' | t: link: routes.account_login_url }}
+        </p>
+      {%- endif -%}
+    </div>
+
+    <form action="{{ routes.cart_url }}" class="cart__contents critical-hidden" method="post" id="cart">
+      <div class="cart__items" id="main-cart-items" data-id="{{ section.id }}">
+        <div class="js-contents">
+          {%- if cart != empty -%}
+            <table class="cart-items">
+              <caption class="visually-hidden">
+                {{ 'sections.cart.title' | t }}
+              </caption>
+              <thead>
+                <tr>
+                  <th class="caption-with-letter-spacing" colspan="2" scope="col">{{ 'sections.cart.headings.product' | t }}</th>
+                  <th class="medium-hide large-up-hide right caption-with-letter-spacing" colspan="1" scope="col">{{ 'sections.cart.headings.total' | t }}</th>
+                  <th class="cart-items__heading--wide cart-items__heading--quantity small-hide caption-with-letter-spacing" colspan="1" scope="col">{{ 'sections.cart.headings.quantity' | t }}</th>
+                  <th class="small-hide right caption-with-letter-spacing" colspan="1" scope="col">{{ 'sections.cart.headings.total' | t }}</th>
+                </tr>
+              </thead>
+              
+              <tbody>
+                {%- assign parsed_main_builds = '' -%}
+                {%- assign parsed_accessory_bundles = '' -%}
+                {%- assign processed_hub_bundles = '' -%}
+              
+                {%- for item in cart.items -%}
+                  {%- assign is_main_build_placeholder = false -%}
+                  {%- if item.properties._is_custom_wheel_build == 'true' -%}
+                    {%- assign is_main_build_placeholder = true -%}
+                  {%- endif -%}
+              
+                  {%- assign is_accessory_placeholder = false -%}
+                  {%- if item.properties._is_custom_accessories_bundle == 'true' -%}
+                    {%- assign is_accessory_placeholder = true -%}
+                  {%- endif -%}
+              
+                  {%- assign is_hub_bundle = false -%}
+                  {%- if item.properties._bundle_id contains 'hub-bundle-' -%}
+                    {%- assign is_hub_bundle = true -%}
+                  {%- endif -%}
+              
+                  {%- assign is_part_of_main_build = false -%}
+                  {%- comment %} Check for the NEW property _BuildID to identify bundle components {% endcomment %}
+                  {%- if item.properties._BuildID != nil and item.properties._is_custom_wheel_build != 'true' -%}
+                    {%- assign is_part_of_main_build = true -%}
+                  {%- endif -%}
+              
+                  {%- assign is_part_of_accessory_bundle = false -%}
+                  {%- if item.properties._parent_build_id != nil -%}
+                    {%- assign is_part_of_accessory_bundle = true -%}
+                  {%- endif -%}
+              
+                  {%- comment -%}
+                    ================================================================
+                    DECISION LOGIC: Determine which type of item this is.
+                    ================================================================
+                  {%- endcomment -%}
+              
+                  {%- if is_main_build_placeholder -%}
+                    {%- unless parsed_main_builds contains item.properties._groupRef -%}
+                      {%- assign parsed_main_builds = parsed_main_builds | append: ',' | append: item.properties._groupRef -%}
+                      {%- render 'main-cart-placeholder-row', item: item, cart: cart -%}
+                    {%- endunless -%}
+              
+                  {%- elsif is_accessory_placeholder -%}
+                    {%- unless parsed_accessory_bundles contains item.key -%}
+                      {%- assign parsed_accessory_bundles = parsed_accessory_bundles | append: ',' | append: item.key -%}
+                      {%- render 'main-cart-accessory-placeholder-row', item: item, cart: cart -%}
+                    {%- endunless -%}
+              
+                  {%- elsif is_hub_bundle -%}
+                    {%- unless processed_hub_bundles contains item.properties._bundle_id -%}
+                      {%- assign processed_hub_bundles = processed_hub_bundles | append: ',' | append: item.properties._bundle_id -%}
+                      <tbody class="hub-bundle-wrapper">
+                        {%- for bundled_item in cart.items -%}
+                          {%- if bundled_item.properties._bundle_id == item.properties._bundle_id -%}
+                            {%- render 'main-cart-item-row', item: bundled_item -%}
+                          {%- endif -%}
+                        {%- endfor -%}
+                      </tbody>
+                    {%- endunless -%}
+              
+                  {%- elsif is_part_of_main_build == false and is_part_of_accessory_bundle == false -%}
+                    <tbody>
+                      {%- render 'main-cart-item-row', item: item -%}
+                    </tbody>
+                  {%- endif -%}
+                {%- endfor -%}
+              </tbody>
+            </table>
+          {%- endif -%}
+        </div>
+      </div>
+
+      <p class="visually-hidden" id="cart-live-region-text" aria-live="polite" role="status"></p>
+      <p class="visually-hidden" id="shopping-cart-line-item-status" aria-live="polite" aria-hidden="true" role="status">{{ 'accessibility.loading' | t }}</p>
+    </form>
+  </div>
+</cart-items>
+
+{% schema %}
+{
+  "name": "t:sections.main-cart-items.name",
+  "settings": [
+    { "type": "color_scheme", "id": "color_scheme", "label": "t:sections.all.colors.label", "default": "scheme-1" },
+    { "type": "header", "content": "t:sections.all.padding.section_padding_heading" },
+    { "type": "range", "id": "padding_top", "min": 0, "max": 100, "step": 4, "unit": "px", "label": "t:sections.all.padding.padding_top", "default": 36 },
+    { "type": "range", "id": "padding_bottom", "min": 0, "max": 100, "step": 4, "unit": "px", "label": "t:sections.all.padding.padding_bottom", "default": 36 }
+  ]
+}
+{% endschema %}

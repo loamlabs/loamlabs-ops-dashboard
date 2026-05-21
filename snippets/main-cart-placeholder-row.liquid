@@ -1,0 +1,90 @@
+{%- comment -%}LoamLabs - Main Build Placeholder Row{%- endcomment -%}
+{%- comment -%} MODIFICATION: Use the unique _BuildID for all grouping logic {%- endcomment -%}
+{%- liquid
+  assign buildMap = item.properties._build
+  assign buildTypeDisplay = item.properties['Build Type']
+  assign buildIDDisplay = item.properties._BuildID
+
+  %}{%- comment -%}
+    This block now finds all component keys belonging to this SPECIFIC build by matching
+    the unique `_BuildID` property. It also finds the associated accessory bundle.
+  {%- endcomment -%}
+  {%- assign keys_to_remove = item.key -%}
+  {%- assign accessory_bundle_id = buildIDDisplay | append: '-ACC' -%}
+
+  {%- for other_item in cart.items -%}
+    {%- if other_item.properties._BuildID == buildIDDisplay and other_item.id != item.id -%}
+      {%- assign keys_to_remove = keys_to_remove | append: ',' | append: other_item.key -%}
+    {%- endif -%}
+    {%- if other_item.properties._build_id == accessory_bundle_id or other_item.properties._parent_build_id == accessory_bundle_id -%}
+      {%- assign keys_to_remove = keys_to_remove | append: ',' | append: other_item.key -%}
+    {%- endif -%}
+  {%- endfor -%}
+
+<tr class="cart-item" id="CartItem-{{ item.index | plus: 1 }}" data-build-id="{{ buildIDDisplay }}">
+  <td class="cart-item__media">
+    {% if item.image %}<a href="{{ item.url }}" class="cart-item__link" aria-hidden="true" tabindex="-1"> </a><div class="cart-item__image-container gradient global-media-settings"><img src="{{ item.image | image_url: width: 300 }}" class="cart-item__image" alt="{{ item.image.alt | escape }}" loading="lazy" width="150" height="{{ 150 | divided_by: item.image.aspect_ratio | ceil }}"></div>{% endif %}
+  </td>
+  <td class="cart-item__details">
+    {%- assign build_title_prefix = "Custom " -%}{%- if buildTypeDisplay == 'Wheel Set' %}{%- assign build_title_suffix = "Wheel Set" -%}{%- elsif buildTypeDisplay == 'Front' %}{%- assign build_title_suffix = "Front Wheel" -%}{%- elsif buildTypeDisplay == 'Rear' %}{%- assign build_title_suffix = "Rear Wheel" -%}{%- else %}{%- assign build_title_suffix = "Wheel" -%}{%- endif -%}
+    <p class="cart-item__name h4 break" style="pointer-events: none;">{{ build_title_prefix }}{{ build_title_suffix }}</p>
+    {%- if buildIDDisplay %}<p class="build-id-line"><span class="build-id">Build #{{ buildIDDisplay }}</span></p>{%- endif -%}
+    <dl><div class="product-option custom-build-components" data-build-map="{{ buildMap | escape }}" data-build-wheel-type="{{ buildTypeDisplay }}">Loading components...</div></dl>
+    {%- for property in item.properties -%}
+      {%- if property.first == '_EstLeadTime' and property.last != blank -%}
+        <div class="cart-item__lead-time">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="16" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-13a.75.75 0 00-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 000-1.5h-3.25V5z" clip-rule="evenodd"></path></svg>
+          <span><strong>Estimated Build Time:</strong> {{ property.last }}</span>
+        </div>
+      {%- endif -%}
+    {%- endfor -%}
+  </td>
+  <td class="cart-item__totals right medium-hide large-up-hide">
+    {%- render 'loading-spinner' -%}
+    <div class="cart-item__price-wrapper">
+      <span class="price price--end" id="bundle-total-price-{{ buildIDDisplay }}">
+        {{- 0 | money -}}
+      </span>
+    </div>
+  </td>
+  <td class="cart-item__quantity">
+    <div class="bundle-quantity-controls">
+      <quantity-input class="quantity cart-quantity bundle-qty-input" data-group-item>1</quantity-input>
+      <cart-edit-button id="Edit-{{ item.index | plus: 1 }}" data-index="{{ item.index | plus: 1 }}">
+        {%- assign edit_url = '/pages/custom-wheel-builder?buildId=' | append: buildIDDisplay -%}
+        <a href="{{ edit_url }}" class="button button--tertiary" aria-label="Edit {{ build_title_prefix }}{{ build_title_suffix }} (Build #{{ buildIDDisplay }})" title="Edit {{ build_title_prefix }}{{ build_title_suffix }} (Build #{{ buildIDDisplay }})">
+          <span class="svg-wrapper"><svg aria-hidden="true" focusable="false" role="presentation" class="icon icon-edit" viewBox="0 0 24 24"><path fill="currentColor" d="M21.2 5.2L18.8 2.8C18.4 2.4 17.8 2.4 17.4 2.8L15 5.2 18.8 9 21.2 6.6C21.6 6.2 21.6 5.6 21.2 5.2ZM2.8 17.4L13.2 7L17 10.8L6.6 21.2C6.2 21.6 5.6 21.6 5.2 21.2L2.8 18.8C2.4 18.4 2.4 17.8 2.8 17.4Z"></path></svg></span>
+        </a>
+      </cart-edit-button>
+      {%- comment -%} START: Add the "Add Accessories" button {%- endcomment -%}
+      <a href="/pages/accessories?build_id={{ buildIDDisplay }}"
+         class="button button--tertiary button--add-accessories-plus"
+         id="AddAccessories-{{ buildIDDisplay }}"
+         aria-label="Add Accessories to Build #{{ buildIDDisplay }}"
+         title="Add Accessories"
+         style="display: none;">
+        <span class="svg-wrapper">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M11 11V5h2v6h6v2h-6v6h-2v-6H5v-2z"></path></svg>
+        </span>
+      </a>
+      {%- comment -%} END: Add the "Add Accessories" button {%- endcomment -%}
+      <cart-remove-button
+  id="Remove-{{ item.index | plus: 1 }}"
+  data-keys-to-remove="{{ keys_to_remove }}"
+  data-build-id="{{ buildIDDisplay }}"
+  data-bundle-type="main-build">
+        <a href="{{ item.url_to_remove }}" class="button button--tertiary" aria-label="Remove {{ build_title_prefix }}{{ build_title_suffix }} (Build #{{ buildIDDisplay }})" title="Remove {{ build_title_prefix }}{{ build_title_suffix }} (Build #{{ buildIDDisplay }})">
+          <span class="svg-wrapper">{{- 'icon-remove.svg' | inline_asset_content -}}</span>
+        </a>
+      </cart-remove-button>
+    </div>
+  </td>
+  <td class="cart-item__totals right small-hide">
+    {%- render 'loading-spinner' -%}
+    <div class="cart-item__price-wrapper">
+      <span class="price price--end" id="bundle-total-price-{{ buildIDDisplay }}-desktop">
+          {{- 0 | money -}}
+      </span>
+    </div>
+  </td>
+</tr>

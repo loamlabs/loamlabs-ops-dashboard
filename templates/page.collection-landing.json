@@ -1,0 +1,74 @@
+/*
+ * ------------------------------------------------------------
+ * IMPORTANT: The contents of this file are auto-generated.
+ *
+ * This file may be updated by the Shopify admin theme editor
+ * or related systems. Please exercise caution as any changes
+ * made to this file may be overwritten.
+ * ------------------------------------------------------------
+ */
+{
+  "sections": {
+    "main": {
+      "type": "main-page",
+      "disabled": true,
+      "settings": {
+        "padding_top": 36,
+        "padding_bottom": 36
+      }
+    },
+    "custom_liquid_aRtdtp": {
+      "type": "custom-liquid",
+      "custom_css": [],
+      "name": "t:sections.custom-liquid.presets.name",
+      "settings": {
+        "custom_liquid": "{{ page.metafields.custom.landing_page_content }}",
+        "color_scheme": "background-2",
+        "padding_top": 4,
+        "padding_bottom": 4
+      }
+    },
+    "custom_liquid_yreP8D": {
+      "type": "custom-liquid",
+      "disabled": true,
+      "custom_css": [],
+      "name": "t:sections.custom-liquid.presets.name",
+      "settings": {
+        "custom_liquid": "<div class=\"landing-page-section\">\n  <h2>Shop by Brand</h2>\n\n  {% comment %}\n  --- LOGO URLS ---\n  To add a logo, upload it to Shopify Files, copy the URL,\n  and paste it between the single quotes below.\n  If you leave a URL blank (''), the text name will be shown automatically.\n  {% endcomment %}\n\n  {%- assign astral_logo     = 'https://cdn.shopify.com/s/files/1/0801/1530/2707/files/Astral_logo_1.png?v=1699133256' -%}\n  {%- assign dtswiss_logo    = 'https://cdn.shopify.com/s/files/1/0801/1530/2707/files/DT_Swiss_logo_46fa1c93-2429-459b-8d43-2654f7a75395.png?v=1699132779' -%}\n  {%- assign ethirteen_logo  = 'https://cdn.shopify.com/s/files/1/0801/1530/2707/files/ethirteen_logo.png?v=1727132811' -%}\n  {%- assign forge_logo      = 'https://cdn.shopify.com/s/files/1/0801/1530/2707/files/F_B_Logo.png?v=1715484787' -%}\n  {%- assign hed_logo        = 'https://cdn.shopify.com/s/files/1/0801/1530/2707/files/1835251_ff368469-9122-4859-a1f0-4cc57dfe9b43.png?v=1750807395' -%}\n  {%- assign logos_logo      = 'https://cdn.shopify.com/s/files/1/0801/1530/2707/files/logos_logo_2.png?v=1715215994' -%}\n  {%- assign nobl_logo       = 'https://cdn.shopify.com/s/files/1/0801/1530/2707/files/NOBL-logo.png?v=1699132790' -%}\n  {%- assign raceface_logo   = 'https://cdn.shopify.com/s/files/1/0801/1530/2707/files/raceface_logo_1_250cbcad-a0f8-4850-a393-3765ef1d47a5.png?v=1699147463' -%}\n  {%- assign reserve_logo    = 'https://cdn.shopify.com/s/files/1/0801/1530/2707/files/reserve_logo.png?v=1757602881' -%}\n  {%- assign spank_logo      = 'https://cdn.shopify.com/s/files/1/0801/1530/2707/files/SPANK-LOGO.png?v=1699136478' -%}\n  {%- assign stans_logo      = 'https://cdn.shopify.com/s/files/1/0801/1530/2707/files/stans_logo_f045f858-1389-4976-9e74-c4e90e9945ac.png?v=1715616945' -%}\n  {%- assign wao_logo        = 'https://cdn.shopify.com/s/files/1/0801/1530/2707/files/weareone_logo_1.png?v=1715616414' -%}\n\n  <div class=\"flex-container\">\n    <!-- Astral Rims -->\n    <div class=\"flex-item\">\n      <a href=\"/collections/astral-rims\" class=\"grid-item-link\">\n        <div class=\"grid-item-logo-wrapper\">\n          {% if astral_logo != blank %}\n            <img src=\"{{ astral_logo }}\" alt=\"Astral Rims Logo\" class=\"grid-item-logo\">\n          {% else %}\n            <h3>Astral Rims</h3>\n          {% endif %}\n        </div>\n        <p>High-quality rims for road, gravel, and cyclocross.</p>\n      </a>\n    </div>\n    <!-- DT Swiss Rims -->\n    <div class=\"flex-item\">\n      <a href=\"/collections/dt-swiss-rims\" class=\"grid-item-link\">\n        <div class=\"grid-item-logo-wrapper\">\n          {% if dtswiss_logo != blank %}\n            <img src=\"{{ dtswiss_logo }}\" alt=\"DT Swiss Rims Logo\" class=\"grid-item-logo\">\n          {% else %}\n            <h3>DT Swiss Rims</h3>\n          {% endif %}\n        </div>\n        <p>Legendary Swiss engineering and reliability.</p>\n      </a>\n    </div>\n    <!-- e*thirteen Rims -->\n    <div class=\"flex-item\">\n      <a href=\"/collections/e-thirteen-rims\" class=\"grid-item-link\">\n        <div class=\"grid-item-logo-wrapper\">\n          {% if ethirteen_logo != blank %}\n            <img src=\"{{ ethirteen_logo }}\" alt=\"e*thirteen Rims Logo\" class=\"grid-item-logo\">\n          {% else %}\n            <h3>e*thirteen Rims</h3>\n          {% endif %}\n        </div>\n        <p>Race-proven alloy & carbon rims for aggressive riding.</p>\n      </a>\n    </div>\n    <!-- Forge+Bond Rims -->\n    <div class=\"flex-item\">\n      <a href=\"/collections/forge-bond-rims\" class=\"grid-item-link\">\n        <div class=\"grid-item-logo-wrapper\">\n          {% if forge_logo != blank %}\n            <img src=\"{{ forge_logo }}\" alt=\"Forge+Bond Rims Logo\" class=\"grid-item-logo\">\n          {% else %}\n            <h3>Forge+Bond Rims</h3>\n          {% endif %}\n        </div>\n        <p>Recyclable thermoplastic carbon MTB rims.</p>\n      </a>\n    </div>\n    <!-- HED Rims -->\n    <div class=\"flex-item\">\n      <a href=\"/collections/hed-rims\" class=\"grid-item-link\">\n        <div class=\"grid-item-logo-wrapper\">\n          {% if hed_logo != blank %}\n            <img src=\"{{ hed_logo }}\" alt=\"HED Rims Logo\" class=\"grid-item-logo\">\n          {% else %}\n            <h3>HED Rims</h3>\n          {% endif %}\n        </div>\n        <p>Pioneers in aerodynamics and wide-rim technology.</p>\n      </a>\n    </div>\n    <!-- Logos Rims -->\n    <div class=\"flex-item\">\n      <a href=\"/collections/logos-rims\" class=\"grid-item-link\">\n        <div class=\"grid-item-logo-wrapper\">\n          {% if logos_logo != blank %}\n            <img src=\"{{ logos_logo }}\" alt=\"Logos Rims Logo\" class=\"grid-item-logo\">\n          {% else %}\n            <h3>Logos Rims</h3>\n          {% endif %}\n        </div>\n        <p>A fantastic balance of quality and value.</p>\n      </a>\n    </div>\n    <!-- NOBL Carbon Rims -->\n    <div class=\"flex-item\">\n      <a href=\"/collections/nobl-rims\" class=\"grid-item-link\">\n        <div class=\"grid-item-logo-wrapper\">\n          {% if nobl_logo != blank %}\n            <img src=\"{{ nobl_logo }}\" alt=\"NOBL Carbon Rims Logo\" class=\"grid-item-logo\">\n          {% else %}\n            <h3>NOBL Carbon Rims</h3>\n          {% endif %}\n        </div>\n        <p>Premium carbon rims for MTB & Gravel.</p>\n      </a>\n    </div>\n    <!-- Race Face Rims -->\n    <div class=\"flex-item\">\n      <a href=\"/collections/race-face-rims\" class=\"grid-item-link\">\n        <div class=\"grid-item-logo-wrapper\">\n          {% if raceface_logo != blank %}\n            <img src=\"{{ raceface_logo }}\" alt=\"Race Face Rims Logo\" class=\"grid-item-logo\">\n          {% else %}\n            <h3>Race Face Rims</h3>\n          {% endif %}\n        </div>\n        <p>Bombproof rims built for the toughest conditions.</p>\n      </a>\n    </div>\n    <!-- Reserve Wheels Rims -->\n    <div class=\"flex-item\">\n      <a href=\"/collections/reserve-rims\" class=\"grid-item-link\">\n        <div class=\"grid-item-logo-wrapper\">\n          {% if reserve_logo != blank %}\n            <img src=\"{{ reserve_logo }}\" alt=\"Reserve Wheels Rims Logo\" class=\"grid-item-logo\">\n          {% else %}\n            <h3>Reserve Wheels Rims</h3>\n          {% endif %}\n        </div>\n        <p>High-performance carbon rims with a lifetime warranty.</p>\n      </a>\n    </div>\n    <!-- Spank Rims -->\n    <div class=\"flex-item\">\n      <a href=\"/collections/spank-rims\" class=\"grid-item-link\">\n        <div class=\"grid-item-logo-wrapper\">\n          {% if spank_logo != blank %}\n            <img src=\"{{ spank_logo }}\" alt=\"Spank Rims Logo\" class=\"grid-item-logo\">\n          {% else %}\n            <h3>Spank Rims</h3>\n          {% endif %}\n        </div>\n        <p>Innovative Vibrocore technology for a smoother ride.</p>\n      </a>\n    </div>\n    <!-- Stan's NoTubes Rims -->\n    <div class=\"flex-item\">\n      <a href=\"/collections/stans-rims\" class=\"grid-item-link\">\n        <div class=\"grid-item-logo-wrapper\">\n          {% if stans_logo != blank %}\n            <img src=\"{{ stans_logo }}\" alt=\"Stan's NoTubes Rims Logo\" class=\"grid-item-logo\">\n          {% else %}\n            <h3>Stan's NoTubes Rims</h3>\n          {% endif %}\n        </div>\n        <p>The original and trusted name in tubeless technology.</p>\n      </a>\n    </div>\n    <!-- We Are One Rims -->\n    <div class=\"flex-item\">\n      <a href=\"/collections/we-are-one-rims\" class=\"grid-item-link\">\n        <div class=\"grid-item-logo-wrapper\">\n          {% if wao_logo != blank %}\n            <img src=\"{{ wao_logo }}\" alt=\"We Are One Rims Logo\" class=\"grid-item-logo\">\n          {% else %}\n            <h3>We Are One Rims</h3>\n          {% endif %}\n        </div>\n        <p>Handcrafted in Canada, backed by a lifetime warranty.</p>\n      </a>\n    </div>\n\n  </div>\n</div>\n\n<!-- SHOP BY MATERIAL SECTION -->\n<div class=\"landing-page-section\">\n  <h2>Shop by Material</h2>\n  <div class=\"flex-container\">\n    <div class=\"flex-item\">\n      <a href=\"/collections/all-rims\">\n        <div class=\"flex-item-content-wrapper\">\n          <h3>View All Rims</h3>\n        </div>\n        <p>Browse our entire catalog and use our filters to find the perfect rim.</p>\n      </a>\n    </div>\n    <div class=\"flex-item\">\n      <a href=\"/collections/carbon-rims\">\n        <div class=\"flex-item-content-wrapper\">\n          <h3>Carbon Rims</h3>\n        </div>\n        <p>For the ultimate in lightweight performance and stiffness.</p>\n      </a>\n    </div>\n    <div class=\"flex-item\">\n      <a href=\"/collections/alloy-rim\">\n        <div class=\"flex-item-content-wrapper\">\n          <h3>Alloy Rims</h3>\n        </div>\n        <p>For proven durability and exceptional value.</p>\n      </a>\n    </div>\n  </div>\n</div>\n\n<!-- SHOP BY SIZE SECTION -->\n<div class=\"landing-page-section\">\n  <h2>Shop by Size</h2>\n  <div class=\"flex-container\">\n    <!-- 29 Inch -->\n    <div class=\"flex-item\">\n      <a href=\"/collections/29-inch-rims\">\n        <div class=\"flex-item-content-wrapper\">\n          {% if size_29_logo != blank %}<img src=\"{{ size_29_logo }}\" alt=\"29 Inch Rims\" class=\"flex-item-logo\">{% else %}<h3>29 Inch Rims</h3>{% endif %}\n        </div>\n        <p>For modern MTB & Gravel bikes.</p>\n      </a>\n    </div>\n    <!-- 27.5 Inch -->\n    <div class=\"flex-item\">\n      <a href=\"/collections/27-5-inch-rims\">\n        <div class=\"flex-item-content-wrapper\">\n          {% if size_275_logo != blank %}<img src=\"{{ size_275_logo }}\" alt=\"27.5 Inch Rims\" class=\"flex-item-logo\">{% else %}<h3>27.5\" Rims</h3>{% endif %}\n        </div>\n        <p>For playful trail & enduro bikes.</p>\n      </a>\n    </div>\n    <!-- 26 Inch -->\n    <div class=\"flex-item\">\n      <a href=\"/collections/26-inch-rims\">\n        <div class=\"flex-item-content-wrapper\">\n          {% if size_26_logo != blank %}<img src=\"{{ size_26_logo }}\" alt=\"26 Inch Rims\" class=\"flex-item-logo\">{% else %}<h3>26 Inch Rims</h3>{% endif %}\n        </div>\n        <p>For Dirt Jump & classic MTB.</p>\n      </a>\n    </div>\n    <!-- 700c -->\n    <div class=\"flex-item\">\n      <a href=\"/collections/700c-rims\">\n        <div class=\"flex-item-content-wrapper\">\n          {% if size_700c_logo != blank %}<img src=\"{{ size_700c_logo }}\" alt=\"700c Rims\" class=\"flex-item-logo\">{% else %}<h3>700c Rims</h3>{% endif %}\n        </div>\n        <p>The standard for Road & Gravel.</p>\n      </a>\n    </div>\n    <!-- 650b -->\n    <div class=\"flex-item\">\n      <a href=\"/collections/650b-rims\">\n        <div class=\"flex-item-content-wrapper\">\n          {% if size_650b_logo != blank %}<img src=\"{{ size_650b_logo }}\" alt=\"650b Rims\" class=\"flex-item-logo\">{% else %}<h3>650b Rims</h3>{% endif %}\n        </div>\n        <p>For \"Road Plus\" & All-Road adventure.</p>\n      </a>\n    </div>\n  </div>\n</div>",
+        "color_scheme": "background-1",
+        "padding_top": 4,
+        "padding_bottom": 12
+      }
+    },
+    "rich_text_pRfykd": {
+      "type": "rich-text",
+      "blocks": {
+        "heading_kEfDEJ": {
+          "type": "heading",
+          "settings": {
+            "heading": "Coming Soon...",
+            "heading_size": "h1"
+          }
+        }
+      },
+      "block_order": [
+        "heading_kEfDEJ"
+      ],
+      "name": "t:sections.rich-text.presets.name",
+      "settings": {
+        "desktop_content_position": "center",
+        "content_alignment": "center",
+        "color_scheme": "",
+        "full_width": true,
+        "padding_top": 40,
+        "padding_bottom": 52
+      }
+    }
+  },
+  "order": [
+    "main",
+    "custom_liquid_aRtdtp",
+    "custom_liquid_yreP8D",
+    "rich_text_pRfykd"
+  ]
+}

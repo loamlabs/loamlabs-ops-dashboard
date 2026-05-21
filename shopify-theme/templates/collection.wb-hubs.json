@@ -1,0 +1,61 @@
+/*
+ * ------------------------------------------------------------
+ * IMPORTANT: The contents of this file are auto-generated.
+ *
+ * This file may be updated by the Shopify admin theme editor
+ * or related systems. Please exercise caution as any changes
+ * made to this file may be overwritten.
+ * ------------------------------------------------------------
+ */
+{
+  "sections": {
+    "banner": {
+      "type": "main-collection-banner",
+      "disabled": true,
+      "settings": {
+        "show_collection_description": true,
+        "show_collection_image": false,
+        "color_scheme": "background-1"
+      }
+    },
+    "custom_liquid_yrFKrK": {
+      "type": "custom-liquid",
+      "custom_css": [
+        "h2 {text-align: center; font-size: 36px; /* A slightly more impactful heading size */}",
+        ".collection-read-more {max-width: 75ch; /* Constrains the text to a comfortable reading width */ margin-left: auto; margin-right: auto; text-align: center;}"
+      ],
+      "name": "t:sections.custom-liquid.presets.name",
+      "settings": {
+        "custom_liquid": "<div class=\\\"intro-content-wrapper\\\">\\n  <h2>High-Performance Bicycle Hubs for Your Custom Build</h2>\\n  <div class=\\\"collection-read-more\\\">\\n    <p>The hub is the heart of any high-performance wheelset. It's the central point from which everything revolves, affecting your bike's engagement, rolling speed, and durability. <span class=\\\"read-more-toggle\\\">[<span class=\\\"text-expand\\\">Read More...</span><span class=\\\"text-collapse\\\">Read Less</span>]</span></p>\\n    <div class=\\\"read-more-content--full\\\">\\n      <p>At LoamLabs, we've curated a selection of the best bicycle hubs on the market, chosen for their quality, performance, and reliability for any custom wheel build. Whether you're looking for the silent, instant engagement of an Onyx hub, the legendary reliability of DT Swiss, or the precision of Industry Nine, we have the perfect foundation for your build.</p>\\n      <p>We stock a full range of axle standards like Boost and Superboost, and all major freehub options including Shimano HG, MicroSpline, and SRAM XD. Ready to get specific? Browse our dedicated collections for <a href=\\\"/collections/front-hubs\\\"><strong>Front Hubs</strong></a> and <a href=\\\"/collections/rear-hubs\\\"><strong>Rear Hubs</strong></a> to find the exact component for your dream wheels.</p>\\n    </div>\\n  </div>\\n</div>",
+        "color_scheme": "background-2",
+        "padding_top": 20,
+        "padding_bottom": 20
+      }
+    },
+    "product-grid": {
+      "type": "main-collection-product-grid",
+      "settings": {
+        "products_per_page": 16,
+        "columns_desktop": 4,
+        "columns_mobile": "2",
+        "color_scheme": "",
+        "image_ratio": "adapt",
+        "image_shape": "default",
+        "show_secondary_image": false,
+        "show_vendor": false,
+        "show_rating": false,
+        "quick_add": "none",
+        "enable_filtering": true,
+        "filter_type": "horizontal",
+        "enable_sorting": true,
+        "padding_top": 36,
+        "padding_bottom": 36
+      }
+    }
+  },
+  "order": [
+    "banner",
+    "custom_liquid_yrFKrK",
+    "product-grid"
+  ]
+}

@@ -1,0 +1,39 @@
+/*
+ * ------------------------------------------------------------
+ * IMPORTANT: The contents of this file are auto-generated.
+ *
+ * This file may be updated by the Shopify admin theme editor
+ * or related systems. Please exercise caution as any changes
+ * made to this file may be overwritten.
+ * ------------------------------------------------------------
+ */
+{
+  "sections": {
+    "custom_liquid_MmrqwF": {
+      "type": "custom-liquid",
+      "name": "t:sections.custom-liquid.presets.name",
+      "settings": {
+        "custom_liquid": "<div class=\"intro-content-wrapper\">\n  <h1>The LoamLabs Journal</h1>\n  <h3>Expert Insights for Demanding Riders</h3>\n  <p>Welcome to the Journal, our home for deep dives into wheel building science, component technology, and expert advice. Our goal is to share the knowledge we've gained from years of building high-performance custom wheels, helping you get the most out of your ride.</p>\n</div>",
+        "color_scheme": "background-2",
+        "padding_top": 4,
+        "padding_bottom": 16
+      }
+    },
+    "main": {
+      "type": "main-blog",
+      "settings": {
+        "layout": "collage",
+        "show_image": true,
+        "image_height": "medium",
+        "show_date": true,
+        "show_author": false,
+        "padding_top": 0,
+        "padding_bottom": 28
+      }
+    }
+  },
+  "order": [
+    "custom_liquid_MmrqwF",
+    "main"
+  ]
+}

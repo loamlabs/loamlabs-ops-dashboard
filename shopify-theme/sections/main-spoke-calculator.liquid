@@ -1,0 +1,499 @@
+{{ 'spoke-calculator.css' | asset_url | stylesheet_tag }}
+
+<div class="page-width">
+
+<!-- Default-Visible Loading Overlay -->
+<div id="ll-loading-overlay">
+  <style>
+    #ll-loading-overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background-color: rgba(255, 255, 255, 0.85);
+      display: flex; justify-content: center; align-items: center;
+      z-index: 9998; opacity: 1; transition: opacity 0.5s ease-in-out;
+    }
+    #ll-loading-overlay.is-hidden { opacity: 0; pointer-events: none; }
+    .ll-loader-title { font-size: 1.5rem; font-weight: 600; color: #333; animation: ll-pulse 2s ease-in-out infinite; }
+    @keyframes ll-pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+  </style>
+  <h2 class="ll-loader-title">Loading Components...</h2>
+</div>
+
+ 
+
+<!-- =================================================================================== -->
+<!-- START: LOAMLABS SPOKE CALCULATOR APP V4.1                                           -->
+<!-- =================================================================================== -->
+<div id="spoke-calculator-app-loamlabs">
+  <!-- Build Name Field -->
+  <div class="ll-build-header">
+    <div class="ll-input-wrapper">
+      <label for="ll-build-name">Build / Job Name (Optional)</label>
+      <input type="text" id="ll-build-name">
+    </div>
+  </div>
+  <div class="ll-calc-main-grid">
+
+    <!-- Front Wheel Wrapper (Groups Inputs & Results) -->
+    <div class="ll-wheel-wrapper" id="front-wheel-wrapper">
+      <!-- Accordion Header -->
+      <h2 class="ll-wheel-section-header">Front Wheel</h2>
+      <!-- Collapsible Content -->
+      <div class="ll-wheel-content-container">
+        <!-- CELL 1: FRONT WHEEL INPUTS -->
+        <div class="ll-wheel-section" id="ll-front-wheel-section">
+          <div class="ll-input-content-wrapper">
+          <h2 class="ll-wheel-title">Front Wheel</h2>
+
+          <!-- STEP 1: RIM & SPOKE COUNT -->
+          <div class="ll-spec-group" id="front-rim-spec-group">
+            <h3 class="ll-spec-title">1. Rim &amp; Spoke Count</h3>
+            <div class="ll-input-wrapper">
+              <label>Spoke Count</label>
+              <div id="front-spoke-count-filters" class="ll-spoke-count-filter-container ll-input-mode-selector">
+  <div><input type="radio" id="front-spoke-filter-all" name="front-spoke-count" value="All"><label for="front-spoke-filter-all">All</label></div>
+  <div><input type="radio" id="front-spoke-filter-16" name="front-spoke-count" value="16"><label for="front-spoke-filter-16">16h</label></div>
+  <div><input type="radio" id="front-spoke-filter-20" name="front-spoke-count" value="20"><label for="front-spoke-filter-20">20h</label></div>
+  <div><input type="radio" id="front-spoke-filter-24" name="front-spoke-count" value="24"><label for="front-spoke-filter-24">24h</label></div>
+  <div><input type="radio" id="front-spoke-filter-28" name="front-spoke-count" value="28"><label for="front-spoke-filter-28">28h</label></div>
+  <div><input type="radio" id="front-spoke-filter-32" name="front-spoke-count" value="32"><label for="front-spoke-filter-32">32h</label></div>
+  <div><input type="radio" id="front-spoke-filter-36" name="front-spoke-count" value="36"><label for="front-spoke-filter-36">36h</label></div>
+  <div><input type="radio" id="front-spoke-filter-40" name="front-spoke-count" value="40"><label for="front-spoke-filter-40">40h</label></div>
+  <div><input type="radio" id="front-spoke-filter-48" name="front-spoke-count" value="48"><label for="front-spoke-filter-48">48h</label></div>
+</div>
+            </div>
+            <div id="front-rim-select-wrapper" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid #eee;">
+              <div class="ll-input-grid-half">
+                <div class="ll-input-wrapper">
+                  <label for="front-rim-vendor-select">Select a Vendor</label>
+                  <select id="front-rim-vendor-select"><option value="">-- Select or Enter Manually --</option></select>
+                </div>
+                <div class="ll-input-wrapper">
+                  <label for="front-rim-model-select">Select a Model</label>
+                  <select id="front-rim-model-select" disabled><option value="">-- Select a Model --</option></select>
+                  <div class="ll-input-wrapper is-hidden" id="front-rim-variant-wrapper">
+                    <label for="front-rim-variant-select">Select Rim Size</label>
+                    <select id="front-rim-variant-select" disabled><option value="">-- Select Model --</option></select>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div id="front-rim-manual-wrapper">
+              <div class="ll-input-wrapper is-hidden" id="front-rim-manual-name-wrapper">
+                <label for="front-rim-manual-name">Rim Name (Optional)</label>
+                <input type="text" id="front-rim-manual-name" placeholder="e.g., My Custom Rim">
+              </div>
+              <div class="ll-erd-toggle-wrapper">
+  <input type="radio" id="front-erd-mode-erd" name="front-erd-mode" value="erd" checked><label for="front-erd-mode-erd" class="is-checked">ERD</label> 
+  <input type="radio" id="front-erd-mode-nsd" name="front-erd-mode" value="nsd"><label for="front-erd-mode-nsd">NSD</label>
+</div>
+<div class="ll-spec-grid-2x2">
+  <div class="ll-input-wrapper is-mandatory" id="front-erd-wrapper">
+    <label for="front-erd">ERD (mm) <span class="ll-mandatory-star">*</span> <span class="ll-help-icon" data-modal-id="erd-help">(?)</span></label>
+    <input type="number" id="front-erd">
+  </div>
+  <div class="ll-input-wrapper is-mandatory is-disabled" id="front-nsd-wrapper">
+    <label for="front-nsd">NSD (mm) <span class="ll-mandatory-star">*</span> <span class="ll-help-icon" data-modal-id="nsd-help">(?)</span></label>
+    <input type="number" id="front-nsd" disabled>
+  </div>
+  <div class="ll-input-wrapper">
+    <label for="front-asym">Asymmetry / OSB (mm) <span class="ll-help-icon" data-modal-id="asym-help">(?)</span></label>
+    <input type="number" id="front-asym">
+  </div>
+  <div class="ll-input-wrapper" id="front-rim-hole-offset-wrapper">
+    <label for="front-rim-hole-offset">Rim Hole Offset (RHO) <span class="ll-help-icon" data-modal-id="rim-hole-offset-help">(?)</span></label>
+    <input type="number" id="front-rim-hole-offset">
+  </div>
+  <div class="ll-input-wrapper">
+    <label for="front-washer-thickness">Nipple Washer Thickness (mm) <span class="ll-help-icon" data-modal-id="washer-help">(?)</span></label>
+    <input type="number" id="front-washer-thickness" placeholder="e.g., 0.5">
+  </div>
+  <div class="ll-input-wrapper ll-input-wrapper--suffix">
+    <label for="front-rim-weight">Rim Weight (g)</label>
+    <input type="number" id="front-rim-weight" >
+  </div>
+</div>
+            <div class="ll-manual-actions-wrapper is-hidden" id="front-rim-clear-btn-wrapper">
+              <button id="front-rim-clear-btn" class="ll-button-secondary">Clear</button>
+              <a href="#" id="front-rim-submit-link" class="ll-disclaimer-link">Submit Component to Library</a>
+            </div>
+          </div>
+
+          <!-- STEP 2: HUB & LACING -->
+          <div class="ll-spec-group" id="front-hub-spec-group">
+            <h3 class="ll-spec-title">2. Hub &amp; Lacing</h3>
+            <div class="ll-hub-filters">
+              <span>Filter by Type:</span>
+              <div class="ll-hub-filter-buttons">
+                <input type="radio" id="front-hub-type-all" name="front-hub-type-filter" value="All" checked><label for="front-hub-type-all">All</label>
+                <input type="radio" id="front-hub-type-jbend" name="front-hub-type-filter" value="Classic Flange"><label for="front-hub-type-jbend">J-Bend</label>
+                <input type="radio" id="front-hub-type-sp" name="front-hub-type-filter" value="Straight Pull"><label for="front-hub-type-sp">Straight Pull</label>
+                <input type="radio" id="front-hub-type-hf" name="front-hub-type-filter" value="Hook Flange"><label for="front-hub-type-hf">Hook Flange</label>
+              </div>
+            </div>
+            <div id="front-hub-select-wrapper" class="ll-select-wrapper">
+              <div class="ll-input-grid-half">
+                <div class="ll-input-wrapper">
+                  <label for="front-hub-vendor-select">Select a Vendor</label>
+                  <select id="front-hub-vendor-select"><option value="">-- Select or Enter Manually --</option></select>
+                </div>
+                <div class="ll-input-wrapper">
+                  <label for="front-hub-model-select">Select a Model</label>
+                  <select id="front-hub-model-select" disabled><option value="">-- Select a Model --</option></select>
+                  <div class="ll-input-wrapper is-hidden" id="front-hub-variant-wrapper">
+                    <label for="front-hub-variant-select">Select Options</label>
+                    <select id="front-hub-variant-select" disabled><option value="">-- Select Model --</option></select>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div id="front-hub-manual-wrapper">
+              <div class="ll-input-wrapper is-hidden" id="front-hub-manual-name-wrapper">
+                <label for="front-hub-manual-name">Hub Name (Optional)</label>
+                <input type="text" id="front-hub-manual-name" placeholder="e.g., My Vintage Hub">
+              </div>
+              <div class="ll-spec-grid-2x2 is-hidden" id="front-hub-readonly-specs">
+                <div class="ll-result-item ll-result-item--secondary" id="front-hub-type-display-wrapper">
+                  <span class="ll-result-label">Hub Type</span>
+                  <span class="ll-result-value--small" id="front-hub-type-display-value"></span>
+                </div>
+                <div class="ll-result-item ll-result-item--secondary" id="front-tension-preview-wrapper">
+                  <span class="ll-result-label">Est. Tension Balance</span>
+                  <span class="ll-result-value--small" id="front-tension-preview-value"></span>
+                </div>
+              </div>
+              <div class="ll-spec-grid-2x2 ll-editable-specs">
+                <div class="ll-input-wrapper is-mandatory"><label for="front-pcd-left">PCD Left (mm) <span class="ll-mandatory-star">*</span> <span class="ll-help-icon" data-modal-id="pcd-help">(?)</span></label><input type="number" id="front-pcd-left"></div>
+                <div class="ll-input-wrapper is-mandatory"><label for="front-pcd-right">PCD Right (mm) <span class="ll-mandatory-star">*</span> <span class="ll-help-icon" data-modal-id="pcd-help">(?)</span></label><input type="number" id="front-pcd-right"></div>
+                <div class="ll-input-wrapper is-mandatory"><label for="front-flange-left">Flange Offset Left (mm) <span class="ll-mandatory-star">*</span> <span class="ll-help-icon" data-modal-id="flange-offset-help">(?)</span></label><input type="number" id="front-flange-left"></div>
+                <div class="ll-input-wrapper is-mandatory"><label for="front-flange-right">Flange Offset Right (mm) <span class="ll-mandatory-star">*</span> <span class="ll-help-icon" data-modal-id="flange-offset-help">(?)</span></label><input type="number" id="front-flange-right"></div>
+                <div class="ll-input-wrapper" id="front-shd-wrapper"><label for="front-hole-dia">Spoke Hole Dia. (mm) <span class="ll-help-icon" data-modal-id="shd-help">(?)</span></label><input type="number" id="front-hole-dia" value="2.6"></div>
+                <div class="ll-input-wrapper" id="front-sp-offset-left-wrapper" style="display: none;"><label for="front-sp-offset-left">Spoke Offset Left (mm)</label><input type="number" id="front-sp-offset-left"></div>
+                <div class="ll-input-wrapper" id="front-sp-offset-right-wrapper" style="display: none;"><label for="front-sp-offset-right">Spoke Offset Right (mm)</label><input type="number" id="front-sp-offset-right"></div>
+                <div class="ll-input-wrapper ll-input-wrapper--suffix"><label for="front-hub-weight">Hub Weight (g)</label><input type="number" id="front-hub-weight"></div>
+              </div>
+            </div>
+
+            <!-- START: PAIRED HUB HOLE OPTION -->
+              <div class="ll-spec-group-option" id="front-paired-hub-wrapper">
+                <label for="front-paired-hub-checkbox">
+                  <input type="checkbox" id="front-paired-hub-checkbox">
+                  Paired Hub Holes&nbsp;<span class="ll-help-icon" data-modal-id="paired-hub-help">(?)</span>
+                </label>
+                <div class="ll-input-wrapper is-hidden" id="front-paired-hub-angle-wrapper">
+                  <label for="front-paired-hub-angle">Paired-holes Angle (°)</label>
+                  <input type="number" id="front-paired-hub-angle" placeholder="e.g., 15" min="10" max="30">
+                </div>
+              </div>
+              <!-- END: PAIRED HUB HOLE OPTION -->
+
+            <div class="ll-input-grid-half" style="margin-top: 1.5rem;">
+              <div class="ll-input-wrapper"><label for="front-cross-left">Cross Pattern Left</label><select id="front-cross-left" disabled><option value="">Enter All Specs First</option></select></div>
+              <div class="ll-input-wrapper"><label for="front-cross-right">Cross Pattern Right</label><select id="front-cross-right" disabled><option value="">Enter All Specs First</option></select></div>
+            </div>
+            <div class="ll-manual-actions-wrapper is-hidden" id="front-hub-clear-btn-wrapper">
+              <button id="front-hub-clear-btn" class="ll-button-secondary">Clear</button>
+              <a href="#" id="front-hub-submit-link" class="ll-disclaimer-link">Submit Component to Library</a>
+            </div>
+          </div>
+
+                    <!-- STEP 3: SPOKE & NIPPLE SELECTION -->
+          <div class="ll-spec-group" id="front-spoke-nipple-group">
+            <h3 class="ll-spec-title">3. Spoke &amp; Nipple Selection</h3>
+
+<!-- New Grid Container for Section 3 -->
+<div class="ll-spec-grid-spokes">
+
+    <!-- Column 1: Spoke Information -->
+    <div class="ll-spoke-column">
+        <div class="ll-input-wrapper">
+            <label for="front-spoke-model-select">Spoke Model <span class="ll-mandatory-star">*</span></label>
+            <select id="front-spoke-model-select"><option value="">-- Select --</option></select>
+        </div>
+        <div class="ll-input-wrapper ll-input-wrapper--suffix is-hidden" id="front-spoke-weight-wrapper">
+            <label>Weight (per spoke)</label>
+            <input type="text" id="front-spoke-weight-display" readonly>
+        </div>
+        <div class="ll-input-wrapper">
+            <label for="front-target-tension">Target Maximum Tension (kgF) <span class="ll-help-icon" data-modal-id="target-tension-help">(?)</span></label>
+            <input type="number" id="front-target-tension" value="120">
+        </div>
+    </div>
+
+    <!-- Column 2: Nipple Information -->
+    <div class="ll-nipple-column">
+        <div class="ll-input-wrapper">
+            <label for="front-nipple-model-select">Nipple Model <span class="ll-mandatory-star">*</span></label>
+            <select id="front-nipple-model-select"><option value="">-- Select --</option></select>
+        </div>
+        <div class="ll-input-wrapper ll-input-wrapper--suffix is-hidden" id="front-nipple-weight-wrapper">
+            <label>Weight (g) per nipple</label>
+            <input type="text" id="front-nipple-weight-display" readonly>
+        </div>
+        <div class="ll-input-wrapper is-hidden" id="front-nipple-head-height-wrapper">
+            <label for="front-nipple-head-height">Nipple Head Height (mm) <span class="ll-mandatory-star">*</span> <span class="ll-help-icon" data-modal-id="nipple-head-height-help">(?)</span></label>
+            <input type="number" id="front-nipple-head-height" placeholder="Select a nipple or enter manually" step="0.01">
+        </div>
+        <div class="ll-input-wrapper is-hidden" id="front-nipple-manual-weight-wrapper">
+            <label for="front-nipple-manual-weight">Enter Weight per Nipple (g)</label>
+            <input type="number" id="front-nipple-manual-weight" value="1.0" step="0.01">
+        </div>
+    </div>
+
+</div>
+
+<!-- The clear button wrapper remains outside the grid -->
+<div class="ll-manual-actions-wrapper is-hidden" id="front-spoke-nipple-clear-btn-wrapper">
+    <button id="front-spoke-nipple-clear-btn" class="ll-button-secondary">Clear</button>
+    <a href="#" id="front-spoke-nipple-submit-link" class="ll-disclaimer-link">Suggest a Spoke/Nipple</a>
+</div>
+          </div>
+          </div>
+          
+          <!-- ACTIONS -->
+          <div class="ll-actions-and-results">
+            <div class="ll-actions-bar">
+              <button id="front-calculate-btn" class="ll-button-primary">Calculate Spoke Lengths</button>
+            </div>
+            
+          </div>
+        </div>
+        <!-- CELL 2: FRONT WHEEL RESULTS -->
+        <div class="ll-results-wrapper ll-results-group is-hidden" id="front-results-container">
+          <!-- Front results will be injected here -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Rear Wheel Wrapper (Groups Inputs & Results) -->
+    <div class="ll-wheel-wrapper" id="rear-wheel-wrapper">
+      <!-- Accordion Header -->
+      <h2 class="ll-wheel-section-header">Rear Wheel</h2>
+       <!-- Collapsible Content -->
+      <div class="ll-wheel-content-container">
+        <!-- CELL 3: REAR WHEEL INPUTS -->
+        <div class="ll-wheel-section" id="ll-rear-wheel-section">
+          <!-- This will be replaced by the JS clone -->
+          <p>Loading...</p>
+        </div>
+        <!-- CELL 4: REAR WHEEL RESULTS -->
+        <div class="ll-results-wrapper ll-results-group is-hidden" id="rear-results-container">
+          <!-- Rear results will be injected here -->
+        </div>
+      </div>
+    </div>
+
+  </div> <!-- End .ll-calc-main-grid -->
+
+  <div class="ll-footer-links">
+    <a href="#" id="ll-global-accuracy-link" class="ll-disclaimer-link">Accuracy & Terms</a>
+    <span class="ll-footer-link-separator">|</span>
+    <a href="#" id="ll-report-bug-link" class="ll-disclaimer-link">Report a Bug</a>
+  </div>
+
+</div>
+<!-- END: LOAMLABS SPOKE CALCULATOR APP -->
+
+<!-- (All your modals and script tags will go here) -->
+<!-- MODAL FOR SPOKE COUNT CHOICE -->
+<div class="ll-modal-overlay is-hidden" id="ll-spoke-choice-modal">
+  <div class="ll-modal-content">
+    <h3 class="ll-modal-title">Please Select a Spoke Count</h3>
+    <div class="ll-modal-body">
+      <p>This component is available in multiple spoke counts. Please select one to continue.</p>
+      <div id="ll-spoke-choices-container" class="ll-input-mode-selector">
+        <!-- Spoke count radio buttons will be generated here by JS -->
+      </div>
+      <div style="text-align: center; margin-top: 1.5rem;">
+        <button id="ll-confirm-spoke-choice" class="ll-button-primary" disabled>Confirm Selection</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL FOR DISCLAIMER CONFIRMATION -->
+<div class="ll-modal-overlay is-hidden" id="ll-disclaimer-modal">
+  <div class="ll-modal-content">
+    <h3 class="ll-modal-title">Please Verify Your Inputs</h3>
+    <div class="ll-modal-body">
+      <p>This tool provides a precise spoke length based on the numbers you enter. The accuracy of the result depends entirely on the accuracy of your inputs.</p>
+      <p><strong>Please confirm the following:</strong></p>
+      <ul>
+        <li><strong>Your ERD is correct.</strong> Effective Rim Diameter is the most critical measurement. Always measure it yourself if possible.</li>
+        <li><strong>Nipple washers are accounted for.</strong> If your ERD measurement *already includes* washer thickness, please leave the 'Nipple Washer Thickness' field at 0 to avoid double-counting.</li>
+        <li><strong>Your Hub is correct.</strong> Confirm you have selected the exact hub model you intend to use and have verified its dimensions against official manufacturer specifications.</li>
+      </ul>
+      <p><small>By accepting, you acknowledge that you have verified your inputs and that LoamLabs is not liable for costs incurred from incorrect spoke lengths.</small></p>
+      <div class="ll-disclaimer-acceptance">
+        <input type="checkbox" id="ll-disclaimer-checkbox">
+        <label for="ll-disclaimer-checkbox">I have read, understood, and verified my inputs.</label>
+      </div>
+      <div class="ll-disclaimer-actions">
+        <button id="ll-disclaimer-cancel" class="ll-button-secondary">Cancel</button>
+        <button id="ll-disclaimer-accept" class="ll-button-primary" disabled>Accept & Calculate</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL FOR ACCURACY & TERMS -->
+<div class="ll-modal-overlay is-hidden" id="ll-terms-modal">
+  <div class="ll-modal-content">
+    <button class="ll-modal-close" id="ll-terms-modal-close-btn">&times;</button>
+    <h3 class="ll-modal-title">Accuracy & Terms of Use</h3>
+    <div class="ll-modal-body">
+      <p>This spoke calculator is a professional-grade tool provided for your convenience. LoamLabs has made every reasonable effort to ensure the accuracy of the component data and the underlying calculation formulas.</p>
+      <ul>
+        <li><strong>Component Variations:</strong> For absolute precision, always measure your components yourself.</li>
+        <li><strong>ERD is Critical:</strong> A 1mm error in ERD results in a 0.5mm error in spoke length.</li>
+        <li><strong>Nipple Washers:</strong> Be mindful of whether your ERD measurement includes nipple washer thickness.</li>
+      </ul>
+      <p><strong>By using this tool, you agree that it is your responsibility to verify all measurements. LoamLabs is not liable for any costs incurred from incorrect spoke length calculations.</strong></p>
+      <div class="ll-disclaimer-actions" style="margin-top: 2rem; justify-content: center;">
+        <button id="ll-terms-modal-ok-btn" class="ll-button-primary">OK</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL FOR HELP ICONS -->
+<div class="ll-modal-overlay is-hidden" id="ll-help-modal">
+  <div class="ll-modal-content">
+    <button class="ll-modal-close" id="ll-modal-close-btn">&times;</button>
+    <h3 class="ll-modal-title" id="ll-modal-title">Help</h3>
+    <div class="ll-modal-body" id="ll-modal-body"><p>Help text will be loaded here.</p></div>
+  </div>
+</div>
+
+<!-- MODAL FOR EXPANDED RESULTS VIEW -->
+<div class="ll-modal-overlay is-hidden" id="ll-expand-modal">
+  <div class="ll-modal-content ll-modal-content--large">
+    <button class="ll-modal-close" id="ll-expand-modal-close-btn">&times;</button>
+    <h3 class="ll-modal-title" id="ll-expand-modal-title">Calculation Results</h3>
+    <div class="ll-modal-body" id="ll-expand-modal-body">
+      <!-- Results will be dynamically injected here -->
+    </div>
+  </div>
+</div>
+
+<!-- ========================================================== -->
+<!-- MODAL FOR WHEEL VISUALIZATION                         -->
+<!-- ========================================================== -->
+<div class="ll-modal-overlay is-hidden" id="ll-visualize-modal">
+  <div class="ll-modal-content ll-modal-content--xlarge">
+    <button class="ll-modal-close" id="ll-visualize-modal-close-btn">&times;</button>
+    <div class="ll-visualize-modal-header">
+      <h3 class="ll-modal-title" id="ll-visualize-modal-title">Wheel Geometry Visualization</h3>
+      <img id="vis-rotation-arrow-img" src="" alt="Forward Rotation Indicator" class="is-hidden">
+    </div>
+    <div class="ll-modal-body" id="ll-visualize-modal-body">
+      
+      <div id="ll-visualize-controls-container" class="ll-vis-accordion-panel">
+        <h4 class="ll-vis-accordion-header">Display Options</h4>
+        <p id="vis-context-note" class="ll-vis-context-note"></p> 
+        
+        <div class="ll-vis-accordion-content">
+          <div class="ll-vis-control-group">
+            <label for="vis-toggle-key-spoke"><input type="checkbox" id="vis-toggle-key-spoke"> <span class="vis-label-text">Key Spoke</span></label>
+            <label for="vis-toggle-ll"><input type="checkbox" id="vis-toggle-ll"> <span class="vis-label-text">Left Leading</span></label>
+            <label for="vis-toggle-lt"><input type="checkbox" id="vis-toggle-lt"> <span class="vis-label-text">Left Trailing</span></label>
+          </div>
+          <div class="ll-vis-control-group">
+            <label for="vis-toggle-rl"><input type="checkbox" id="vis-toggle-rl"> <span class="vis-label-text">Right Leading</span></label>
+            <label for="vis-toggle-rt"><input type="checkbox" id="vis-toggle-rt"> <span class="vis-label-text">Right Trailing</span></label>
+          </div>
+                    <div class="ll-vis-control-group">
+              <h4>Color Scheme</h4>
+              <label><input type="radio" name="vis-color-mode" id="vis-color-mono" value="mono" checked> Monochrome</label>
+              <label><input type="radio" name="vis-color-mode" id="vis-color-two" value="two"> Two-Color (L/R)</label>
+              <label><input type="radio" name="vis-color-mode" id="vis-color-four" value="four"> Four-Color</label>
+          </div>
+          <div class="ll-vis-control-group">
+            <h4>Cross Pattern</h4>
+                        <div id="vis-cross-pattern-controls">
+                <!-- Sliders will be dynamically generated here by JS -->
+            </div>
+            <div style="margin-top: 0.5rem;">
+                <label><input type="checkbox" id="vis-link-sliders" checked> Link Sliders</label>
+            </div>
+            <div id="vis-cross-pattern-warning" class="ll-vis-warning-message is-hidden">
+                <!-- Warning text will be injected here by JS -->
+            </div>
+          </div>
+                    <div class="ll-vis-control-group" id="vis-paired-hub-controls-wrapper">
+              <h4>Paired Hub Holes</h4>
+              <label for="vis-paired-hub-checkbox"><input type="checkbox" id="vis-paired-hub-checkbox"> Paired Hub Holes</label>
+              <div id="vis-paired-hub-angle-control" class="is-hidden">
+                <label for="vis-paired-hub-angle-input" style="margin-top: 0.5rem;">Paired Angle (°)</label>
+                <input type="number" id="vis-paired-hub-angle-input" min="10" max="30" step="1" style="width: 100%; padding: 0.4rem;">
+              </div>
+          </div>
+               </div>
+  </div>
+        <div id="ll-wheel-canvas-container">
+        <canvas id="ll-wheel-canvas" width="600" height="600"></canvas>
+      </div>
+
+      <div id="ll-visualize-data-container" class="ll-vis-accordion-panel">
+        <h4 class="ll-vis-accordion-header">Geometric Data</h4>
+        <div class="ll-vis-accordion-content">
+          <div class="ll-vis-data-item">
+            <span class="ll-vis-data-label">Bracing Angle (L/R)</span>
+            <span class="ll-vis-data-value" id="vis-data-bracing-angle">--</span>
+          </div>
+          <div class="ll-vis-data-item">
+            <span class="ll-vis-data-label">Tension Ratio</span>
+            <span class="ll-vis-data-value" id="vis-data-tension-ratio">--</span>
+          </div>
+          <div class="ll-vis-data-item">
+            <span class="ll-vis-data-label">Geometric Length (L/R)</span>
+            <span class="ll-vis-data-value" id="vis-data-geo-length">--</span>
+          </div>
+          <div class="ll-vis-data-item">
+            <span class="ll-vis-data-label">Rim Entry Angle (L/R)</span>
+            <span class="ll-vis-data-value" id="vis-data-entry-angle">--</span>
+          </div>
+        </div>
+        <div class="ll-vis-control-group ll-vis-action-buttons">
+    <button id="vis-flip-view-btn" class="ll-button-secondary">Flip View</button>
+    <button id="vis-reset-view-btn" class="ll-button-secondary">Reset View</button>
+    <button id="vis-print-view-btn" class="ll-button-secondary">Print View</button>
+    <p class="ll-input-note">Use mouse wheel to zoom,<br>click & drag to pan.</p>
+</div>
+      </div>
+
+  </div> 
+ </div> 
+</div> 
+
+<!-- MODAL FOR SUBMISSIONS -->
+<div class="ll-modal-overlay is-hidden" id="ll-submission-modal">
+  <div class="ll-modal-content">
+    <button class="ll-modal-close" id="ll-submission-modal-close-btn">&times;</button>
+    <h3 class="ll-modal-title" id="ll-submission-modal-title">Submission Form</h3>
+    <div class="ll-modal-body" id="ll-submission-modal-body">
+      <!-- The JavaScript will inject the correct form here -->
+    </div>
+  </div>
+</div>
+
+<!-- SHARE LINK FEATURE -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css"/>
+<script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
+
+<script>
+  window.LL_COMPONENT_DB_URL = "https://loamlabs-component-api.vercel.app/api/get-components";
+</script>
+
+<script src="{{ 'spoke-calculator.js' | asset_url }}" defer="defer"></script>
+
+</div>
+
+{% schema %}
+{
+  "name": "Spoke Calculator Page",
+  "settings": []
+}
+{% endschema %}

@@ -1,0 +1,45 @@
+{%- comment -%}LoamLabs - Accessory Bundle Placeholder Row{%- endcomment -%}
+{%- liquid -%}
+{%- assign accessoryBundleBuildId = item.properties._build_id -%}
+{%- assign accessoryBundleIndexKeys = item.index | append: '||' | append: item.key -%}
+{%- for _acc_item in cart.items -%}
+  {%- if _acc_item.properties._parent_build_id == accessoryBundleBuildId and _acc_item.id != item.id -%}
+    {%- assign accessoryBundleIndexKeys = accessoryBundleIndexKeys | append: ',' | append: _acc_item.index | append: '||' | append: _acc_item.key -%}
+  {%- endif -%}
+{%- endfor -%}
+{%- assign accessory_bundle_display_name = item.properties._build_name | default: "Selected Accessories" -%}
+{%- assign accessory_bundle_total_price_string = item.properties._total_price | default: "0.00" -%}
+{%- assign accessory_bundle_total_price_cents = accessory_bundle_total_price_string | times: 100 | round -%}
+
+<tr class="cart-item" id="CartItem-AccessoryBundle-{{ item.key }}" data-accessory-bundle-ref="{{ accessoryBundleBuildId }}">
+  <td class="cart-item__media">
+    {% if item.image %}<a href="#" class="cart-item__link" aria-hidden="true" tabindex="-1"> </a><div class="cart-item__image-container gradient global-media-settings"><img src="{{ item.image | image_url: width: 300 }}" class="cart-item__image" alt="{{ accessory_bundle_display_name | escape }}" loading="lazy" width="150" height="{{ 150 | divided_by: item.image.aspect_ratio | ceil }}"></div>{% else %}<div class="cart-item__image-container gradient global-media-settings" style="display:flex; align-items:center; justify-content:center; background-color: rgba(var(--color-foreground), 0.03);"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="60" height="60" fill="rgba(var(--color-foreground), 0.3)"><path d="M20 5h-3.17L15 3H9L7.17 5H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm-8 11c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/><circle cx="12" cy="11" r="3"/></svg></div>{% endif %}
+  </td>
+  <td class="cart-item__details">
+    <p class="cart-item__name h4 break" style="pointer-events: none;">{{ accessory_bundle_display_name }}</p>
+    {%- assign main_build_id_for_edit = accessoryBundleBuildId | remove: '-ACC' -%}
+    {%- if main_build_id_for_edit %}<p class="build-id-line"><span class="build-id">For Build #{{ main_build_id_for_edit }}</span></p>{%- endif -%}
+    <dl><div class="product-option custom-accessory-bundle-components" data-placeholder-key="{{ item.key }}">Loading accessories...</div></dl>
+  </td>
+  <td class="cart-item__totals right medium-hide large-up-hide">
+    <div class="cart-item__price-wrapper"><span class="price price--end">{{ accessory_bundle_total_price_cents | money }}</span></div>
+  </td>
+  <td class="cart-item__quantity">
+    <div class="bundle-quantity-controls">
+      <quantity-input class="quantity cart-quantity bundle-qty-input" data-group-item>1</quantity-input>
+      <cart-edit-button id="Edit-AccessoryBundle-{{ item.key }}" data-index="{{ item.index | plus: 1 }}">
+        <a href="/pages/accessories?build_id={{ main_build_id_for_edit }}&edit_accessories=true" class="button button--tertiary" aria-label="Edit Accessories for Build #{{ main_build_id_for_edit }}" title="Edit Accessories for Build #{{ main_build_id_for_edit }}">
+          <span class="svg-wrapper"><svg aria-hidden="true" focusable="false" role="presentation" class="icon icon-edit" viewBox="0 0 24 24"><path fill="currentColor" d="M21.2 5.2L18.8 2.8C18.4 2.4 17.8 2.4 17.4 2.8L15 5.2 18.8 9 21.2 6.6C21.6 6.2 21.6 5.6 21.2 5.2ZM2.8 17.4L13.2 7L17 10.8L6.6 21.2C6.2 21.6 5.6 21.6 5.2 21.2L2.8 18.8C2.4 18.4 2.4 17.8 2.8 17.4Z"></path></svg></span>
+        </a>
+      </cart-edit-button>
+      <cart-remove-button id="Remove-AccessoryBundle-{{ item.key }}" data-key="{{ item.key }}" data-keys-to-remove="{{ accessoryBundleIndexKeys }}" data-group-ref="{{ accessoryBundleBuildId }}" data-bundle-type="accessory-bundle" data-main-build-id="{{ main_build_id_for_edit }}">
+        <a href="#" class="button button--tertiary" aria-label="Remove {{ accessory_bundle_display_name | escape }}" title="Remove {{ accessory_bundle_display_name | escape }}">
+          <span class="svg-wrapper">{{- 'icon-remove.svg' | inline_asset_content -}}</span>
+        </a>
+      </cart-remove-button>
+    </div>
+  </td>
+  <td class="cart-item__totals right small-hide">
+    <div class="cart-item__price-wrapper"><span class="price price--end">{{ accessory_bundle_total_price_cents | money }}</span></div>
+  </td>
+</tr>

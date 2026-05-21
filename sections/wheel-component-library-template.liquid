@@ -1,0 +1,42 @@
+{% comment %} Add the sticky filter bar HTML above the main app container {% endcomment %}
+<div class="ll-sticky-filters" id="ll-sticky-filters">
+  <div class="page-width">
+    <nav class="ll-sticky-nav">
+      <a href="#category-rims" class="ll-sticky-nav-link" data-target="rims">Rims</a>
+      <a href="#category-hubs" class="ll-sticky-nav-link" data-target="hubs">Hubs</a>
+      <a href="#category-spokes" class="ll-sticky-nav-link" data-target="spokes">Spokes</a>
+      <a href="#category-nipples" class="ll-sticky-nav-link" data-target="nipples">Nipples</a>
+    </nav>
+  </div>
+</div>
+
+<div class="page-width">
+  <div id="wheel-component-app" data-lzstring-url="{{ 'lz-string.min.js' | asset_url }}">
+  
+  {% if page.metafields.custom.seo_library_content != blank %}
+    <!-- This is the "Ghost Content" for Google SEO -->
+    <div id="ll-library-seo-boost" style="opacity: 0.05; height: 1px; overflow: hidden;">
+      {{ page.metafields.custom.seo_library_content.value }}
+    </div>
+  {% endif %}
+
+  <div class="ll-library-loading">
+    <p>Loading Interactive Wheel Component Library...</p>
+    <div class="spinner"></div>
+  </div>
+</div>
+</div>
+
+{% schema %}
+{
+  "name": "Wheel Component App",
+  "tag": "section",
+  "class": "wheel-component-library-section",
+  "settings": [],
+  "presets": [
+    {
+      "name": "Wheel Component App"
+    }
+  ]
+}
+{% endschema %}

@@ -1,0 +1,40 @@
+<div class="color-{{ section.settings.color_scheme }} gradient">
+  <div class="page-width">
+    
+    
+
+    <div class="blog-post-grid">
+      {% for article in blog.articles %}
+        <div class="blog-post-card">
+          <a href="{{ article.url }}">
+            {% if article.image %}
+              <div class="blog-post-image">
+                <img src="{{ article.image | image_url: width: 400, height: 250, crop: 'center' }}" alt="{{ article.image.alt | escape }}">
+              </div>
+            {% endif %}
+            <div class="blog-post-content">
+              <h3>{{ article.title }}</h3>
+              <p>{{ article.excerpt_or_content | strip_html | truncate: 150 }}</p>
+              <span>Read More →</span>
+            </div>
+          </a>
+        </div>
+      {% endfor %}
+    </div>
+
+  </div>
+</div>
+
+{% schema %}
+{
+  "name": "LoamLabs Blog Category",
+  "settings": [
+    {
+      "type": "color_scheme",
+      "id": "color_scheme",
+      "label": "Color scheme",
+      "default": "scheme-1"
+    }
+  ]
+}
+{% endschema %}

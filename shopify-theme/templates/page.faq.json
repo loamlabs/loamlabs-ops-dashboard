@@ -1,0 +1,70 @@
+/*
+ * ------------------------------------------------------------
+ * IMPORTANT: The contents of this file are auto-generated.
+ *
+ * This file may be updated by the Shopify admin theme editor
+ * or related systems. Please exercise caution as any changes
+ * made to this file may be overwritten.
+ * ------------------------------------------------------------
+ */
+{
+  "sections": {
+    "main": {
+      "type": "main-page",
+      "disabled": true,
+      "settings": {
+        "padding_top": 36,
+        "padding_bottom": 36
+      }
+    },
+    "custom_liquid_9XwcUF": {
+      "type": "custom-liquid",
+      "name": "t:sections.custom-liquid.presets.name",
+      "settings": {
+        "custom_liquid": "{{ page.metafields.custom.landing_page_content }}",
+        "color_scheme": "background-2",
+        "padding_top": 4,
+        "padding_bottom": 16
+      }
+    },
+    "custom_liquid_amDmqV": {
+      "type": "custom-liquid",
+      "name": "t:sections.custom-liquid.presets.name",
+      "settings": {
+        "custom_liquid": "<div class=\"faq-accordion\">\n  <div class=\"faq-item\">\n    <button class=\"faq-question\">\n      <span>What makes a LoamLabs custom wheel different?</span>\n      <span class=\"faq-icon\">+</span>\n    </button>\n    <div class=\"faq-answer\">\n      <p>The difference is precision. Unlike mass-produced wheels, every LoamLabs custom wheel is hand-built in-house by an expert mechanic. We meticulously tension, stress-relieve, and true each wheel to the tightest tolerances, ensuring a stronger, more durable, and better-performing wheelset that's perfectly matched to your needs.</p>\n    </div>\n  </div>\n\n  <div class=\"faq-item\">\n    <button class=\"faq-question\">\n      <span>How does the Custom Wheel Builder work?</span>\n      <span class=\"faq-icon\">+</span>\n    </button>\n    <div class=\"faq-answer\">\n      <p>Our interactive Custom Wheel Builder guides you through the process of selecting the perfect components for your wheelset. You choose your hubs, rims, spokes, and nipples from our curated list of top brands. The builder automatically ensures compatibility, and once you're done, our expert mechanics get to work building your dream wheels to your exact specifications.</p>\n    </div>\n  </div>\n\n  <div class=\"faq-item\">\n    <button class=\"faq-question\">\n      <span>What is the turnaround time for a custom wheel build?</span>\n      <span class=\"faq-icon\">+</span>\n    </button>\n    <div class=\"faq-answer\">\n      <p>Lead times can vary based on component availability. We display an estimated lead time in the build summary of the Custom Wheel Builder so you have an idea before you order. For the most up-to-date information on a specific build, please feel free to contact us.</p>\n    </div>\n  </div>\n\n  <div class=\"faq-item\">\n    <button class=\"faq-question\">\n      <span>Can I supply my own hubs or rims?</span>\n      <span class=\"faq-icon\">+</span>\n    </button>\n    <div class=\"faq-answer\">\n      <p>Yes, absolutely. Our Custom Wheel Builder has an option for \"Customer Supplied Components.\" Simply select this option, complete your build, and you will receive instructions on where to send your parts after you place your order. We'll take care of the rest.</p>\n    </div>\n  </div>\n  \n  <div class=\"faq-item\">\n    <button class=\"faq-question\">\n      <span>Do your wheels come with a warranty?</span>\n      <span class=\"faq-icon\">+</span>\n    </button>\n    <div class=\"faq-answer\">\n      <p>Yes. We stand behind the quality of our craftsmanship with a comprehensive warranty. You can read the full details on our <a href=\"/pages/warranty\"><strong>Warranty Page</strong></a>.</p>\n    </div>\n  </div>\n</div>",
+        "color_scheme": "",
+        "padding_top": 40,
+        "padding_bottom": 52
+      }
+    },
+    "rich_text_hyHd8x": {
+      "type": "rich-text",
+      "blocks": {
+        "text_UwEgaf": {
+          "type": "text",
+          "settings": {
+            "text": "<p><em>Technical specifications and component compatibility verified: April 2026.</em></p>"
+          }
+        }
+      },
+      "block_order": [
+        "text_UwEgaf"
+      ],
+      "name": "t:sections.rich-text.presets.name",
+      "settings": {
+        "desktop_content_position": "center",
+        "content_alignment": "center",
+        "color_scheme": "",
+        "full_width": true,
+        "padding_top": 40,
+        "padding_bottom": 52
+      }
+    }
+  },
+  "order": [
+    "main",
+    "custom_liquid_9XwcUF",
+    "custom_liquid_amDmqV",
+    "rich_text_hyHd8x"
+  ]
+}

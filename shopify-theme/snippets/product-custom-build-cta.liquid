@@ -1,0 +1,215 @@
+{% comment %}
+  LoamLabs - Custom Wheel Builder CTA (v43.1 - Correct V3 Hub Selector)
+{% endcomment %}
+
+{%- liquid
+  assign color_scheme_id = color_scheme
+  assign is_component = false
+  assign component_type = ''
+  assign is_core_component = false
+  for tag in product.tags
+    if tag contains 'component:'
+      assign is_component = true
+      assign component_type = tag | remove: 'component:'
+      if component_type == 'hub' or component_type == 'rim'
+        assign is_core_component = true
+      endif
+      break
+    endif
+  endfor
+-%}
+
+{% if is_component %}
+  
+  <script type="application/json" id="loam-variants-data-json">
+    [
+      {%- for variant in product.variants -%}
+        {%- liquid
+            assign spoke_count_for_variant = null
+            for option in product.options_with_values
+                if option.name == 'Spoke Count'
+                    assign option_index = forloop.index0
+                    assign spoke_count_for_variant = variant.options[option_index]
+                endif
+            endfor
+
+            assign position_for_variant = ''
+            if variant.metafields.custom.wheel_spec_position.value != blank
+                assign position_for_variant = variant.metafields.custom.wheel_spec_position.value | downcase
+            elsif product.title contains 'Front'
+                assign position_for_variant = 'front'
+            elsif product.title contains 'Rear'
+                assign position_for_variant = 'rear'
+            endif
+        -%}
+        {
+          "id": {{ variant.id }},
+          "gid": "gid://shopify/ProductVariant/{{ variant.id }}",
+          "spoke_count": {{ spoke_count_for_variant | json }},
+          "position": {{ position_for_variant | json }},
+          "wheel_size": {{ variant.metafields.custom.wheel_spec_rim_size.value | json }},
+          "hub_spacing": {{ variant.metafields.custom.wheel_spec_hub_spacing.value | json }},
+          "brake_style": {{ variant.metafields.custom.wheel_spec_brake_interface.value | json }}
+        }
+        {%- unless forloop.last -%},{%- endunless -%}
+      {%- endfor -%}
+    ]
+  </script>
+
+  <div class="custom-build-cta-wrapper--v2 color-{{ color_scheme_id }}">
+    <div class="custom-build-cta-content">
+      <h3 class="custom-build-cta-title">Ready for a Custom Build?</h3>
+      <p class="custom-build-cta-description">
+        Use this component as the foundation for your perfect hand-built wheelset.
+      </p>
+
+      {%- liquid
+        assign button_text = 'Open the Wheel Builder'
+        if component_type == 'hub'
+          assign button_text = 'Build a Wheelset with this Hub'
+        elsif component_type == 'rim'
+          assign button_text = 'Build a Wheelset with this Rim'
+        endif
+        
+        assign current_variant = product.selected_or_first_available_variant
+        assign position = ''
+        if current_variant.metafields.custom.wheel_spec_position.value != blank
+          assign position = current_variant.metafields.custom.wheel_spec_position.value | downcase
+        elsif product.title contains 'Front'
+          assign position = 'front'
+        elsif product.title contains 'Rear'
+          assign position = 'rear'
+        endif
+
+        assign riding_style_value = ''
+        if product.tags contains 'style:mtb'
+          assign riding_style_value = 'mtb'
+        elsif product.tags contains 'style:gravelroad'
+          assign riding_style_value = 'gravelroad'
+        endif
+
+        assign spoke_count = null
+        for option in product.options_with_values
+          if option.name == 'Spoke Count'
+            assign spoke_count = current_variant.options[forloop.index0]
+          endif
+        endfor
+
+        assign wheel_size = current_variant.metafields.custom.wheel_spec_rim_size.value
+        assign hub_spacing = current_variant.metafields.custom.wheel_spec_hub_spacing.value
+        assign brake_style = current_variant.metafields.custom.wheel_spec_brake_interface.value
+      -%}
+
+      <a href="/pages/custom-wheel-builder"
+         class="button button--primary custom-build-cta-button"
+         id="custom-build-cta-button"
+         data-prebuild="true"
+         data-variant-id="gid://shopify/ProductVariant/{{ current_variant.id }}"
+         data-component-type="{{ component_type }}"
+         data-position="{{ position }}"
+         data-riding-style-value="{{ riding_style_value }}"
+         data-spoke-count="{{ spoke_count }}"
+         data-wheel-size="{{ wheel_size }}"
+         data-hub-spacing="{{ hub_spacing }}"
+         data-brake-style="{{ brake_style | json | escape }}">
+        {{ button_text }}
+      </a>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const ctaButton = document.getElementById('custom-build-cta-button');
+      const productForm = document.querySelector('product-form');
+      const variantIdInput = productForm ? productForm.querySelector('input[name="id"]') : null;
+
+      if (!ctaButton || !productForm || !variantIdInput) { return; }
+
+      let allVariantData = [];
+      try {
+        allVariantData = JSON.parse(document.getElementById('loam-variants-data-json').textContent);
+      } catch (e) { console.error("CTA Error: Could not parse variant JSON.", e); return; }
+
+      const updateButtonData = (variantId) => {
+        if (!variantId || allVariantData.length === 0) return;
+        const numericVariantId = parseInt(variantId, 10);
+        const variantInfo = allVariantData.find(v => v.id === numericVariantId);
+        if (variantInfo) {
+          ctaButton.dataset.variantId = variantInfo.gid;
+          ctaButton.dataset.position = variantInfo.position;
+          ctaButton.dataset.spokeCount = variantInfo.spoke_count;
+          let wheelSizeValue = variantInfo.wheel_size;
+          if (typeof wheelSizeValue === 'string') { try { wheelSizeValue = JSON.parse(wheelSizeValue); } catch (e) {} }
+          ctaButton.dataset.wheelSize = Array.isArray(wheelSizeValue) ? wheelSizeValue[0] : wheelSizeValue;
+          ctaButton.dataset.hubSpacing = variantInfo.hub_spacing;
+          ctaButton.dataset.brakeStyle = JSON.stringify(variantInfo.brake_style);
+        }
+      };
+
+      updateButtonData(variantIdInput.value);
+
+      const observer = new MutationObserver((mutationsList) => {
+        for (const mutation of mutationsList) {
+          if (mutation.type === 'attributes' && mutation.attributeName === 'value') {
+            updateButtonData(mutation.target.value);
+          }
+        }
+      });
+      observer.observe(variantIdInput, { attributes: true });
+
+      if (ctaButton.dataset.prebuild === 'true') {
+        ctaButton.addEventListener('click', function(event) {
+          event.preventDefault();
+          const data = this.dataset;
+          
+          const prebuildState = {
+            startComponent: { variantId: data.variantId, type: data.componentType, position: data.position },
+            selections: {
+              step1: { buildType: "Wheel Set", ridingStyle: data.ridingStyleValue, ridingStyleDisplay: data.ridingStyleValue === 'mtb' ? 'Mountain' : 'Gravel / Road' },
+              step2: {}
+            }
+          };
+
+          if (data.componentType === 'hub' && data.position === 'rear') {
+            const selectedFreehubInput = document.querySelector('input[name="properties[_Freehub_Type_Selector]"]:checked');
+            if (selectedFreehubInput) {
+              prebuildState.selections.step2.freehubType = selectedFreehubInput.value;
+            }
+          }
+
+          if (data.componentType === 'rim') {
+            if (data.spokeCount) { prebuildState.selections.step2.frontSpokeCount = data.spokeCount; prebuildState.selections.step2.rearSpokeCount = data.spokeCount; }
+            if (data.wheelSize) { prebuildState.selections.step2.frontWheelSize = data.wheelSize; prebuildState.selections.step2.rearWheelSize = data.wheelSize; }
+          } else if (data.position === 'front') {
+            if (data.spokeCount) prebuildState.selections.step2.frontSpokeCount = data.spokeCount;
+            if (data.hubSpacing) prebuildState.selections.step2.frontHubSpacing = data.hubSpacing;
+          } else { // Rear or fallback
+            if (data.spokeCount) prebuildState.selections.step2.rearSpokeCount = data.spokeCount;
+            if (data.hubSpacing) prebuildState.selections.step2.rearHubSpacing = data.hubSpacing;
+          }
+          
+          if (data.brakeStyle && data.brakeStyle !== 'null') {
+            try { prebuildState.selections.step2.brakeStyle = JSON.parse(data.brakeStyle); } catch (e) { prebuildState.selections.step2.brakeStyle = data.brakeStyle; }
+          }
+
+          const jsonString = JSON.stringify(prebuildState);
+          const encodedData = encodeURIComponent(jsonString);
+          const finalUrl = this.href + '#prebuild=' + encodedData;
+          
+          window.location.href = finalUrl;
+        });
+      }
+    });
+  </script>
+
+<style>
+    .custom-build-cta-wrapper--v2 { padding: 40px 20px; margin-top: 40px; margin-bottom: 40px; background: var(--gradient-background); border-top: 1px solid var(--color-border); border-bottom: 1px solid var(--color-border); }
+    .color-{{ color_scheme_id }} .custom-build-cta-title { color: var(--color-heading); }
+    .color-{{ color_scheme_id }} .custom-build-cta-description { color: var(--color-text); }
+    .color-{{ color_scheme_id }} .custom-build-cta-button { background-color: var(--color-button); color: var(--color-button-text); border-color: var(--color-button-border); }
+    .custom-build-cta-content { max-width: 600px; margin: 0 auto; text-align: center; }
+    .custom-build-cta-title { font-size: 1.8em; font-weight: 600; margin-top: 0; margin-bottom: 10px; }
+    .custom-build-cta-description { font-size: 1.1em; margin-bottom: 25px; line-height: 1.6; }
+    .custom-build-cta-button { padding: 12px 30px; font-size: 1.1em; font-weight: bold; text-decoration: none; display: inline-block; border-width: 1px; border-style: solid; }
+</style>
+{% endif %}

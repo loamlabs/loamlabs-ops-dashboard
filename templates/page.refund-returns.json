@@ -1,0 +1,66 @@
+/*
+ * ------------------------------------------------------------
+ * IMPORTANT: The contents of this file are auto-generated.
+ *
+ * This file may be updated by the Shopify admin theme editor
+ * or related systems. Please exercise caution as any changes
+ * made to this file may be overwritten.
+ * ------------------------------------------------------------
+ */
+{
+  "sections": {
+    "main": {
+      "type": "main-page",
+      "disabled": true,
+      "settings": {
+        "padding_top": 20,
+        "padding_bottom": 0
+      }
+    },
+    "custom_liquid_n4VNbW": {
+      "type": "custom-liquid",
+      "name": "t:sections.custom-liquid.presets.name",
+      "settings": {
+        "custom_liquid": "{{ page.metafields.custom.landing_page_content }}",
+        "color_scheme": "background-2",
+        "padding_top": 4,
+        "padding_bottom": 16
+      }
+    },
+    "fc67c747-46f3-4b89-8719-37b9644d1193": {
+      "type": "rich-text",
+      "blocks": {
+        "template--20435663749427__fc67c747-46f3-4b89-8719-37b9644d1193-heading-1": {
+          "type": "heading",
+          "settings": {
+            "heading": "",
+            "heading_size": "h1"
+          }
+        },
+        "template--20435663749427__fc67c747-46f3-4b89-8719-37b9644d1193-text-1": {
+          "type": "text",
+          "settings": {
+            "text": "<p><strong>LoamLabs Returns, Warranty & Custom Order Policy</strong></p><p><strong>Our Promise to You</strong></p><p>At LoamLabs, every wheel we build is a partnership. We take immense pride in our craftsmanship and the components we select. Our goal is for you to be thrilled with your new wheels from the moment they arrive. This policy is designed to be transparent and fair, outlining our commitments to you and what we ask of our partners in the build process—our customers.</p><p><strong>1. Custom Wheel Builds (from the Wheel Builder): Final Sale</strong></p><p>Because every wheel from our Custom Wheel Builder is tailored specifically to your selections, <strong>all custom wheel sales are final upon shipment.</strong></p><p>We invest significant time in sourcing your specific parts and in the meticulous process of building, tensioning, and truing your wheels. Due to the unique combination of components, we cannot accept returns or exchanges on custom-built wheels for reasons such as incorrect specification selection, a change of mind, or buyer's remorse.</p><p><strong>We strongly encourage you to double-check all specifications (sizes, spacing, colors, etc.) in your cart before placing your order.</strong> If you have any questions or uncertainty about compatibility, please <a href=\"https://e6f6c8-2.myshopify.com/pages/contact-us\">Contact Us</a> before you buy. We are always here to help you get it right the first time.</p><p><strong>2. Pro-Built & Special Order Wheels</strong></p><p>Wheels listed in our \"Pro-Built Wheels\" section are considered special-order items, whether they are built in-house by LoamLabs or sourced directly from the manufacturer.</p><ul><li><strong>Cancellations:</strong> Pro-Built and Special Order wheels are subject to the same cancellation policy as our Custom Wheel Builds (see Section 3 below).</li><li><strong>Returns:</strong> Due to their special-order nature, returns for these wheels are subject to a <strong>30% restocking fee</strong>. The wheel must be in new, unused, and uninstalled condition in its original packaging. The customer is responsible for all return shipping costs.</li></ul><p><strong>3. Order Changes & Cancellations (for Custom and Pro-Builds)</strong></p><p>We understand that things can change. We've designed a clear window for adjustments or cancellations:</p><ul><li><strong>24-Hour Grace Period:</strong> You may change or cancel your custom or pro-build order for a full refund within <strong>24 hours</strong> of placing it, no questions asked. Please contact us immediately at [<a href=\"https://www.google.com/url?sa=E&q=mailto%3AInfo%40loamlabsusa.com\" target=\"_blank\">Info@loamlabsusa.com</a>] with your order number.</li><li><strong>After 24 Hours (Pre-Build):</strong> Once the 24-hour grace period has passed, we begin ordering your specific parts. Any cancellation requested after this point, but <strong>before the wheel has been physically built</strong>, will be subject to a <strong>30% processing and restocking fee</strong>.</li><li><strong>After Build Completion:</strong> Once the build process for your wheel(s) has been completed in our workshop, <strong>the order can no longer be cancelled.</strong></li></ul><p><strong>4. LoamLabs Workmanship & Warranty Guarantee</strong></p><p>We stand by the quality of our builds and the components we sell.</p><ul><li><strong>Workmanship Guarantee:</strong> We guarantee our wheel builds to be free of defects in workmanship for the lifetime of the original owner. This covers aspects of the build itself, such as proper spoke tensioning and initial truing. Please note that wheel trueness and spoke tension can be affected by riding impacts, rim damage, or other use-related factors, which are not covered under the workmanship guarantee. If you ever have an issue you believe is related to the original quality of our build, please contact us to discuss it.</li><li><strong>Component Warranties:</strong> All components (rims, hubs, spokes, etc.) are covered by their respective manufacturer's warranty. We are your advocate and will help facilitate any warranty claims for defective parts. <strong>Please be aware that while the component itself may be replaced by the manufacturer under warranty, LoamLabs charges a standard labor fee (e.g., $120 per wheel) for any wheel rebuilds required as part of the warranty process.</strong> The customer is responsible for all shipping costs associated with warranty claims.</li><li><strong>Damage in Initial Transit:</strong> If your new wheels arrive damaged from the initial shipment, please contact us <strong>within 48 hours</strong> of delivery. Email photos of the damaged box and product to [<a href=\"https://www.google.com/url?sa=E&q=mailto%3AInfo%40loamlabsusa.com\" target=\"_blank\">Info@loamlabsusa.com</a>]. We will manage the claim and work with you to repair or replace the wheel at no cost to you, including all associated shipping.</li></ul><p><strong>5. Returns for Standard (Non-Custom) Items</strong></p><p>For individual components or accessories not part of a custom wheel build, you may return them within <strong>30 days</strong> of delivery under the following conditions:</p><ul><li>The item must be in new, unused, and uninstalled condition, in its original packaging.</li><li>The customer is responsible for return shipping costs.</li><li>Shipping and labor fees are non-refundable.</li><li>All returns of standard items are subject to a <strong>20% restocking fee</strong>.</li><li><strong>Spokes:</strong> Custom-cut spokes are considered a custom item and are non-returnable.</li></ul><p><strong>6. How to Initiate a Return or Warranty Claim</strong></p><p>To begin any return or warranty process, please use our <a href=\"https://e6f6c8-2.myshopify.com/pages/contact-us\">Contact Us</a> form. Include your original order number, a clear description of the issue, and photos if applicable. We will respond promptly with the next steps. Do not ship any items back to us without first receiving an authorization.</p>"
+          }
+        }
+      },
+      "block_order": [
+        "template--20435663749427__fc67c747-46f3-4b89-8719-37b9644d1193-heading-1",
+        "template--20435663749427__fc67c747-46f3-4b89-8719-37b9644d1193-text-1"
+      ],
+      "settings": {
+        "desktop_content_position": "center",
+        "content_alignment": "left",
+        "color_scheme": "background-1",
+        "full_width": true,
+        "padding_top": 12,
+        "padding_bottom": 40
+      }
+    }
+  },
+  "order": [
+    "main",
+    "custom_liquid_n4VNbW",
+    "fc67c747-46f3-4b89-8719-37b9644d1193"
+  ]
+}

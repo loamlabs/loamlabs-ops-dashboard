@@ -1,0 +1,157 @@
+/*
+ * ------------------------------------------------------------
+ * IMPORTANT: The contents of this file are auto-generated.
+ *
+ * This file may be updated by the Shopify admin theme editor
+ * or related systems. Please exercise caution as any changes
+ * made to this file may be overwritten.
+ * ------------------------------------------------------------
+ */
+{
+  "sections": {
+    "main": {
+      "type": "main-page",
+      "disabled": true,
+      "settings": {
+        "padding_top": 20,
+        "padding_bottom": 0
+      }
+    },
+    "4d946284-781d-47f1-b694-fcaac5f58f67": {
+      "type": "rich-text",
+      "blocks": {
+        "text_DUaGp3": {
+          "type": "text",
+          "settings": {
+            "text": "<h1><strong>Wheel Spoke Count</strong></h1><h2>The differences and benefits among 24-hole, 28-hole, and 32-hole bike rims primarily revolve around strength, weight, and intended use.</h2>"
+          }
+        }
+      },
+      "block_order": [
+        "text_DUaGp3"
+      ],
+      "settings": {
+        "desktop_content_position": "center",
+        "content_alignment": "left",
+        "color_scheme": "background-2",
+        "full_width": true,
+        "padding_top": 24,
+        "padding_bottom": 32
+      }
+    },
+    "da5af781-417a-41ae-afa4-4511aeaeab62": {
+      "type": "multirow",
+      "blocks": {
+        "template--21646610071859__da5af781-417a-41ae-afa4-4511aeaeab62-row-1": {
+          "type": "row",
+          "settings": {
+            "image": "shopify://shop_images/nobl_rims_563198d6-a179-4307-80ca-3a34623f068e.png",
+            "caption": "",
+            "heading": "",
+            "text": "<h2><strong>24-Hole Rim:</strong></h2><ul><li><strong>Weight:</strong> Typically lighter due to fewer spokes and less material used.</li><li><strong>Aerodynamics:</strong> Potential for improved aerodynamics due to fewer spokes disrupting airflow.</li><li><strong>Strength:</strong> Not as strong as higher spoke count rims, suitable for lighter riders or smoother terrain.</li><li><strong>Weight Limitation:</strong> Might not be ideal for heavy riders or rough terrain due to the reduced spoke count's impact on weight distribution.</li></ul>",
+            "button_label": "",
+            "button_link": ""
+          }
+        },
+        "template--21646610071859__da5af781-417a-41ae-afa4-4511aeaeab62-row-2": {
+          "type": "row",
+          "settings": {
+            "image": "shopify://shop_images/sc_rims.png",
+            "caption": "",
+            "heading": "",
+            "text": "<h2><strong>28-Hole Rim:</strong></h2><ul><li><strong>Balanced Strength and Weight:</strong> Strikes a balance between weight savings and strength.</li><li><strong>Versatility:</strong> Suitable for a broad range of riders and riding conditions, offering decent strength without excessive weight.</li><li><strong>Usage:</strong> Common on road bikes, some lightweight mountain bike setups, and versatile for various riding styles.</li></ul>",
+            "button_label": "",
+            "button_link": ""
+          }
+        },
+        "template--21646610071859__da5af781-417a-41ae-afa4-4511aeaeab62-row-3": {
+          "type": "row",
+          "settings": {
+            "image": "shopify://shop_images/weareone_rims.png",
+            "caption": "",
+            "heading": "",
+            "text": "<h2><strong>32-Hole Rim:</strong></h2><ul><li><strong>Durability:</strong> Offers increased strength and durability due to more spokes distributing the load.</li><li><strong>Stability:</strong> Provides better stability and robustness, suitable for heavier riders or rougher terrain.</li><li><strong>Versatility:</strong> Works well for all-around riding, touring, bikepacking, or mountain biking, especially in challenging conditions.</li></ul>",
+            "button_label": "",
+            "button_link": ""
+          }
+        }
+      },
+      "block_order": [
+        "template--21646610071859__da5af781-417a-41ae-afa4-4511aeaeab62-row-1",
+        "template--21646610071859__da5af781-417a-41ae-afa4-4511aeaeab62-row-2",
+        "template--21646610071859__da5af781-417a-41ae-afa4-4511aeaeab62-row-3"
+      ],
+      "settings": {
+        "image_height": "medium",
+        "desktop_image_width": "medium",
+        "image_layout": "alternate-left",
+        "heading_size": "h1",
+        "text_style": "body",
+        "button_style": "secondary",
+        "desktop_content_position": "middle",
+        "desktop_content_alignment": "left",
+        "mobile_content_alignment": "left",
+        "section_color_scheme": "",
+        "row_color_scheme": "",
+        "padding_top": 20,
+        "padding_bottom": 0
+      }
+    },
+    "30ab9563-4916-45ff-8da0-ac2e480c614c": {
+      "type": "rich-text",
+      "blocks": {
+        "template--21646610071859__30ab9563-4916-45ff-8da0-ac2e480c614c-text-1": {
+          "type": "text",
+          "settings": {
+            "text": "<h2><strong>Benefits:</strong></h2><ul><li><strong>24-Hole:</strong> Ideal for weight-conscious riders and racing where weight savings are crucial.</li><li><strong>28-Hole:</strong> A good balance between weight and strength, suitable for diverse riding styles.</li><li><strong>32-Hole:</strong> Provides robustness and reliability, catering to heavier riders and rougher terrain where strength is prioritized over weight.</li></ul><p>The choice between these spoke counts depends on factors like rider weight, riding style, terrain, and personal preference for weight savings versus durability. Heavier riders or those riding in demanding conditions might benefit from the durability and strength of 32-hole rims, while lighter riders might appreciate the weight savings of 24-hole rims.</p>"
+          }
+        }
+      },
+      "block_order": [
+        "template--21646610071859__30ab9563-4916-45ff-8da0-ac2e480c614c-text-1"
+      ],
+      "settings": {
+        "desktop_content_position": "center",
+        "content_alignment": "left",
+        "color_scheme": "",
+        "full_width": true,
+        "padding_top": 12,
+        "padding_bottom": 0
+      }
+    },
+    "c54aba60-fbb2-47e1-9214-f1ad130a8adf": {
+      "type": "rich-text",
+      "blocks": {
+        "template--21646610071859__c54aba60-fbb2-47e1-9214-f1ad130a8adf-button-1": {
+          "type": "button",
+          "settings": {
+            "button_label": "Choose Your Spoke Count",
+            "button_link": "shopify://pages/custom-wheel-builder",
+            "button_style_secondary": false,
+            "button_label_2": "",
+            "button_link_2": "",
+            "button_style_secondary_2": false
+          }
+        }
+      },
+      "block_order": [
+        "template--21646610071859__c54aba60-fbb2-47e1-9214-f1ad130a8adf-button-1"
+      ],
+      "settings": {
+        "desktop_content_position": "center",
+        "content_alignment": "center",
+        "color_scheme": "",
+        "full_width": true,
+        "padding_top": 40,
+        "padding_bottom": 52
+      }
+    }
+  },
+  "order": [
+    "main",
+    "4d946284-781d-47f1-b694-fcaac5f58f67",
+    "da5af781-417a-41ae-afa4-4511aeaeab62",
+    "30ab9563-4916-45ff-8da0-ac2e480c614c",
+    "c54aba60-fbb2-47e1-9214-f1ad130a8adf"
+  ]
+}

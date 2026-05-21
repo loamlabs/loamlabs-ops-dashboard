@@ -1,0 +1,179 @@
+/*
+ * ------------------------------------------------------------
+ * IMPORTANT: The contents of this file are auto-generated.
+ *
+ * This file may be updated by the Shopify admin theme editor
+ * or related systems. Please exercise caution as any changes
+ * made to this file may be overwritten.
+ * ------------------------------------------------------------
+ */
+{
+  "sections": {
+    "rich_text_fPjbnN": {
+      "type": "rich-text",
+      "blocks": {
+        "text_9E8Cth": {
+          "type": "text",
+          "settings": {
+            "text": "<h1><strong>Brake Interfaces</strong></h1><h2><strong>6-Bolt vs. Centerlock</strong></h2>"
+          }
+        }
+      },
+      "block_order": [
+        "text_9E8Cth"
+      ],
+      "settings": {
+        "desktop_content_position": "center",
+        "content_alignment": "center",
+        "color_scheme": "background-2",
+        "full_width": true,
+        "padding_top": 24,
+        "padding_bottom": 32
+      }
+    },
+    "main": {
+      "type": "main-page",
+      "disabled": true,
+      "settings": {
+        "padding_top": 20,
+        "padding_bottom": 0
+      }
+    },
+    "9ec77420-3313-4e45-9fcb-3d3eaee96387": {
+      "type": "multicolumn",
+      "blocks": {
+        "template--21646019330355__9ec77420-3313-4e45-9fcb-3d3eaee96387-column-2": {
+          "type": "column",
+          "settings": {
+            "image": "shopify://shop_images/6b_cl_rotors.png",
+            "title": "",
+            "text": "<h3>The two main disc brake rotor interfaces are the 6-bolt and the centerlock designs. Here are their differences and benefits:</h3>",
+            "link_label": "",
+            "link": ""
+          }
+        }
+      },
+      "block_order": [
+        "template--21646019330355__9ec77420-3313-4e45-9fcb-3d3eaee96387-column-2"
+      ],
+      "settings": {
+        "title": "",
+        "heading_size": "h1",
+        "image_width": "full",
+        "image_ratio": "adapt",
+        "button_label": "",
+        "button_link": "",
+        "columns_desktop": 1,
+        "column_alignment": "left",
+        "background_style": "primary",
+        "color_scheme": "",
+        "columns_mobile": "1",
+        "swipe_on_mobile": false,
+        "padding_top": 20,
+        "padding_bottom": 0
+      }
+    },
+    "0d7966e8-adbd-4b57-8a01-6a31b83609fb": {
+      "type": "multicolumn",
+      "blocks": {
+        "template--21646019330355__0d7966e8-adbd-4b57-8a01-6a31b83609fb-column-1": {
+          "type": "column",
+          "settings": {
+            "image": "shopify://shop_images/dts-240s-6B.png",
+            "title": "",
+            "text": "<h2><strong>6-Bolt Interface:</strong></h2><ul><li><strong>Design:</strong> Uses six bolts to attach the brake rotor to the hub.</li><li><strong>Compatibility:</strong> Universally accepted and used by various manufacturers.</li><li><strong>Ease of Installation:</strong> Usually easier to install and remove the rotor.</li><li><strong>Availability:</strong> More widespread availability of rotors from different brands and sizes.</li><li><strong>Maintenance:</strong> Might require more frequent checks to ensure bolts remain tight.</li><li><strong>Weight:</strong> Typically, the interface itself might add a bit more weight due to the bolt pattern.</li><li><strong>Aesthetics:</strong> Can change the color of the bolts to match a color scheme.</li></ul>",
+            "link_label": "",
+            "link": ""
+          }
+        },
+        "template--21646019330355__0d7966e8-adbd-4b57-8a01-6a31b83609fb-column-3": {
+          "type": "column",
+          "settings": {
+            "image": "shopify://shop_images/dts-240s-CL.png",
+            "title": "",
+            "text": "<h2><strong>Centerlock Interface:</strong></h2><ul><li><strong>Design:</strong> Employs a single lockring to secure the rotor onto the hub's splined interface.</li><li><strong>Compatibility:</strong> Initially introduced by Shimano, but increasingly adopted by other manufacturers.</li><li><strong>Ease of Use:</strong> Generally quicker and easier to install due to the single lockring mechanism.</li><li><strong>Tool Requirement:</strong> Needs a specific tool (lockring tool) for installation and removal.</li><li><strong>Weight:</strong> Can be lighter due to the elimination of the six-bolt mounting hardware.</li><li><strong>Aesthetics:</strong> Some prefer the cleaner appearance without multiple bolts.</li></ul><h3></h3>",
+            "link_label": "",
+            "link": ""
+          }
+        }
+      },
+      "block_order": [
+        "template--21646019330355__0d7966e8-adbd-4b57-8a01-6a31b83609fb-column-1",
+        "template--21646019330355__0d7966e8-adbd-4b57-8a01-6a31b83609fb-column-3"
+      ],
+      "settings": {
+        "title": "",
+        "heading_size": "h1",
+        "image_width": "full",
+        "image_ratio": "adapt",
+        "button_label": "",
+        "button_link": "shopify://pages/custom-wheel-builder",
+        "columns_desktop": 2,
+        "column_alignment": "left",
+        "background_style": "primary",
+        "color_scheme": "",
+        "columns_mobile": "1",
+        "swipe_on_mobile": false,
+        "padding_top": 20,
+        "padding_bottom": 0
+      }
+    },
+    "f25aeaa3-9890-4cc8-a120-e2615fe6b616": {
+      "type": "rich-text",
+      "blocks": {
+        "template--21646019330355__f25aeaa3-9890-4cc8-a120-e2615fe6b616-text-1": {
+          "type": "text",
+          "settings": {
+            "text": "<h2><strong>Benefits:</strong></h2><ul><li><strong>6-Bolt:</strong> Offers broader rotor availability and might be simpler for DIY maintenance.</li><li><strong>Centerlock:</strong> Generally quicker to install and remove, potentially lighter due to fewer parts, and offers a cleaner appearance.</li></ul><p>The choice between the two often comes down to personal preference, compatibility with other bike components, and the ease of use during installation and maintenance. Some hub and brake manufacturers offer adapters to allow the use of different types of rotors on their hubs.The two main disc brake rotor interfaces are the 6-bolt and the centerlock designs. Here are their differences and benefits:</p><p></p><p></p><h3></h3><p></p>"
+          }
+        }
+      },
+      "block_order": [
+        "template--21646019330355__f25aeaa3-9890-4cc8-a120-e2615fe6b616-text-1"
+      ],
+      "settings": {
+        "desktop_content_position": "center",
+        "content_alignment": "left",
+        "color_scheme": "",
+        "full_width": true,
+        "padding_top": 20,
+        "padding_bottom": 0
+      }
+    },
+    "81a5f133-a519-4ad9-8576-94653a905ac0": {
+      "type": "rich-text",
+      "blocks": {
+        "template--21646455406899__81a5f133-a519-4ad9-8576-94653a905ac0-button-1": {
+          "type": "button",
+          "settings": {
+            "button_label": "Build Your Wheels",
+            "button_link": "shopify://pages/custom-wheel-builder",
+            "button_style_secondary": false,
+            "button_label_2": "",
+            "button_link_2": "",
+            "button_style_secondary_2": false
+          }
+        }
+      },
+      "block_order": [
+        "template--21646455406899__81a5f133-a519-4ad9-8576-94653a905ac0-button-1"
+      ],
+      "settings": {
+        "desktop_content_position": "center",
+        "content_alignment": "center",
+        "color_scheme": "",
+        "full_width": true,
+        "padding_top": 40,
+        "padding_bottom": 52
+      }
+    }
+  },
+  "order": [
+    "rich_text_fPjbnN",
+    "main",
+    "9ec77420-3313-4e45-9fcb-3d3eaee96387",
+    "0d7966e8-adbd-4b57-8a01-6a31b83609fb",
+    "f25aeaa3-9890-4cc8-a120-e2615fe6b616",
+    "81a5f133-a519-4ad9-8576-94653a905ac0"
+  ]
+}

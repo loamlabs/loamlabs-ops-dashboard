@@ -1,0 +1,52 @@
+/* =================================================================== */
+/* LOAMLABS - SHARED COMPONENT STYLES                                */
+/* =================================================================== */
+
+/* --- Calculator Menu Bar --- */
+.calculator-menu-bar {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    padding-top: 20px;
+    margin-bottom: 25px;
+    border-top: 1px solid #e0e0e0;
+    flex-wrap: wrap;
+}
+
+.calculator-menu-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  text-decoration: none;
+  color: var(--color-foreground);
+  font-weight: 500;
+  transition: all 0.2s ease-in-out;
+}
+
+.calculator-menu-item:hover {
+  background-color: #e9ecef;
+  border-color: #ced4da;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+}
+
+.calculator-menu-item.is-disabled {
+  color: #adb5bd;
+  background-color: #f8f9fa;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.calculator-menu-item.is-disabled:hover {
+  transform: none;
+  box-shadow: none;
+  border-color: #dee2e6;
+}
+
+.calculator-menu-item svg {
+  flex-shrink: 0;
+}

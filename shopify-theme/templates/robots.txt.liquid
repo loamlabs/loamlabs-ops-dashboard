@@ -1,0 +1,28 @@
+# Customized rules for LoamLabs to prevent crawling of service and backend URLs.
+
+User-agent: *
+
+Disallow: /admin
+Disallow: /cart
+Disallow: /orders
+Disallow: /checkout
+Disallow: /checkouts
+Disallow: /services/
+Disallow: /policies/
+
+# Disallow internal search results to prevent duplicate content.
+Disallow: /search
+
+# Allow Shopify's product image resizer.
+User-agent: ShopifyMobile
+Allow: /
+
+# Allow Google's product image bot.
+User-agent: Google-Image-Bot
+Allow: /
+
+# Allow standard image bots.
+User-agent: Mediapartners-Google
+Allow: /
+
+Sitemap: https://loamlabsusa.com/sitemap.xml

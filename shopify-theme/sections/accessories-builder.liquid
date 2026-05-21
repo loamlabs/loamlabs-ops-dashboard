@@ -1,0 +1,87 @@
+{% comment %} Load builder-specific CSS (can reuse variant-builder.css or create accessories-builder.css) {% endcomment %}
+{{ 'variant-builder.css' | asset_url | stylesheet_tag }}
+{% if settings.accessories_builder_css %}
+  {{ 'accessories-builder.css' | asset_url | stylesheet_tag }}
+{% endif %}
+
+<div id="accessories-builder-container" class="accessories-builder-container" 
+     data-main-build-id="{{ request.params.build_id }}"
+     data-storefront-api-token="{{ settings.storefront_api_token | escape }}">
+
+  <div id="accessories-builder-header">
+    <h1>Complete Your Custom Wheel Build</h1>
+    <p id="accessories-for-build-identifier"></p> {% comment %} JS will populate: "Accessories for: [Build Name/ID]" {% endcomment %}
+  </div>
+  
+  <div id="accessories-builder-top-footer" class="accessories-builder-footer">
+    <button type="button" id="skip-accessories-btn-top" class="button builder-button button--secondary">Skip & Continue to Cart</button>
+    <button type="button" id="add-accessories-to-cart-btn-top" class="button builder-button builder-button--cta" disabled>Add Selected Accessories to Cart</button>
+  </div>
+  
+  <div id="accessories-loading-overlay">
+    <p>Loading accessories...</p>
+    {% comment %} Add a spinner/loader graphic if desired {% endcomment %}
+  </div>
+
+  <div id="accessories-content-area" style="display: none;">
+    {% comment %}
+      This area will be populated by JavaScript with sections for each accessory category.
+      Each section will contain vendor filters, product cards (model or individual),
+      and a per-category summary.
+    {% endcomment %}
+  </div>
+
+  {% comment %} MOVED "Your Selected Accessories" Summary Block HERE {% endcomment %}
+  <div id="selected-accessories-summary" class="selected-accessories-summary" style="display: none;">
+      <h2>Your Selected Accessories</h2>
+      <div id="selected-accessories-list-container" class="selected-accessories-list-container">
+         <p class="summary-empty-message">No accessories selected yet.</p>
+      </div>
+
+  <div id="accessories-summary-discount-ui-container">
+    <!-- JS will populate this with the discount/nudge message -->
+</div>
+<div class="loamlabs-accessories__summary-total">
+    <strong>Total Accessories Price: </strong> <span id="accessories-subtotal">$0.00</span>
+</div>
+  </div>
+
+  <div id="accessories-builder-footer" class="accessories-builder-footer" style="display: none;">
+    <button type="button" id="skip-accessories-btn-bottom" class="button builder-button button--secondary">Skip & Continue to Cart</button>
+    <button type="button" id="add-accessories-to-cart-btn-bottom" class="button builder-button builder-button--cta" disabled>Add Selected Accessories to Cart</button>
+  </div>
+
+{% comment %} JavaScript Configuration for the Accessories Page (This part stays inside a script block) {% endcomment %}
+<script>
+  window.loamlabs = window.loamlabs || {};
+  window.loamlabs.accessoriesConfig = {
+    placeholderProductGid: "gid://shopify/ProductVariant/51585929445683" // Ensure this is YOUR Accessories Placeholder Product GID
+  };
+  // --- MODIFIED TOKEN RETRIEVAL ---
+  const accessoriesContainer = document.getElementById('accessories-builder-container');
+  if (accessoriesContainer?.dataset.storefrontApiToken) { // Safely check for existence before accessing dataset
+    window.loamlabs.accessoriesConfig.storefrontApiToken = accessoriesContainer.dataset.storefrontApiToken;
+  } else {
+    console.error("Accessories Builder: Storefront API token not found in data-attribute!");
+    // The rest of this error handling ensures a message is displayed on the page
+    if (accessoriesContainer) accessoriesContainer.innerHTML = "<h2>Configuration Error</h2><p>Cannot load accessories. Storefront API token is missing or not configured in theme settings.</p>";
+  }
+</script>
+
+{% comment %} JavaScript for the Accessories Page (This script tag MUST be OUTSIDE any <script> block) {% endcomment %}
+{{ 'accessories-builder.js' | asset_url | script_tag }}
+
+{% schema %}
+{
+  "name": "Accessories Builder",
+  "class": "section-accessories-builder",
+  "settings": [
+    {
+      "type": "checkbox",
+      "id": "accessories_builder_css",
+      "label": "Load accessories-builder.css",
+      "default": true
+    }
+  ]
+}
+{% endschema %}

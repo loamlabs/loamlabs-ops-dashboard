@@ -1,0 +1,178 @@
+/* =================================================================== */
+/* LOAMLABS WHEEL COMPONENT LIBRARY STYLES V4.0 (Accordion Layout)     */
+/* =================================================================== */
+
+.wheel-component-library-section .custom-page-header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+.wheel-component-library-section .intro-content {
+  max-width: 65ch; margin: 0 auto; font-size: 1.1rem; color: var(--color-foreground-75);
+}
+#wheel-component-app {
+  min-height: 200px;
+}
+
+/* --- Sticky Filter Navigation --- */
+.ll-sticky-filters {
+  position: sticky;
+  top: 0;
+  background-color: #fff;
+  z-index: 100;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  border-bottom: 1px solid #e0e0e0;
+}
+.ll-sticky-nav {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+}
+.ll-sticky-nav-link {
+  display: block;
+  padding: 1rem;
+  font-size: 1.2rem;
+  font-weight: 600;
+  text-decoration: none;
+  color: var(--color-foreground-75);
+  border-bottom: 3px solid transparent;
+  transition: color 0.2s, border-color 0.2s;
+  border-color: #5a31f4;
+}
+.ll-sticky-nav-link:hover {
+  color: var(--color-foreground);
+}
+.ll-sticky-nav-link.active {
+  color: var(--color-foreground); /* Use a dark text color for contrast */
+  background-color: #dcd6f4; /* Light purple background */
+  border-bottom-color: var(--color-accent-1); /* Keep the dark purple underline */
+  border-radius: 8px;
+}
+
+/* --- Loading and Error States --- */
+.ll-library-loading { text-align: center; padding: 40px 0; }
+.ll-library-loading .spinner { margin: 1rem auto; width: 40px; height: 40px; border: 4px solid rgba(0,0,0,0.1); border-left-color: var(--color-accent-1); border-radius: 50%; animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.ll-library-error { background-color: rgb(255, 240, 240); border: 1px solid rgb(255, 100, 100); border-radius: 5px; padding: 20px; text-align: center; }
+
+/* --- Main Accordion Layout --- */
+.ll-library-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+.ll-component-category {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
+  border-color: #dcd6f4;
+}
+.ll-category-summary {
+  font-size: 2.2rem;
+  font-weight: 700;
+  padding: 1.5rem;
+  cursor: pointer;
+  position: relative;
+  list-style: none;
+  background-color: #f8f8f8;
+}
+.ll-category-summary::-webkit-details-marker { display: none; }
+.ll-category-summary::after {
+  content: '+'; position: absolute; right: 1.5rem; top: 50%; transform: translateY(-50%);
+  font-size: 2.5rem; font-weight: 300; color: #aaa; transition: transform 0.2s;
+}
+details[open] > .ll-category-summary {
+  background-color: #dcd6f4;
+  border-bottom: 1px solid #ccc;
+}
+details[open] > .ll-category-summary::after {
+  transform: translateY(-50%) rotate(45deg);
+}
+.ll-category-content {
+  padding: 1.5rem;
+}
+
+/* --- A-Z Navigation --- */
+.ll-az-nav { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 1px solid #e0e0e0; justify-content: center; }
+.ll-az-nav a, .ll-az-nav span { display: inline-block; width: 28px; height: 28px; text-align: center; line-height: 28px; font-size: 1.0rem; font-weight: 500; border-radius: 4px; text-decoration: none; }
+.ll-az-nav a { background-color: #f0f0f0; color: var(--color-foreground); transition: background-color 0.2s; }
+.ll-az-nav a:hover { background-color: #dcd6f4; color: var(--color-foreground); }
+.ll-az-nav span { color: #c0c0c0; cursor: default; }
+
+/* --- Letter Group Headers --- */
+.ll-letter-header { font-size: 2rem; font-weight: 700; margin: 2.5rem 0 1rem 0; color: var(--color-accent-1); display: flex; justify-content: space-between; align-items: baseline; }
+
+/* --- Vendor Accordion --- */
+.ll-vendor-section { border-bottom: 1px solid #eee; }
+.ll-vendor-title { font-size: 1.5rem; font-weight: 600; padding: 1rem 0; cursor: pointer; position: relative; list-style: none; }
+.ll-vendor-title::-webkit-details-marker { display: none; }
+.ll-vendor-title::after { content: '+'; position: absolute; right: 5px; top: 50%; transform: translateY(-50%); font-size: 1.8rem; font-weight: 300; color: #aaa; transition: transform 0.2s; }
+details[open] > .ll-vendor-title::after { content: '−'; }
+
+/* --- Component List & Accordion --- */
+.ll-component-list { list-style: none; padding: 0 0 1rem 1.5rem; margin: 0; }
+.ll-component-list li { padding: 0; font-size: 1rem; color: var(--color-foreground-85); }
+.ll-component-details { border-top: 1px solid #f0f0f0; }
+.ll-component-title { padding: 0.75rem 0; cursor: pointer; position: relative; list-style: none; font-weight: 400; font-size: 1.2em; }
+.ll-component-title::-webkit-details-marker { display: none; }
+.ll-component-title::before { content: '›'; font-size: 1.5rem; position: absolute; left: -1rem; top: 50%; transform: translateY(-50%); transition: transform 0.2s; color: #aaa; }
+details[open] > .ll-component-title::before { transform: translateY(-50%) rotate(90deg); }
+
+/* --- Spec Table --- */
+.ll-spec-table-wrapper { padding: 0.5rem 0 1rem 1rem; background-color: #f5f5f5; border-radius: 4px; margin-bottom: 0.5rem; }
+.ll-spec-table { width: 100%; border-collapse: collapse; }
+.ll-spec-table td { padding: 0.4rem; font-size: 1.25rem; border-bottom: 1px solid #e9ecef; }
+.ll-spec-table tr:last-child td { border-bottom: none; }
+.ll-spec-table td:first-child { font-weight: 600; color: var(--color-foreground-75); width: 60%; }
+.ll-spec-table-note { font-size: 1rem; color: #666; padding-top: 0.5rem; }
+
+/* --- Hub Type Sub-Filters --- */
+.ll-hub-type-filters { padding: 0.5rem 0 1rem 0; display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.hub-type-filter-btn { background-color: #f1f1f1; border: 1px solid #ddd; padding: 0.3rem 0.75rem; border-radius: 20px; font-size: 0.8rem; cursor: pointer; transition: all 0.2s ease; }
+.hub-type-filter-btn:hover { background-color: #e0e0e0; border-color: #ccc; }
+.hub-type-filter-btn.active { background-color: #dcd6f4; color: var(--color-foreground); border-color: #5A31F4; font-weight: 500; }
+.ll-component-list li[style*="display: none"] { display: none !important; }
+
+/* --- Variant Spec Blocks & Actions --- */
+.ll-variant-spec-block { margin-bottom: 1.5rem; }
+.ll-variant-spec-block:last-child { margin-bottom: 0.5rem; }
+.ll-variant-title { font-size: 1.2rem; font-weight: 600; color: var(--color-foreground); margin: 0 0 .5rem; background-color: #e9e9e9; padding: .4rem .8rem; border-radius: 4px; }
+.ll-spec-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+    justify-content: space-between; /* This pushes the groups apart */
+    align-items: center; /* This vertically aligns them nicely */
+}
+.ll-calc-link-btn { display: inline-flex; align-items: center; gap: 0.5em; background-color: #5A31F4; color: #fff; padding: 0.4rem 0.8rem; border-radius: 4px; font-size: 1.0rem; font-weight: 500; text-decoration: none; transition: background-color 0.2s ease; }
+.ll-calc-link-btn:hover { background-color: #4a28c4; color: #fff; }
+.ll-calc-link-btn::after { content: '→'; font-weight: 600; }
+
+/* --- Style tweak for flat nipple list --- */
+.ll-component-item--no-accordion {
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+  border-top: 1px solid #f0f0f0;
+}
+.ll-component-item--no-accordion:first-child {
+    border-top: none;
+}
+
+/* --- Styles for "Visit Product Page" Button --- */
+.ll-product-page-link {
+    background-color: transparent;
+    color: #5A31F4; /* Brand purple text */
+    border: 2px solid #5A31F4; /* Brand purple border */
+}
+.ll-product-page-link:hover {
+    background-color: #f0ebff; /* Very light purple on hover */
+    color: #4a28c4; /* Darker purple text */
+}
+
+/* --- Styles for Button Groups in Actions Bar --- */
+.ll-calc-actions-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
