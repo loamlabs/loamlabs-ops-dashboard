@@ -99,6 +99,7 @@ async function getShopifyVariant(adminToken, productId, variantId) {
 async function runAutoDiscovery(adminToken, supabase, initialRules) {
   const productMap = {};
   for (const rule of initialRules) {
+    if (!rule.vendor_url) continue; // Skip BTI Sync products and anything without a Vendor URL
     if (!productMap[rule.shopify_product_id]) {
       productMap[rule.shopify_product_id] = { vendor_url: rule.vendor_url, rules: [] };
     }
