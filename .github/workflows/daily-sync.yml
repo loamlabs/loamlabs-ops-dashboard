@@ -1,0 +1,33 @@
+name: Daily Vendor Sync
+
+on:
+  schedule:
+    # Runs at 10:00 UTC (6:00 AM EST) every day
+    - cron: '0 10 * * *'
+  workflow_dispatch: # Allows manual trigger from GitHub UI
+
+jobs:
+  run-sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Setup Environment File
+        run: |
+          echo "$ENV_FILE" > .env.local
+        env:
+          ENV_FILE: ${{ secrets.ENV_FILE }}
+
+      - name: Run Sync Script
+        run: node run-sync-locally.js

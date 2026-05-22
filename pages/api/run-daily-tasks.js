@@ -141,23 +141,6 @@ async function runOversellAudit() {
     return { status: 'success', message: 'Oversell Audit Complete.' };
 }
 
-// --- NEW Task 4: Remote Vendor Watcher Trigger (RECONFIGURED FOR OPS DASHBOARD) ---
-async function triggerVendorWatcher() {
-    console.log("Running Task: Triggering Remote Vendor Watcher...");
-    try {
-        const response = await fetch('https://loamlabs-ops-dashboard.vercel.app/api/sync', {
-            method: 'GET',
-            headers: { 'x-loam-secret': CRON_SECRET } 
-        });
-        const data = await response.json();
-        console.log("Vendor Watcher Response:", data);
-        return { status: 'success', message: 'Vendor Watcher triggered successfully.' };
-    } catch (err) {
-        console.error("Vendor Watcher Trigger Failed:", err.message);
-        return { status: 'error', message: `Trigger failed: ${err.message}` };
-    }
-}
-
 // --- MAIN HANDLER ---
 module.exports = async (req, res) => {
     const authHeader = req.headers.authorization;
@@ -170,14 +153,13 @@ module.exports = async (req, res) => {
         const results = await Promise.allSettled([
             sendAbandonedBuildReport(), 
             runDataAudit(),
-            runOversellAudit(),
-            triggerVendorWatcher()
+            runOversellAudit()
         ]);
         
         console.log("All daily tasks finished.", results);
         
         results.forEach((result, index) => { 
-            const taskNames = ['Abandoned Report', 'Data Audit', 'Oversell Audit', 'Vendor Watcher Trigger'];
+            const taskNames = ['Abandoned Report', 'Data Audit', 'Oversell Audit'];
             if (result.status === 'rejected') {
                 console.error(`Task "${taskNames[index]}" failed:`, result.reason); 
             }
