@@ -95,6 +95,119 @@ async function getShopifyVariant(adminToken, productId, variantId) {
   }
   return shopifyProductVariantsCache[cacheKey][String(variantId)] || null;
 }
+  
+async function runAutoDiscovery(adminToken, supabase, initialRules) {
+  const productMap = {};
+  for (const rule of initialRules) {
+    if (!productMap[rule.shopify_product_id]) {
+      productMap[rule.shopify_product_id] = { vendor_url: rule.vendor_url, rules: [] };
+    }
+    productMap[rule.shopify_product_id].rules.push(rule);
+  }
+
+  let totalAdded = 0;
+  let totalDeleted = 0;
+
+  for (const [productId, data] of Object.entries(productMap)) {
+    console.log(`[AUTO-DISCOVERY] Checking Shopify Product ${productId}...`);
+    let hasNextPage = true;
+    let cursor = null;
+    const shopifyVariants = new Map();
+    let productTitle, productVendor, productTags;
+
+    while (hasNextPage) {
+      const response = await fetch(`https://${process.env.SHOPIFY_SHOP_NAME}.myshopify.com/admin/api/2024-04/graphql.json`, {
+        method: 'POST',
+        headers: { 'X-Shopify-Access-Token': adminToken, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: `query($id: ID!, $cursor: String) {
+            product(id: $id) {
+              title vendor tags
+              variants(first: 250, after: $cursor) {
+                pageInfo { hasNextPage }
+                edges {
+                  cursor
+                  node {
+                    id title sku
+                    selectedOptions { name value }
+                    metafields(first: 10, namespace: "custom") { edges { node { key value } } }
+                  }
+                }
+              }
+            }
+          }`,
+          variables: { id: `gid://shopify/Product/${productId}`, cursor: cursor }
+        })
+      });
+      const resData = await response.json();
+      const product = resData.data?.product;
+      if (!product) break;
+
+      productTitle = product.title;
+      productVendor = product.vendor;
+      productTags = product.tags;
+
+      for (const edge of product.variants.edges) {
+        const v = edge.node;
+        const vId = v.id.split('/').pop();
+        shopifyVariants.set(vId, v);
+      }
+      hasNextPage = product.variants.pageInfo.hasNextPage;
+      if (hasNextPage) cursor = product.variants.edges[product.variants.edges.length - 1].cursor;
+    }
+
+    if (shopifyVariants.size === 0) continue;
+
+    const existingVariantIds = data.rules.map(r => String(r.shopify_variant_id));
+    const toDelete = existingVariantIds.filter(id => !shopifyVariants.has(id));
+    if (toDelete.length > 0) {
+      console.log(`[AUTO-DISCOVERY] Deleting ${toDelete.length} orphaned rules for product ${productId}.`);
+      await supabase.from('watcher_rules').delete().in('shopify_variant_id', toDelete);
+      totalDeleted += toDelete.length;
+    }
+
+    const newVariants = [];
+    for (const [vId, v] of shopifyVariants.entries()) {
+      if (!existingVariantIds.includes(vId)) {
+        const mappedOptions = {};
+        v.selectedOptions.forEach(opt => { mappedOptions[opt.name] = opt.value; });
+        
+        const spokeOptNames = Object.keys(mappedOptions).filter(k => k.toLowerCase().includes('spoke'));
+        if (spokeOptNames.length > 0) {
+           let val = mappedOptions[spokeOptNames[0]];
+           if (!val.toLowerCase().includes('spokes')) {
+              mappedOptions[spokeOptNames[0]] = val + ' Spokes';
+           }
+        }
+        
+        const mFields = {};
+        v.metafields.edges.forEach(e => { mFields[e.node.key] = e.node.value; });
+
+        newVariants.push({
+          shopify_product_id: productId,
+          shopify_variant_id: vId,
+          title: `${productTitle} (${v.title})`.replace(/×/g, 'x').trim(),
+          vendor_name: productVendor,
+          site_type: 'SHOPIFY',
+          option_values: mappedOptions,
+          vendor_url: data.vendor_url,
+          tags: productTags || [],
+          bti_part_number: mFields.bti_part_number || null,
+          bti_inventory_active: mFields.bti_sync_authority === 'true',
+          auto_update: true
+        });
+      }
+    }
+
+    if (newVariants.length > 0) {
+      console.log(`[AUTO-DISCOVERY] Adding ${newVariants.length} new variants for product ${productId}.`);
+      await supabase.from('watcher_rules').upsert(newVariants, { onConflict: 'shopify_variant_id' });
+      totalAdded += newVariants.length;
+    }
+  }
+
+  return { totalAdded, totalDeleted };
+}
 
 export default async function handler(req, res) {
   if (!checkSupabase(res)) return;
@@ -104,33 +217,47 @@ export default async function handler(req, res) {
   }
 
   try {
-    let rules = [];
-    let hasMore = true;
-    let rangeStart = 0;
-
-    while (hasMore) {
-      let query = supabase.from('watcher_rules').select('*');
-      
-      if (req.body?.ruleIds && Array.isArray(req.body.ruleIds)) {
-        query = query.in('id', req.body.ruleIds);
-      } else if (req.body?.productId || req.query?.productId) {
-        query = query.eq('shopify_product_id', req.body?.productId || req.query?.productId);
-      } else if (req.query?.id) {
-        query = query.eq('id', req.query.id);
+    const fetchRules = async () => {
+      let _rules = [];
+      let hasMore = true;
+      let rangeStart = 0;
+      while (hasMore) {
+        let query = supabase.from('watcher_rules').select('*');
+        if (req.body?.ruleIds && Array.isArray(req.body.ruleIds)) {
+          query = query.in('id', req.body.ruleIds);
+        } else if (req.body?.productId || req.query?.productId) {
+          query = query.eq('shopify_product_id', req.body?.productId || req.query?.productId);
+        } else if (req.query?.id) {
+          query = query.eq('id', req.query.id);
+        }
+        const { data, error } = await query.range(rangeStart, rangeStart + 999);
+        if (error) throw error;
+        if (data && data.length > 0) {
+          _rules = _rules.concat(data);
+          if (data.length < 1000 || req.body?.ruleIds || req.query?.id) hasMore = false;
+          else rangeStart += 1000;
+        } else {
+          hasMore = false;
+        }
       }
+      return _rules;
+    };
 
-      const { data, error } = await query.range(rangeStart, rangeStart + 999);
-      if (error) throw error;
-      if (data && data.length > 0) {
-        rules = rules.concat(data);
-        if (data.length < 1000 || req.body?.ruleIds || req.query?.id) hasMore = false;
-        else rangeStart += 1000;
-      } else {
-        hasMore = false;
-      }
-    }
+    let rules = await fetchRules();
 
     const adminToken = await getShopifyToken();
+
+    // AUTO DISCOVERY PHASE
+    if (rules.length > 0) {
+      console.log(`[SYNC] Running Auto-Discovery phase...`);
+      const autoRes = await runAutoDiscovery(adminToken, supabase, rules);
+      if (autoRes.totalAdded > 0 || autoRes.totalDeleted > 0) {
+        console.log(`[SYNC] Auto-Discovery complete. Added ${autoRes.totalAdded}, Deleted ${autoRes.totalDeleted}. Re-fetching rules...`);
+        rules = await fetchRules();
+      } else {
+        console.log(`[SYNC] Auto-Discovery complete. No additions or deletions found.`);
+      }
+    }
     let updated = [], attention = [], inSync = [];
     let stockChanges = [], oosReminders = [];
     const processedProducts = new Set();
