@@ -157,7 +157,7 @@ export default async function handler(req, res) {
         if (itemTags.includes('watcher-ignore')) continue;
         if (!rule.vendor_url) continue;
 
-        const url = `${rule.vendor_url}.js`;
+        const url = rule.vendor_url.endsWith('.js') ? rule.vendor_url : `${rule.vendor_url}.js`;
         const randomUA = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
         
         let vData;
