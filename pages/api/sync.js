@@ -632,7 +632,10 @@ export default async function handler(req, res) {
                let targetType = null;
                let targetSecure = null;
                for (const [on, ov] of Object.entries(parsedOptions)) {
-                  if (on.toLowerCase().includes('color')) targetColor = normalize(ov);
+                  if (on.toLowerCase().includes('color')) {
+                     targetColor = normalize(ov);
+                     if (targetColor === 'turquoise') targetColor = 'turqoise';
+                  }
                   if (on.toLowerCase().includes('length') || on.toLowerCase().includes('size')) {
                      targetLength = normalize(ov).replace('mm', '').trim();
                   }
@@ -729,7 +732,7 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
           const myPrice = parseFloat(variant.price).toFixed(2);
           const myCompare = variant.compareAtPrice ? parseFloat(variant.compareAtPrice).toFixed(2) : null;
           const isDiff = Number(goalPrice) !== Number(myPrice);
-          const ignorePriceUpdate = String(rule.shopify_product_id) === '10180231921971' || rule.tags?.includes('spokes');
+          const ignorePriceUpdate = String(rule.shopify_product_id) === '10180231921971' || String(rule.shopify_product_id) === '10191716548915' || rule.tags?.includes('spokes') || rule.title.toLowerCase().includes('nipples');
           let forceNeedsReview = rule.needs_review;
           
           if (!ignorePriceUpdate && isDiff && Number(goalPrice) < Number(myPrice)) {
