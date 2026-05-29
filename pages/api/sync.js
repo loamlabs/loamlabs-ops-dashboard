@@ -314,7 +314,6 @@ export default async function handler(req, res) {
           } catch (fetchErr) {
             const errLog = `Fetch failed for ${url}: ${fetchErr.message}`;
             console.error(`[SYNC ERROR] ${errLog}`);
-            urlCache[url] = { variants: [] }; // Cache the failure to prevent rate-limit spiraling
             
             // Only write if the error log actually changed
             if (rule.last_log !== errLog) {
@@ -325,7 +324,9 @@ export default async function handler(req, res) {
             } else {
               unchangedRuleIds.push(rule.id);
             }
-            continue;
+            // Add a long delay if rate limited so we don't completely spam them
+            await new Promise(r => setTimeout(r, 2000));
+            continue; // Skip processing this rule so we don't accidentally mark it Out of Stock!
           }
 
           const textObj = await vResponse.text();
@@ -335,7 +336,6 @@ export default async function handler(req, res) {
           } catch(e) {
             const errLog = `JSON Parse failed: ${url}`;
             console.error(`[SYNC ERROR] ${errLog}`);
-            urlCache[url] = { variants: [] }; // Cache the failure to prevent rate-limit spiraling
             
             // Only write if the error log actually changed
             if (rule.last_log !== errLog) {
@@ -346,7 +346,7 @@ export default async function handler(req, res) {
             } else {
               unchangedRuleIds.push(rule.id);
             }
-            continue;
+            continue; // Skip processing this rule so we don't accidentally mark it Out of Stock!
           }
         }
 
@@ -643,7 +643,7 @@ export default async function handler(req, res) {
                      targetColor = normalize(ov).toLowerCase();
                      if (targetColor === 'turquoise') targetColor = 'turqoise';
                   }
-                  if (on.toLowerCase().includes('length') || on.toLowerCase().includes('size')) {
+                  if ((on.toLowerCase().includes('length') || on.toLowerCase().includes('size')) && !on.toLowerCase().includes('pack')) {
                      targetLength = normalize(ov).toLowerCase().replace('mm', '').trim();
                   }
                   if (on.toLowerCase() === 'type') targetType = normalize(ov).toLowerCase();
