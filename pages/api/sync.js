@@ -629,14 +629,20 @@ export default async function handler(req, res) {
             } else if (rule.vendor_name?.toLowerCase() === 'velonix' || (rule.vendor_url && rule.vendor_url.toLowerCase().includes('velonix'))) {
                let targetColor = null;
                let targetLength = null;
+               let targetType = null;
+               let targetSecure = null;
                for (const [on, ov] of Object.entries(parsedOptions)) {
                   if (on.toLowerCase().includes('color')) targetColor = normalize(ov);
                   if (on.toLowerCase().includes('length') || on.toLowerCase().includes('size')) {
                      targetLength = normalize(ov).replace('mm', '').trim();
                   }
+                  if (on.toLowerCase() === 'type') targetType = normalize(ov);
+                  if (on.toLowerCase().includes('secure')) targetSecure = normalize(ov);
                }
                
                if (targetColor && !vTitle.includes(targetColor)) return false;
+               if (targetType && !vTitle.includes(targetType)) return false;
+               if (targetSecure && !vTitle.includes(targetSecure)) return false;
                if (targetLength) {
                   // Velonix lengths are formatted like "152mm" in the public_title
                   if (!vTitle.includes(targetLength + 'mm') && !vTitle.includes(targetLength + ' mm') && !vTitle.split(/[\s/]+/).includes(targetLength)) {
