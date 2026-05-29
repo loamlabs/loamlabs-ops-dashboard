@@ -645,7 +645,11 @@ export default async function handler(req, res) {
                
                if (targetColor && !vTitle.includes(targetColor)) return false;
                if (targetType && !vTitle.includes(targetType)) return false;
-               if (targetSecure && !vTitle.includes(targetSecure)) return false;
+               if (targetSecure) {
+                  const isSecureLock = targetSecure === 'secure lock';
+                  if (isSecureLock && (vTitle.includes('non-secure lock') || vTitle.includes('non secure lock'))) return false;
+                  if (!vTitle.includes(targetSecure)) return false;
+               }
                if (targetLength) {
                   // Velonix lengths are formatted like "152mm" in the public_title
                   if (!vTitle.includes(targetLength + 'mm') && !vTitle.includes(targetLength + ' mm') && !vTitle.split(/[\s/]+/).includes(targetLength)) {
