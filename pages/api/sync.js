@@ -235,7 +235,7 @@ export default async function handler(req, res) {
       let hasMore = true;
       let rangeStart = 0;
       while (hasMore) {
-        let query = supabase.from('watcher_rules').select('*').like('title', '%Aluminum Spoke Nipples%');
+        let query = supabase.from('watcher_rules').select('*');
         if (req.body?.ruleIds && Array.isArray(req.body.ruleIds)) {
           query = query.in('id', req.body.ruleIds);
         } else if (req.body?.productId || req.query?.productId) {
