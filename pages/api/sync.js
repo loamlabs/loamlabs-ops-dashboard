@@ -171,9 +171,20 @@ async function runAutoDiscovery(adminToken, supabase, initialRules) {
     for (const [vId, v] of shopifyVariants.entries()) {
       if (!existingVariantIds.includes(vId)) {
         const mappedOptions = {};
-        v.selectedOptions.forEach(opt => { mappedOptions[opt.name] = opt.value; });
+        let packSize = 1;
+        v.selectedOptions.forEach(opt => { 
+          mappedOptions[opt.name] = opt.value; 
+          if (opt.name === 'Pack Size') packSize = parseInt(opt.value, 10) || 1;
+        });
         
-        const spokeOptNames = Object.keys(mappedOptions).filter(k => k.toLowerCase().includes('spoke'));
+        // Inherit custom mappings (like Type or Secure Lock) from existing rules
+        if (data.rules.length > 0) {
+            const templateOpts = data.rules[0].option_values || {};
+            if (templateOpts['Type']) mappedOptions['Type'] = templateOpts['Type'];
+            if (templateOpts['Secure Lock v Non-Secure Lock']) mappedOptions['Secure Lock v Non-Secure Lock'] = templateOpts['Secure Lock v Non-Secure Lock'];
+        }
+        
+        const spokeOptNames = Object.keys(mappedOptions).filter(k => k.toLowerCase().includes('spoke') && k !== 'pack size');
         if (spokeOptNames.length > 0) {
            let val = mappedOptions[spokeOptNames[0]];
            if (!val.toLowerCase().includes('spokes')) {
@@ -195,7 +206,8 @@ async function runAutoDiscovery(adminToken, supabase, initialRules) {
           tags: productTags || [],
           bti_part_number: mFields.bti_part_number || null,
           bti_inventory_active: mFields.bti_sync_authority === 'true',
-          auto_update: true
+          auto_update: true,
+          price_adjustment_factor: packSize
         });
       }
     }
