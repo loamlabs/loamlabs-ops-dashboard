@@ -235,7 +235,7 @@ export default async function handler(req, res) {
       let hasMore = true;
       let rangeStart = 0;
       while (hasMore) {
-        let query = supabase.from('watcher_rules').select('*');
+        let query = supabase.from('watcher_rules').select('*').like('title', '%Aluminum Spoke Nipples%');
         if (req.body?.ruleIds && Array.isArray(req.body.ruleIds)) {
           query = query.in('id', req.body.ruleIds);
         } else if (req.body?.productId || req.query?.productId) {
@@ -297,6 +297,8 @@ export default async function handler(req, res) {
         if (itemTags.includes('watcher-ignore')) continue;
         if (!rule.vendor_url) continue;
 
+        // Wait before fetching to avoid rate limits
+        await new Promise(r => setTimeout(r, 1000));
         const url = rule.vendor_url.endsWith('.js') ? rule.vendor_url : `${rule.vendor_url}.js`;
         const randomUA = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
         
@@ -312,6 +314,8 @@ export default async function handler(req, res) {
           } catch (fetchErr) {
             const errLog = `Fetch failed for ${url}: ${fetchErr.message}`;
             console.error(`[SYNC ERROR] ${errLog}`);
+            urlCache[url] = { variants: [] }; // Cache the failure to prevent rate-limit spiraling
+            
             // Only write if the error log actually changed
             if (rule.last_log !== errLog) {
               await supabase.from('watcher_rules').update({
@@ -331,6 +335,8 @@ export default async function handler(req, res) {
           } catch(e) {
             const errLog = `JSON Parse failed: ${url}`;
             console.error(`[SYNC ERROR] ${errLog}`);
+            urlCache[url] = { variants: [] }; // Cache the failure to prevent rate-limit spiraling
+            
             // Only write if the error log actually changed
             if (rule.last_log !== errLog) {
               await supabase.from('watcher_rules').update({
@@ -627,32 +633,33 @@ export default async function handler(req, res) {
                }
                return true;
             } else if (rule.vendor_name?.toLowerCase() === 'velonix' || (rule.vendor_url && rule.vendor_url.toLowerCase().includes('velonix'))) {
+               const vTitleLower = vTitle.toLowerCase();
                let targetColor = null;
                let targetLength = null;
                let targetType = null;
                let targetSecure = null;
                for (const [on, ov] of Object.entries(parsedOptions)) {
                   if (on.toLowerCase().includes('color')) {
-                     targetColor = normalize(ov);
+                     targetColor = normalize(ov).toLowerCase();
                      if (targetColor === 'turquoise') targetColor = 'turqoise';
                   }
                   if (on.toLowerCase().includes('length') || on.toLowerCase().includes('size')) {
-                     targetLength = normalize(ov).replace('mm', '').trim();
+                     targetLength = normalize(ov).toLowerCase().replace('mm', '').trim();
                   }
-                  if (on.toLowerCase() === 'type') targetType = normalize(ov);
-                  if (on.toLowerCase().includes('secure')) targetSecure = normalize(ov);
+                  if (on.toLowerCase() === 'type') targetType = normalize(ov).toLowerCase();
+                  if (on.toLowerCase().includes('secure')) targetSecure = normalize(ov).toLowerCase();
                }
                
-               if (targetColor && !vTitle.includes(targetColor)) return false;
-               if (targetType && !vTitle.includes(targetType)) return false;
+               if (targetColor && !vTitleLower.includes(targetColor)) return false;
+               if (targetType && !vTitleLower.includes(targetType)) return false;
                if (targetSecure) {
                   const isSecureLock = targetSecure === 'secure lock';
-                  if (isSecureLock && (vTitle.includes('non-secure lock') || vTitle.includes('non secure lock'))) return false;
-                  if (!vTitle.includes(targetSecure)) return false;
+                  if (isSecureLock && (vTitleLower.includes('non-secure lock') || vTitleLower.includes('non secure lock'))) return false;
+                  if (!vTitleLower.includes(targetSecure)) return false;
                }
                if (targetLength) {
                   // Velonix lengths are formatted like "152mm" in the public_title
-                  if (!vTitle.includes(targetLength + 'mm') && !vTitle.includes(targetLength + ' mm') && !vTitle.split(/[\s/]+/).includes(targetLength)) {
+                  if (!vTitleLower.includes(targetLength + 'mm') && !vTitleLower.includes(targetLength + ' mm') && !vTitleLower.split(/[\s/]+/).includes(targetLength)) {
                      return false;
                   }
                }
