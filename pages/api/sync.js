@@ -719,7 +719,6 @@ export default async function handler(req, res) {
         }
 
         console.log(`[RULE: ${rule.id}] Processing "${rule.title}" | Winner: "${winner?.public_title || 'None'}" | Status: ${vStatus}`);
-        fs.appendFileSync('sync_debug.log', `[RULE ${rule.id}] ${rule.title} -> Winner: ${winner?.public_title || 'None'} | Status: ${vStatus}\n`);
         if (winner) {
           const variant = await getShopifyVariant(adminToken, rule.shopify_product_id, rule.shopify_variant_id);
           if (!variant) {
