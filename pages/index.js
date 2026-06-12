@@ -2030,7 +2030,7 @@ export default function OpsDashboard() {
     setLoading(false);
   };
 
-  const bulkApprovePrices = async () => {
+  const bulkApproveChanges = async () => {
     setLoading(true);
     try {
       await Promise.all(selectedRules.map(id => fetch('/api/update-rule', {
@@ -2039,8 +2039,8 @@ export default function OpsDashboard() {
         body: JSON.stringify({ id, updates: { needs_review: false } })
       })));
       await runSelectiveSync(selectedRules, true, true);
-      showNotification(`Prices Approved and Pushed to Shopify for ${selectedRules.length} items.`);
-    } catch(e) { console.error(e); showNotification('Error approving prices.', 'error'); }
+      showNotification(`Changes Approved and Pushed to Shopify for ${selectedRules.length} items.`);
+    } catch(e) { console.error(e); showNotification('Error approving changes.', 'error'); }
     setLoading(false);
   };
 
@@ -4292,7 +4292,7 @@ export default function OpsDashboard() {
 
                 {/* Vendor Watcher Actions */}
                 {activeTab === 'vendors' && <button title="Changes the .json URL the engine scrapes to find this products vendor data" onClick={() => setShowBulkEditModal(true)} className="flex items-center gap-2 text-[10px] font-black uppercase text-blue-400 hover:text-blue-300 transition-colors bg-blue-950/30 px-4 py-2.5 rounded-xl"><Edit size={14} /> Set Vendor URL</button>}
-                {activeTab === 'vendors' && <button title="Clears 'Needs Review' safety flags and forcefully pushes these prices up/down into Shopify" onClick={bulkApprovePrices} className="flex items-center gap-2 text-[10px] font-black uppercase text-green-400 hover:text-green-300 transition-colors bg-green-950/30 px-4 py-2.5 rounded-xl border border-green-900/50 shadow-lg"><CheckCircle size={14} /> Approve & Push Prices</button>}
+                {activeTab === 'vendors' && <button title="Clears 'Needs Review' safety flags and forcefully pushes these changes up/down into Shopify" onClick={bulkApproveChanges} className="flex items-center gap-2 text-[10px] font-black uppercase text-green-400 hover:text-green-300 transition-colors bg-green-950/30 px-4 py-2.5 rounded-xl border border-green-900/50 shadow-lg"><CheckCircle size={14} /> Approve & Push Changes</button>}
                 {activeTab === 'vendors' && <div className="w-px h-6 bg-zinc-800"></div>}
                 
                 {activeTab === 'vendors' && <button title="Set a raw markup factor (e.g. 1.05 = 5% margin increase above MSRP)" onClick={bulkSetPriceAdjust} className="flex items-center gap-2 text-[10px] font-black uppercase text-amber-400 hover:text-amber-300 transition-colors bg-amber-950/30 px-4 py-2.5 rounded-xl">Price Factor</button>}

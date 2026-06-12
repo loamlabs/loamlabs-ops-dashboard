@@ -577,7 +577,7 @@ export default async function handler(req, res) {
                  let tokens = optValue.toLowerCase().replace(/×/g, 'x').replace(/[\"\']/g, '').split(/[\s/+\-]+/).filter(t => t.length > 0);
                  reqTokens.push(...tokens);
               }
-              const normalizedTitleForTokens = vTitle.replace(/[\"\']/g, '');
+              const normalizedTitleForTokens = vTitle.toLowerCase().replace(/[\"\']/g, '');
               for (let token of reqTokens) { if (!normalizedTitleForTokens.includes(token)) return false; }
               if (isHub) {
                   const isFrontRule = ruleTitle.includes('front');
@@ -744,26 +744,45 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
           const myCompare = variant.compareAtPrice ? parseFloat(variant.compareAtPrice).toFixed(2) : null;
           const isDiff = Number(goalPrice) !== Number(myPrice);
           const ignorePriceUpdate = String(rule.shopify_product_id) === '10180231921971' || String(rule.shopify_product_id) === '10191716548915' || rule.tags?.includes('spokes') || rule.title.toLowerCase().includes('nipples');
-          let forceNeedsReview = rule.needs_review;
-          
-          if (!ignorePriceUpdate && isDiff && Number(goalPrice) < Number(myPrice)) {
-            // PRICE DROP SAFETY BLOCK
-            if (!req.body.force_approve) {
-              forceNeedsReview = true;
-              attention.push({ title: rule.title, reason: `🚨 PRICE DROP BLOCKED: Vendor attempting to lower price from $${myPrice} to $${goalPrice}. Ignored until manually approved.` });
-              await supabase.from('watcher_rules').update({ needs_review: true }).eq('id', rule.id);
-            } else {
-              console.log(`[!] Force Overriding price drop for ${rule.title}`);
-              forceNeedsReview = false;
-            }
-          }
-          
           const needsPriceUpdate = !ignorePriceUpdate && (isDiff || (myCompare && Number(myCompare) < Number(goalPrice)));
+
+          let needsStockUpdate = false;
+          let stockAction = null;
+          let currentEffectiveBtiFlag = currentBtiFlag;
+          const shopifyQty = variant.inventoryQuantity || 0;
+          const vendorInStock = winner.available;
+
+          if (rule.auto_update === true && currentEffectiveBtiFlag !== true && shopifyQty <= 0) {
+              if (!vendorInStock && variant.inventoryPolicy === 'CONTINUE') {
+                  needsStockUpdate = true;
+                  stockAction = 'deny';
+              } else if (vendorInStock && variant.inventoryPolicy === 'DENY') {
+                  needsStockUpdate = true;
+                  stockAction = 'continue';
+              }
+          }
+
+          let forceNeedsReview = rule.needs_review;
+
+          if ((needsPriceUpdate || needsStockUpdate) && !req.body.force_approve) {
+              forceNeedsReview = true;
+              let reasonStr = [];
+              if (needsPriceUpdate) {
+                  reasonStr.push(`Price Change: $${myPrice} -> $${goalPrice}`);
+              }
+              if (needsStockUpdate) {
+                  reasonStr.push(stockAction === 'deny' ? `Vendor OOS` : `Vendor Restocked`);
+              }
+              attention.push({ title: rule.title, reason: `🚨 APPROVAL REQUIRED: ${reasonStr.join(' | ')}` });
+          } else if (req.body.force_approve) {
+              forceNeedsReview = false;
+              console.log(`[!] Force Overriding and applying updates for ${rule.title}`);
+          }
 
           let newPriceLastChangedAt = rule.price_last_changed_at || null;
           if (rule.last_price !== winner.price) {
             newPriceLastChangedAt = new Date().toISOString();
-            if (isDeepSale && !forceNeedsReview) attention.push({ title: rule.title, reason: `Drastic Sale Detected: Vendor Price is $${vendorPrice.toFixed(2)}!` });
+            if (isDeepSale) attention.push({ title: rule.title, reason: `Drastic Sale Detected: Vendor Price is $${vendorPrice.toFixed(2)}!` });
           } else if (newPriceLastChangedAt && isDeepSale) {
             const daysPersistent = (new Date() - new Date(newPriceLastChangedAt)) / (1000 * 60 * 60 * 24);
             if (Math.floor(daysPersistent) === 45) attention.push({ title: rule.title, reason: `Sale Price persistent for 45 days: Confirm as New MSRP?` });
@@ -772,8 +791,7 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
           let finalShopifyPriceNum = Number(myPrice);
           let updatePayloadForPrice = { id: rule.shopify_variant_id };
           let shouldPutPrice = false;
-          let currentEffectiveBtiFlag = currentBtiFlag;
-          
+
           if (rule.auto_update === true && !forceNeedsReview) {
              if (winner.available && currentBtiFlag === true) {
                 console.log(`[SYNC] Vendor BACK-IN-STOCK for ${rule.title}. Reclaiming authority from BTI.`);
@@ -781,16 +799,11 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
                 shouldPutPrice = true;
                 currentEffectiveBtiFlag = false;
              } else if (!winner.available && rule.bti_part_number && (rule.bti_monitoring_enabled === true || rule.bti_monitoring_enabled === 'true' || rule.tags?.includes('bti-sync')) && currentBtiFlag !== true) {
-                // Only defer to BTI if there's an actual BTI part number — items without one
-                // (e.g. spokes sourced from Velonix) have no BTI match and must be managed directly.
                 console.log(`[SYNC] Vendor OOS for ${rule.title}. Deferring authority to BTI.`);
                  updatePayloadForPrice.metafields = [{ namespace: "custom", key: "bti_sync_authority", value: "true", type: "boolean" }];
                 shouldPutPrice = true;
                 currentEffectiveBtiFlag = true;
              } else if (currentBtiFlag === true && !rule.bti_part_number) {
-                // Stale BTI flag: bti_sync_authority was set true by a previous run, but this item
-                // has no BTI part number and will never be managed by BTI. Clear the flag so the
-                // watcher takes back direct control of the inventory policy.
                 console.log(`[SYNC] Clearing stale BTI flag for ${rule.title} (no bti_part_number). Watcher will manage inventory directly.`);
                 updatePayloadForPrice.metafields = [{ namespace: "custom", key: "bti_sync_authority", value: "false", type: "boolean" }];
                 shouldPutPrice = true;
@@ -819,26 +832,18 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
           }
 
           let effectivePolicy = variant.inventoryPolicy;
-          if (rule.auto_update === true && currentEffectiveBtiFlag !== true) {
-            const shopifyQty = variant.inventoryQuantity || 0;
-            const vendorInStock = winner.available;
-            if (shopifyQty <= 0) {
-              if (!vendorInStock && effectivePolicy === 'CONTINUE') {
-                await fetch(`https://${process.env.SHOPIFY_SHOP_NAME}.myshopify.com/admin/api/2024-04/variants/${rule.shopify_variant_id}.json`, {
-                  method: 'PUT', headers: { 'X-Shopify-Access-Token': adminToken, 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ variant: { id: rule.shopify_variant_id, inventory_policy: 'deny' } })
-                });
+          if (needsStockUpdate && rule.auto_update === true && !forceNeedsReview) {
+              await fetch(`https://${process.env.SHOPIFY_SHOP_NAME}.myshopify.com/admin/api/2024-04/variants/${rule.shopify_variant_id}.json`, {
+                method: 'PUT', headers: { 'X-Shopify-Access-Token': adminToken, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ variant: { id: rule.shopify_variant_id, inventory_policy: stockAction } })
+              });
+              if (stockAction === 'deny') {
                 stockChanges.push({ title: rule.title, action: '🔴 Made Unavailable (Vendor OOS)' });
                 effectivePolicy = 'DENY';
-              } else if (vendorInStock && effectivePolicy === 'DENY') {
-                await fetch(`https://${process.env.SHOPIFY_SHOP_NAME}.myshopify.com/admin/api/2024-04/variants/${rule.shopify_variant_id}.json`, {
-                  method: 'PUT', headers: { 'X-Shopify-Access-Token': adminToken, 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ variant: { id: rule.shopify_variant_id, inventory_policy: 'continue' } })
-                });
+              } else {
                 stockChanges.push({ title: rule.title, action: '🟢 Back In Stock (Vendor Available)' });
                 effectivePolicy = 'CONTINUE';
               }
-            }
           }
 
           let newOutOfStockSince = rule.out_of_stock_since || null;
