@@ -574,10 +574,10 @@ export default async function handler(req, res) {
                  if (!optValue || optValue.toLowerCase() === 'default title') continue;
                  if (isHub && optName.toLowerCase().includes('color')) continue;
                  if (isHub && optName.toLowerCase().includes('spoke')) continue;
-                 let tokens = optValue.toLowerCase().replace(/×/g, 'x').replace(/[\"\']/g, '').split(/[\s/+\-]+/).filter(t => t.length > 0);
+                 let tokens = optValue.toLowerCase().replace(/×/g, 'x').replace(/[\"\':(),]/g, '').split(/[\s/+\-]+/).filter(t => t.length > 0);
                  reqTokens.push(...tokens);
               }
-              const normalizedTitleForTokens = vTitle.toLowerCase().replace(/[\"\']/g, '');
+              const normalizedTitleForTokens = vTitle.toLowerCase().replace(/[\"\':(),]/g, '');
               for (let token of reqTokens) { if (!normalizedTitleForTokens.includes(token)) return false; }
               if (isHub) {
                   const isFrontRule = ruleTitle.includes('front');
@@ -764,7 +764,9 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
 
           let forceNeedsReview = rule.needs_review;
 
-          if ((needsPriceUpdate || needsStockUpdate) && !req.body.force_approve) {
+          const forceApprove = req.body && req.body.force_approve;
+
+          if ((needsPriceUpdate || needsStockUpdate) && !forceApprove) {
               forceNeedsReview = true;
               let reasonStr = [];
               if (needsPriceUpdate) {
@@ -774,7 +776,7 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
                   reasonStr.push(stockAction === 'deny' ? `Vendor OOS` : `Vendor Restocked`);
               }
               attention.push({ title: rule.title, reason: `🚨 APPROVAL REQUIRED: ${reasonStr.join(' | ')}` });
-          } else if (req.body.force_approve) {
+          } else if (forceApprove) {
               forceNeedsReview = false;
               console.log(`[!] Force Overriding and applying updates for ${rule.title}`);
           }
