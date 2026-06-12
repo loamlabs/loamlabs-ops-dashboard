@@ -297,16 +297,21 @@ export default async function handler(req, res) {
         if (itemTags.includes('watcher-ignore')) continue;
         if (!rule.vendor_url) continue;
 
-        // Wait before fetching to avoid rate limits
-        await new Promise(r => setTimeout(r, 1000));
         const url = rule.vendor_url.endsWith('.js') ? rule.vendor_url : `${rule.vendor_url}.js`;
         const randomUA = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
         
         let vData;
 
+        // Skip immediately if we already know this URL is dead (e.g. 404)
+        if (urlCache[url] === 'FAILED') {
+            continue;
+        }
+
         if (urlCache[url]) {
           vData = urlCache[url];
         } else {
+          // Wait before fetching to avoid rate limits
+          await new Promise(r => setTimeout(r, 1000));
           let vResponse;
           try {
             vResponse = await fetch(url, { headers: { 'User-Agent': randomUA } });
@@ -324,6 +329,9 @@ export default async function handler(req, res) {
             } else {
               unchangedRuleIds.push(rule.id);
             }
+            // Mark as failed in cache so we don't retry and sleep for every rule that points to this dead URL
+            urlCache[url] = 'FAILED';
+            
             // Add a long delay if rate limited so we don't completely spam them
             await new Promise(r => setTimeout(r, 2000));
             continue; // Skip processing this rule so we don't accidentally mark it Out of Stock!
@@ -346,6 +354,8 @@ export default async function handler(req, res) {
             } else {
               unchangedRuleIds.push(rule.id);
             }
+            // Mark as failed in cache
+            urlCache[url] = 'FAILED';
             continue; // Skip processing this rule so we don't accidentally mark it Out of Stock!
           }
         }
