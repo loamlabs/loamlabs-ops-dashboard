@@ -224,8 +224,8 @@ async function runAutoDiscovery(adminToken, supabase, initialRules) {
 
 export default async function handler(req, res) {
   if (!checkSupabase(res)) return;
-  const authHeader = req.headers['x-loam-secret'] || req.headers['x-dashboard-auth'];
-  if (authHeader !== process.env.CRON_SECRET && authHeader !== process.env.DASHBOARD_PASSWORD) {
+  const authHeader = (req.headers['x-loam-secret'] || req.headers['x-dashboard-auth'])?.trim();
+  if (authHeader !== process.env.CRON_SECRET?.trim() && authHeader !== process.env.DASHBOARD_PASSWORD?.trim()) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
