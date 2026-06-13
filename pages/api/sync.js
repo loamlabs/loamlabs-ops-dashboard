@@ -232,13 +232,23 @@ export default async function handler(req, res) {
   try {
     const fetchRules = async () => {
       let _rules = [];
+      if (req.body?.ruleIds && Array.isArray(req.body.ruleIds)) {
+         const ruleIds = req.body.ruleIds;
+         const chunkSize = 150;
+         for (let i = 0; i < ruleIds.length; i += chunkSize) {
+            const chunk = ruleIds.slice(i, i + chunkSize);
+            const { data, error } = await supabase.from('watcher_rules').select('*').in('id', chunk);
+            if (error) throw error;
+            if (data) _rules = _rules.concat(data);
+         }
+         return _rules;
+      }
+
       let hasMore = true;
       let rangeStart = 0;
       while (hasMore) {
         let query = supabase.from('watcher_rules').select('*');
-        if (req.body?.ruleIds && Array.isArray(req.body.ruleIds)) {
-          query = query.in('id', req.body.ruleIds);
-        } else if (req.body?.productId || req.query?.productId) {
+        if (req.body?.productId || req.query?.productId) {
           query = query.eq('shopify_product_id', req.body?.productId || req.query?.productId);
         } else if (req.query?.id) {
           query = query.eq('id', req.query.id);
@@ -247,7 +257,7 @@ export default async function handler(req, res) {
         if (error) throw error;
         if (data && data.length > 0) {
           _rules = _rules.concat(data);
-          if (data.length < 1000 || req.body?.ruleIds || req.query?.id) hasMore = false;
+          if (data.length < 1000 || req.query?.id) hasMore = false;
           else rangeStart += 1000;
         } else {
           hasMore = false;
@@ -805,15 +815,16 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
           let forceNeedsReview = rule.needs_review;
 
           const forceApprove = req.body && req.body.force_approve;
+          const requiresReviewForStock = needsStockUpdate && stockAction === 'deny';
 
-          if ((needsPriceUpdate || needsStockUpdate) && !forceApprove) {
+          if ((needsPriceUpdate || requiresReviewForStock) && !forceApprove) {
               forceNeedsReview = true;
               let reasonStr = [];
               if (needsPriceUpdate) {
                   reasonStr.push(`Price Change: $${myPrice} -> $${goalPrice}`);
               }
-              if (needsStockUpdate) {
-                  reasonStr.push(stockAction === 'deny' ? `Vendor OOS` : `Vendor Restocked`);
+              if (requiresReviewForStock) {
+                  reasonStr.push(`Vendor OOS`);
               }
               attention.push({ title: rule.title, reason: `🚨 APPROVAL REQUIRED: ${reasonStr.join(' | ')}` });
           } else if (forceApprove) {
