@@ -325,8 +325,24 @@ export default async function handler(req, res) {
           await new Promise(r => setTimeout(r, 1000));
           let vResponse;
           try {
-            vResponse = await fetch(url, { headers: { 'User-Agent': randomUA } });
-            if (!vResponse.ok) throw new Error(`Fetch failed (${vResponse.status})`);
+            let retries = 3;
+            let success = false;
+            while (retries > 0 && !success) {
+                vResponse = await fetch(url, { headers: { 'User-Agent': randomUA } });
+                if (vResponse.ok) {
+                    success = true;
+                } else if (vResponse.status === 503 || vResponse.status === 429) {
+                    retries--;
+                    if (retries > 0) {
+                        console.log(`[SYNC WARNING] Rate limited (${vResponse.status}) on ${url}. Retrying...`);
+                        await new Promise(r => setTimeout(r, 4000)); // wait 4 seconds and retry
+                    } else {
+                        throw new Error(`Fetch failed (${vResponse.status}) after retries`);
+                    }
+                } else {
+                    throw new Error(`Fetch failed (${vResponse.status})`);
+                }
+            }
           } catch (fetchErr) {
             const errLog = `Fetch failed for ${url}: ${fetchErr.message}`;
             console.error(`[SYNC ERROR] ${errLog}`);
