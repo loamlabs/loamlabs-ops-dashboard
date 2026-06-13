@@ -576,23 +576,36 @@ export default async function handler(req, res) {
             if (rule.vendor_name === 'Berd') {
               let reqTokens = [];
               let isI9Hub = false;
+              let isOnyxHub = false;
               for (const [optName, optValue] of Object.entries(parsedOptions)) {
-                  if (optName.toLowerCase().includes('hub') && optValue && optValue.toLowerCase().includes('i9')) { isI9Hub = true; break; }
+                  if (optValue && optValue.toLowerCase().includes('i9')) { isI9Hub = true; }
+                  if (optValue && optValue.toLowerCase().includes('onyx')) { isOnyxHub = true; }
               }
               if (isI9Hub) return vTitle.includes('industry nine');
+              if (isOnyxHub) return vTitle.includes('onyx');
+              
               for (const [optName, optValue] of Object.entries(parsedOptions)) {
                  if (!optValue || optValue.toLowerCase() === 'default title') continue;
                  if (isHub && optName.toLowerCase().includes('color')) continue;
                  if (isHub && optName.toLowerCase().includes('spoke')) continue;
-                 let tokens = optValue.toLowerCase().replace(/×/g, 'x').replace(/[\"\':(),]/g, '').split(/[\s/+\-]+/).filter(t => t.length > 0);
+                 let tokens = optValue.toLowerCase()
+                     .replace(/×/g, 'x')
+                     .replace(/[\"\':(),]/g, '')
+                     .replace(/\bhg11\b/g, 'shimano') // map hg11 to shimano to match 'Shimano 11SP'
+                     .replace(/\bhg\b/g, 'shimano') // map hg to shimano
+                     .split(/[\s/+\-]+/)
+                     .filter(t => t.length > 0 && t !== '11sp'); // Drop 11sp token to just match shimano
                  reqTokens.push(...tokens);
               }
-              const normalizedTitleForTokens = vTitle.toLowerCase().replace(/[\"\':(),]/g, '');
+              const normalizedTitleForTokens = vTitle.toLowerCase()
+                 .replace(/[\"\':(),]/g, '')
+                 .replace(/shimano 11sp/g, 'shimano');
+                 
               for (let token of reqTokens) { if (!normalizedTitleForTokens.includes(token)) return false; }
               if (isHub) {
                   const isFrontRule = ruleTitle.includes('front');
                   if (isFrontRule && !vTitle.includes('front')) return false;
-                  if (!isFrontRule && !(vTitle.includes('rear') || vTitle.includes('xd') || vTitle.includes('hg') || vTitle.includes('ms'))) return false;
+                  if (!isFrontRule && !(vTitle.includes('rear') || vTitle.includes('xd') || vTitle.includes('hg') || vTitle.includes('ms') || vTitle.includes('shimano'))) return false;
                   const axleMatch = ['100', '110', '142', '148', '157'].find(size => ruleTitle.includes(size));
                   if (axleMatch && !vTitle.includes(axleMatch)) return false;
                   let hasSpokeOption = false, spokeMatch = false;
