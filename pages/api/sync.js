@@ -449,9 +449,10 @@ export default async function handler(req, res) {
         let winner = null;
         let vStatus = 'No specific match logic applied';
         const ruleTitle = normalize(rule.title);
-        const isHub = ruleTitle.includes('hub');
-        const isRim = ruleTitle.includes('rim');
-        const isE13Wheelset = rule.vendor_name === 'e*thirteen' && ruleTitle.includes('wheels');
+        const ruleTitleLower = ruleTitle.toLowerCase();
+        const isHub = ruleTitleLower.includes('hub');
+        const isRim = ruleTitleLower.includes('rim');
+        const isE13Wheelset = rule.vendor_name === 'e*thirteen' && ruleTitleLower.includes('wheels');
 
         if (isE13Wheelset) {
             const FRONT_WHEEL_URL_MAP = {
@@ -585,7 +586,7 @@ export default async function handler(req, res) {
                   for (const [on, ov] of Object.entries(parsedOptions)) {
                       if (on.toLowerCase().includes('color')) targetColor = normalize(ov).toLowerCase();
                   }
-                  if (targetColor && !vTitle.includes(targetColor)) return false;
+                  if (targetColor && !vTitle.toLowerCase().includes(targetColor)) return false;
                   return true;
               }
               
@@ -707,12 +708,13 @@ export default async function handler(req, res) {
 
             // Generic Hub/Rim filtering for all other vendors (like OneUp)
             if (isHub || isRim) {
+                const vTitleLower = vTitle.toLowerCase();
                 // 1. Color matching
                 let targetColor = null;
                 for (const [on, ov] of Object.entries(parsedOptions)) {
-                    if (on.toLowerCase().includes('color')) targetColor = normalize(ov);
+                    if (on.toLowerCase().includes('color')) targetColor = normalize(ov).toLowerCase();
                 }
-                if (targetColor && !vTitle.includes(targetColor)) return false;
+                if (targetColor && !vTitleLower.includes(targetColor)) return false;
 
                 // 2. Spoke Count / Hole matching
                 let targetHoles = null;
@@ -722,11 +724,11 @@ export default async function handler(req, res) {
                         if (numOnly) targetHoles = numOnly;
                     }
                 }
-                if (targetHoles && !vTitle.includes(targetHoles) && !vTitle.includes(targetHoles + 'h')) return false;
+                if (targetHoles && !vTitleLower.includes(targetHoles) && !vTitleLower.includes(targetHoles + 'h')) return false;
 
                 // 3. Axle/Spacing matching (generic)
                 const spacingMatch = ruleTitle.match(/(100|110|142|148|157)/);
-                if (spacingMatch && !vTitle.includes(spacingMatch[1])) return false;
+                if (spacingMatch && !vTitleLower.includes(spacingMatch[1])) return false;
 
                 vStatus = `Filtered by generic ${isHub ? 'Hub' : 'Rim'} logic`;
             }
