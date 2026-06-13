@@ -591,6 +591,7 @@ export default async function handler(req, res) {
                      .replace(/\bhg11\b/g, 'shimano') // map hg11 to shimano to match 'Shimano 11SP'
                      .replace(/\bhg\b/g, 'shimano') // map hg to shimano
                      .replace(/\b(\d+)h\b/g, '$1') // map 24h -> 24
+                     .replace(/mm\b/g, '') // map 148mm -> 148
                      .split(/[\s/+\-]+/)
                      .filter(t => t.length > 0 && t !== '11sp' && t !== 'spoke' && t !== 'spokes'); // Drop spoke(s) keywords
                      
