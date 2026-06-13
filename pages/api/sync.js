@@ -831,9 +831,11 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
           } else if (forceApprove) {
               forceNeedsReview = false;
               console.log(`[!] Force Overriding and applying updates for ${rule.title}`);
-          } else if (needsStockUpdate && stockAction === 'continue' && !needsPriceUpdate) {
-              forceNeedsReview = false;
-              console.log(`[SYNC] Clearing review flag for ${rule.title} because item is back in stock.`);
+          } else if (vendorInStock && !needsPriceUpdate) {
+              if (forceNeedsReview) {
+                  forceNeedsReview = false;
+                  console.log(`[SYNC] Clearing stuck review flag for ${rule.title} because item is in stock and requires no price update.`);
+              }
           }
 
           let newPriceLastChangedAt = rule.price_last_changed_at || null;
