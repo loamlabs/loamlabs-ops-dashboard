@@ -542,13 +542,17 @@ export default async function handler(req, res) {
                         if (frontUrl) {
                             try {
                                 const frontResp = await fetch(frontUrl + '.js', { headers: { 'User-Agent': randomUA } });
+                                if (!frontResp.ok) throw new Error(`Front wheel fetch failed (${frontResp.status})`);
                                 const frontData = await frontResp.json();
                                 if (frontData?.variants?.length > 0) {
                                     const bestFront = frontData.variants.reduce((a, b) => (Math.max(a.price, a.compare_at_price || 0) > Math.max(b.price, b.compare_at_price || 0) ? a : b));
                                     finalPrice += Math.max(bestFront.price, bestFront.compare_at_price || 0);
                                     finalAvail = finalAvail && bestFront.available;
                                 }
-                            } catch (fe) { console.error(`Front wheel fetch failed for ${frontUrl}: ${fe.message}`); }
+                            } catch (fe) { 
+                                console.error(`Front wheel fetch failed for ${frontUrl}: ${fe.message}`);
+                                throw fe; // Re-throw to abort partial calculation
+                            }
                         }
                     }
 
@@ -560,6 +564,7 @@ export default async function handler(req, res) {
                         
                         try {
                             const accResp = await fetch(accessoryUrl + '.js', { headers: { 'User-Agent': randomUA } });
+                            if (!accResp.ok) throw new Error(`Surcharge fetch failed (${accResp.status})`);
                             const accData = await accResp.json();
                             if (accData?.variants?.length > 0) {
                                 let driverSurcharge = 17995; 
@@ -588,7 +593,7 @@ export default async function handler(req, res) {
                             }
                         } catch (ae) {
                             console.error(`Surcharge fetch failed for ${accessoryUrl}: ${ae.message}`);
-                            finalPrice += 17995; // Absolute fallback
+                            throw ae; // Re-throw to abort partial calculation
                         }
                     }
 
