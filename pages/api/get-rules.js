@@ -5,6 +5,12 @@ const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabase = (supabaseUrl && supabaseKey) ? createClient(supabaseUrl, supabaseKey) : null;
 
+export const config = {
+  api: {
+    responseLimit: false,
+  },
+};
+
 export default async function handler(req, res) {
   if (!supabase) {
     console.error("Supabase configuration is missing (SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY)");

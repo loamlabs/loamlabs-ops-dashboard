@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 import fs from 'fs';
 
+export const maxDuration = 300; // Allow Vercel to run up to 5 minutes
 
 // Initialize Supabase only if credentials exist
 const supabaseUrl = process.env.SUPABASE_URL;

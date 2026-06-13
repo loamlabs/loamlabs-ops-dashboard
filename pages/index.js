@@ -2033,11 +2033,6 @@ export default function OpsDashboard() {
   const bulkApproveChanges = async () => {
     setLoading(true);
     try {
-      await Promise.all(selectedRules.map(id => fetch('/api/update-rule', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-dashboard-auth': password },
-        body: JSON.stringify({ id, updates: { needs_review: false } })
-      })));
       await runSelectiveSync(selectedRules, true, true);
       showNotification(`Changes Approved and Pushed to Shopify for ${selectedRules.length} items.`);
     } catch(e) { console.error(e); showNotification('Error approving changes.', 'error'); }
