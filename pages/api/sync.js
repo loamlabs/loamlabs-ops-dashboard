@@ -578,8 +578,16 @@ export default async function handler(req, res) {
               const ruleTitleLower = ruleTitle.toLowerCase();
               let isI9Hub = ruleTitleLower.includes('i9') || ruleTitleLower.includes('industry nine');
               let isOnyxHub = ruleTitleLower.includes('onyx');
-              if (isI9Hub) return vTitle.includes('industry nine');
-              if (isOnyxHub) return vTitle.includes('onyx');
+              if (isI9Hub || isOnyxHub) {
+                  const targetHub = isI9Hub ? 'industry nine' : 'onyx';
+                  if (!vTitle.includes(targetHub)) return false;
+                  let targetColor = null;
+                  for (const [on, ov] of Object.entries(parsedOptions)) {
+                      if (on.toLowerCase().includes('color')) targetColor = normalize(ov).toLowerCase();
+                  }
+                  if (targetColor && !vTitle.includes(targetColor)) return false;
+                  return true;
+              }
               
               for (const [optName, optValue] of Object.entries(parsedOptions)) {
                  if (!optValue || optValue.toLowerCase() === 'default title') continue;
