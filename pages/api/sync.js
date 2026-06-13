@@ -958,7 +958,8 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
             rule.current_shopify_price !== newCurrentShopifyPrice ||
             rule.current_compare_at_price !== newCurrentCompareAtPrice ||
             rule.bti_inventory_active !== newBtiInventoryActive ||
-            rule.needs_review !== forceNeedsReview
+            rule.needs_review !== forceNeedsReview ||
+            rule.review_reason !== reviewReason
           );
 
           if (hasChanged) {
