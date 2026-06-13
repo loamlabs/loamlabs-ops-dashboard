@@ -584,7 +584,7 @@ export default async function handler(req, res) {
                   if (!vTitle.includes(targetHub)) return false;
                   let targetColor = null;
                   for (const [on, ov] of Object.entries(parsedOptions)) {
-                      if (on.toLowerCase().includes('color')) targetColor = normalize(ov).toLowerCase();
+                      if (on.toLowerCase().includes('color')) targetColor = normalize(ov).toLowerCase().replace(/spokes?/g, '').trim();
                   }
                   if (targetColor && !vTitle.toLowerCase().includes(targetColor)) return false;
                   return true;
