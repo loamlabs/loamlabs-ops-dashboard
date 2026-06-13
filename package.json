@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "@shopify/shopify-api": "^13.0.0",
-    "@supabase/supabase-js": "^2.39.0",
+    "@supabase/supabase-js": "^2.108.1",
     "@upstash/redis": "^1.37.0",
     "autoprefixer": "10.4.19",
     "axios": "^1.13.6",
