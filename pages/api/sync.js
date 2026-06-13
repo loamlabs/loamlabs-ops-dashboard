@@ -575,12 +575,9 @@ export default async function handler(req, res) {
             const vTitle = normalize(v.public_title);
             if (rule.vendor_name === 'Berd') {
               let reqTokens = [];
-              let isI9Hub = false;
-              let isOnyxHub = false;
-              for (const [optName, optValue] of Object.entries(parsedOptions)) {
-                  if (optValue && optValue.toLowerCase().includes('i9')) { isI9Hub = true; }
-                  if (optValue && optValue.toLowerCase().includes('onyx')) { isOnyxHub = true; }
-              }
+              const ruleTitleLower = ruleTitle.toLowerCase();
+              let isI9Hub = ruleTitleLower.includes('i9') || ruleTitleLower.includes('industry nine');
+              let isOnyxHub = ruleTitleLower.includes('onyx');
               if (isI9Hub) return vTitle.includes('industry nine');
               if (isOnyxHub) return vTitle.includes('onyx');
               
@@ -601,7 +598,12 @@ export default async function handler(req, res) {
                  .replace(/[\"\':(),]/g, '')
                  .replace(/shimano 11sp/g, 'shimano');
                  
-              for (let token of reqTokens) { if (!normalizedTitleForTokens.includes(token)) return false; }
+              for (let token of reqTokens) { 
+                 if (!normalizedTitleForTokens.includes(token)) {
+                    if (rule.title.includes('HAWK27')) console.log(`[DEBUG] Token mismatch for ${rule.title}: Token '${token}' not found in '${normalizedTitleForTokens}'. parsedOptions: ${JSON.stringify(parsedOptions)}`);
+                    return false; 
+                 }
+              }
               if (isHub) {
                   const isFrontRule = ruleTitle.includes('front');
                   if (isFrontRule && !vTitle.includes('front')) return false;
