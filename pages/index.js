@@ -2850,8 +2850,18 @@ export default function OpsDashboard() {
                         <td className="p-6 text-center">
                           {rule.needs_review ? (
                             <div className="flex flex-col items-center gap-1">
-                              <span className="bg-red-600 text-white text-[9px] font-black px-3 py-1 rounded-full animate-pulse uppercase tracking-tighter whitespace-nowrap" title={rule.review_reason || "Needs Review"}>Review Required</span>
-                              {rule.review_reason && <span className="text-[8px] font-mono text-red-500 font-bold uppercase truncate max-w-[120px]" title={rule.review_reason}>{rule.review_reason}</span>}
+                              <span className="bg-red-600 text-white text-[9px] font-black px-3 py-1 rounded-full animate-pulse uppercase tracking-tighter whitespace-nowrap">Review Required</span>
+                              {rule.review_reason && (
+                                <div className="group/reason relative flex flex-col items-center cursor-help pointer-events-auto">
+                                  <span className="text-[10px] font-mono text-red-500 font-bold uppercase truncate max-w-[160px]">
+                                    {rule.review_reason}
+                                  </span>
+                                  <div className="absolute bottom-full mb-2 hidden group-hover/reason:block w-max max-w-[280px] bg-black text-white text-[11px] p-3 rounded-xl z-50 shadow-2xl font-mono leading-relaxed border border-red-900/50 whitespace-normal text-left">
+                                    <div className="text-red-500 mb-1 uppercase font-black font-sans tracking-widest text-[9px]">Review Reason:</div>
+                                    {rule.review_reason}
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           ) : rule.last_availability ? (
                             <span className="bg-green-100 text-green-700 text-[9px] font-black px-3 py-1 rounded-full uppercase italic whitespace-nowrap">Active</span>
