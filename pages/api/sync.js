@@ -620,7 +620,7 @@ export default async function handler(req, res) {
                  }
               }
               if (isHub) {
-                  const isFrontRule = ruleTitle.includes('front');
+                  const isFrontRule = ruleTitle.toLowerCase().includes('front');
                   if (isFrontRule && !vTitle.includes('front')) return false;
                   if (!isFrontRule && !(vTitle.includes('rear') || vTitle.includes('xd') || vTitle.includes('hg') || vTitle.includes('ms') || vTitle.includes('shimano'))) return false;
                   const axleMatch = ['100', '110', '142', '148', '157'].find(size => ruleTitle.includes(size));
