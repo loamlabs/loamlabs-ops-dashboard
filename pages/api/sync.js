@@ -492,7 +492,7 @@ export default async function handler(req, res) {
 
                 if (!isRearNone) {
                   const rearCandidates = vData.variants.filter(v => {
-                      const vt = normalize(v.public_title).replace(/["']/g, '');
+                      const vt = normalize(v.public_title).toLowerCase().replace(/["']/g, '');
                       if (!vt.includes('rear')) return false;
                       if (sizeMatch && !vt.includes(sizeMatch[1])) return false;
                       if (axleMatch && !vt.includes(axleMatch[1])) return false;
@@ -539,7 +539,7 @@ export default async function handler(req, res) {
                                 const axleString = axleMatch ? axleMatch[1] : (isSuperboost ? '157' : '148');
                                 
                                 const matchingVariant = accData.variants.find(v => {
-                                    const vt = normalize(v.public_title);
+                                    const vt = normalize(v.public_title).toLowerCase();
                                     if (!vt.includes(axleString)) return false;
                                     if (driverValue.includes('7 spd') || driverValue.includes('7spd') || driverValue.includes('cassette')) {
                                         return vt.includes('7 spd') || vt.includes('cassette');
@@ -573,7 +573,7 @@ export default async function handler(req, res) {
                 }
         } else {
           let candidates = vData.variants.filter(v => {
-            const vTitle = normalize(v.public_title);
+            const vTitle = normalize(v.public_title).toLowerCase();
             if (rule.vendor_name === 'Berd') {
               let reqTokens = [];
               const ruleTitleLower = ruleTitle.toLowerCase();
