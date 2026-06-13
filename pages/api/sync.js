@@ -831,6 +831,9 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
           } else if (forceApprove) {
               forceNeedsReview = false;
               console.log(`[!] Force Overriding and applying updates for ${rule.title}`);
+          } else if (needsStockUpdate && stockAction === 'continue' && !needsPriceUpdate) {
+              forceNeedsReview = false;
+              console.log(`[SYNC] Clearing review flag for ${rule.title} because item is back in stock.`);
           }
 
           let newPriceLastChangedAt = rule.price_last_changed_at || null;
