@@ -818,6 +818,7 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
           const forceApprove = req.body && req.body.force_approve;
           const requiresReviewForStock = needsStockUpdate && stockAction === 'deny';
 
+          let reviewReason = rule.review_reason || null;
           if ((needsPriceUpdate || requiresReviewForStock) && !forceApprove) {
               forceNeedsReview = true;
               let reasonStr = [];
@@ -827,13 +828,16 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
               if (requiresReviewForStock) {
                   reasonStr.push(`Vendor OOS`);
               }
-              attention.push({ title: rule.title, reason: `🚨 APPROVAL REQUIRED: ${reasonStr.join(' | ')}` });
+              reviewReason = reasonStr.join(' | ');
+              attention.push({ title: rule.title, reason: `🚨 APPROVAL REQUIRED: ${reviewReason}` });
           } else if (forceApprove) {
               forceNeedsReview = false;
+              reviewReason = null;
               console.log(`[!] Force Overriding and applying updates for ${rule.title}`);
           } else if (vendorInStock && !needsPriceUpdate) {
               if (forceNeedsReview) {
                   forceNeedsReview = false;
+                  reviewReason = null;
                   console.log(`[SYNC] Clearing stuck review flag for ${rule.title} because item is in stock and requires no price update.`);
               }
           }
@@ -952,7 +956,8 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
               current_shopify_price: newCurrentShopifyPrice,
               current_compare_at_price: newCurrentCompareAtPrice,
               bti_inventory_active: newBtiInventoryActive,
-              needs_review: forceNeedsReview
+              needs_review: forceNeedsReview,
+              review_reason: reviewReason
             }).eq('id', rule.id);
           } else {
             // Nothing changed — queue for bulk last_run_at update at the end

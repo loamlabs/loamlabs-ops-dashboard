@@ -2848,7 +2848,16 @@ export default function OpsDashboard() {
                           </div>
                         </td>
                         <td className="p-6 text-center">
-                          {rule.needs_review ? <span className="bg-red-600 text-white text-[9px] font-black px-3 py-1 rounded-full animate-pulse uppercase tracking-tighter whitespace-nowrap">Review Required</span> : rule.last_availability ? <span className="bg-green-100 text-green-700 text-[9px] font-black px-3 py-1 rounded-full uppercase italic whitespace-nowrap">Active</span> : <span className="bg-red-100 text-red-600 text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-tighter whitespace-nowrap">Out of Stock</span>}
+                          {rule.needs_review ? (
+                            <div className="flex flex-col items-center gap-1">
+                              <span className="bg-red-600 text-white text-[9px] font-black px-3 py-1 rounded-full animate-pulse uppercase tracking-tighter whitespace-nowrap" title={rule.review_reason || "Needs Review"}>Review Required</span>
+                              {rule.review_reason && <span className="text-[8px] font-mono text-red-500 font-bold uppercase truncate max-w-[120px]" title={rule.review_reason}>{rule.review_reason}</span>}
+                            </div>
+                          ) : rule.last_availability ? (
+                            <span className="bg-green-100 text-green-700 text-[9px] font-black px-3 py-1 rounded-full uppercase italic whitespace-nowrap">Active</span>
+                          ) : (
+                            <span className="bg-red-100 text-red-600 text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-tighter whitespace-nowrap">Out of Stock</span>
+                          )}
                         </td>
                         <td className="p-6 text-center text-xs">
                           {rule.bti_inventory_active ? (
