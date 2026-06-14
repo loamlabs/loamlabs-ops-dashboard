@@ -879,7 +879,7 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
           if (rule.auto_update === true && !forceNeedsReview) {
              if (winner.available && currentBtiFlag === true) {
                 console.log(`[SYNC] Vendor BACK-IN-STOCK for ${rule.title}. Reclaiming authority from BTI by clearing part number.`);
-                updatePayloadForPrice.metafields = [{ namespace: "custom", key: "bti_part_number", value: "", type: "single_line_text_field" }];
+                updatePayloadForPrice.metafields = [{ namespace: "custom", key: "bti_part_number", value: "IGNORE", type: "single_line_text_field" }];
                 shouldPutPrice = true;
                 currentEffectiveBtiFlag = false;
              } else if (!winner.available && rule.bti_part_number && (rule.bti_monitoring_enabled === true || rule.bti_monitoring_enabled === 'true' || rule.tags?.includes('bti-sync')) && currentBtiFlag !== true) {
