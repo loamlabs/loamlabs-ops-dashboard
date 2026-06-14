@@ -301,6 +301,7 @@ export default async function handler(req, res) {
     ];
 
     const urlCache = {};
+    const ethirteenCache = {};
 
     for (const rule of rules) {
       try {
@@ -541,9 +542,14 @@ export default async function handler(req, res) {
                         if (!frontUrl && rule.vendor_url) frontUrl = rule.vendor_url.replace(/\/$/, '') + '-front';
                         if (frontUrl) {
                             try {
-                                const frontResp = await fetch(frontUrl + '.js', { headers: { 'User-Agent': randomUA } });
-                                if (!frontResp.ok) throw new Error(`Front wheel fetch failed (${frontResp.status})`);
-                                const frontData = await frontResp.json();
+                                const frontJsUrl = frontUrl + '.js';
+                                if (!ethirteenCache[frontJsUrl]) {
+                                    await new Promise(r => setTimeout(r, 600));
+                                    const frontResp = await fetch(frontJsUrl, { headers: { 'User-Agent': randomUA } });
+                                    if (!frontResp.ok) throw new Error(`Front wheel fetch failed (${frontResp.status})`);
+                                    ethirteenCache[frontJsUrl] = await frontResp.json();
+                                }
+                                const frontData = ethirteenCache[frontJsUrl];
                                 if (frontData?.variants?.length > 0) {
                                     const bestFront = frontData.variants.reduce((a, b) => (Math.max(a.price, a.compare_at_price || 0) > Math.max(b.price, b.compare_at_price || 0) ? a : b));
                                     finalPrice += Math.max(bestFront.price, bestFront.compare_at_price || 0);
@@ -563,9 +569,14 @@ export default async function handler(req, res) {
                         }
                         
                         try {
-                            const accResp = await fetch(accessoryUrl + '.js', { headers: { 'User-Agent': randomUA } });
-                            if (!accResp.ok) throw new Error(`Surcharge fetch failed (${accResp.status})`);
-                            const accData = await accResp.json();
+                            const accJsUrl = accessoryUrl + '.js';
+                            if (!ethirteenCache[accJsUrl]) {
+                                await new Promise(r => setTimeout(r, 600));
+                                const accResp = await fetch(accJsUrl, { headers: { 'User-Agent': randomUA } });
+                                if (!accResp.ok) throw new Error(`Surcharge fetch failed (${accResp.status})`);
+                                ethirteenCache[accJsUrl] = await accResp.json();
+                            }
+                            const accData = ethirteenCache[accJsUrl];
                             if (accData?.variants?.length > 0) {
                                 let driverSurcharge = 17995; 
                                 const axleString = axleMatch ? axleMatch[1] : (isSuperboost ? '157' : '148');
