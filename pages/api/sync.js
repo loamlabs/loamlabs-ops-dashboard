@@ -908,6 +908,15 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
           }
 
           if (shouldPutPrice) {
+             if (updatePayloadForPrice.metafields) {
+                 const m = updatePayloadForPrice.metafields[0];
+                 await fetch(`https://${process.env.SHOPIFY_SHOP_NAME}.myshopify.com/admin/api/2024-04/graphql.json`, {
+                     method: 'POST',
+                     headers: { 'X-Shopify-Access-Token': adminToken, 'Content-Type': 'application/json' },
+                     body: JSON.stringify({ query: `mutation { metafieldsSet(metafields: [{ownerId: "gid://shopify/ProductVariant/${rule.shopify_variant_id}", namespace: "${m.namespace}", key: "${m.key}", value: "${m.value}", type: "${m.type}"}]) { userErrors { message } } }` })
+                 });
+                 delete updatePayloadForPrice.metafields;
+             }
              await fetch(`https://${process.env.SHOPIFY_SHOP_NAME}.myshopify.com/admin/api/2024-04/variants/${rule.shopify_variant_id}.json`, {
                 method: 'PUT', headers: { 'X-Shopify-Access-Token': adminToken, 'Content-Type': 'application/json' },
                 body: JSON.stringify({ variant: updatePayloadForPrice })
