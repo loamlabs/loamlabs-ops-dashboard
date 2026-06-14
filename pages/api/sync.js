@@ -878,13 +878,13 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
 
           if (rule.auto_update === true && !forceNeedsReview) {
              if (winner.available && currentBtiFlag === true) {
-                console.log(`[SYNC] Vendor BACK-IN-STOCK for ${rule.title}. Reclaiming authority from BTI.`);
-                 updatePayloadForPrice.metafields = [{ namespace: "custom", key: "bti_sync_authority", value: "false", type: "boolean" }];
+                console.log(`[SYNC] Vendor BACK-IN-STOCK for ${rule.title}. Reclaiming authority from BTI by clearing part number.`);
+                updatePayloadForPrice.metafields = [{ namespace: "custom", key: "bti_part_number", value: "", type: "single_line_text_field" }];
                 shouldPutPrice = true;
                 currentEffectiveBtiFlag = false;
              } else if (!winner.available && rule.bti_part_number && (rule.bti_monitoring_enabled === true || rule.bti_monitoring_enabled === 'true' || rule.tags?.includes('bti-sync')) && currentBtiFlag !== true) {
-                console.log(`[SYNC] Vendor OOS for ${rule.title}. Deferring authority to BTI.`);
-                 updatePayloadForPrice.metafields = [{ namespace: "custom", key: "bti_sync_authority", value: "true", type: "boolean" }];
+                console.log(`[SYNC] Vendor OOS for ${rule.title}. Deferring authority to BTI by restoring part number.`);
+                updatePayloadForPrice.metafields = [{ namespace: "custom", key: "bti_part_number", value: String(rule.bti_part_number), type: "single_line_text_field" }];
                 shouldPutPrice = true;
                 currentEffectiveBtiFlag = true;
              } else if (currentBtiFlag === true && !rule.bti_part_number) {
