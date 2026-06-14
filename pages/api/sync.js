@@ -877,7 +877,7 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
           let shouldPutPrice = false;
 
           if (rule.auto_update === true && !forceNeedsReview) {
-             if (winner.available && currentBtiFlag === true) {
+             if (winner.available && (currentBtiFlag === true || forceApprove)) {
                 console.log(`[SYNC] Vendor BACK-IN-STOCK for ${rule.title}. Reclaiming authority from BTI by clearing part number.`);
                 updatePayloadForPrice.metafields = [{ namespace: "custom", key: "bti_part_number", value: "IGNORE", type: "single_line_text_field" }];
                 shouldPutPrice = true;
