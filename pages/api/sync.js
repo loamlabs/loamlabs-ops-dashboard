@@ -698,25 +698,25 @@ export default async function handler(req, res) {
                   if (ruleTokens.includes('gr') && !vTokens.includes('gr') && (vTokens.includes('dh') || vTokens.includes('en'))) return false;
                }
                if (isHub) {
-                  const isFrontRule = ruleTitle.includes('front');
+                  const isFrontRule = ruleTitleLower.includes('front');
                   if (isFrontRule && !vTitle.includes('front') && !vTitle.includes('15x') && !vTitle.includes('15mm') && !vTitle.includes('110x')) return false;
                   if (!isFrontRule && !vTitle.includes('rear') && !vTitle.includes('148') && !vTitle.includes('157')) return false;
                   let expectedHoles = null;
                   if (parsedOptions["Spoke Count"]) expectedHoles = parsedOptions["Spoke Count"].toString().replace(/\D/g, '');
                   if (expectedHoles && !vTitle.includes(`${expectedHoles} hole`) && !vTitle.includes(`${expectedHoles}h`) && !vTitle.includes(`${expectedHoles} h`)) return false;
-                  if (ruleTitle.includes('superboost') && !vTitle.includes('157')) return false;
-                  if (!ruleTitle.includes('superboost') && ruleTitle.includes('rear') && !vTitle.includes('148')) return false;
-                  if (ruleTitle.includes('sidekick sl')) {
+                  if (ruleTitleLower.includes('superboost') && !vTitle.includes('157')) return false;
+                  if (!ruleTitleLower.includes('superboost') && ruleTitleLower.includes('rear') && !vTitle.includes('148')) return false;
+                  if (ruleTitleLower.includes('sidekick sl')) {
                      if (!vTitle.includes('110x15mm')) return false;
-                  } else if (ruleTitle.includes('sidekick') && !ruleTitle.includes('sl') && isHub && isFrontRule) {
-                     if (ruleTitle.includes('20x110')) {
+                  } else if (ruleTitleLower.includes('sidekick') && !ruleTitleLower.includes('sl') && isHub && isFrontRule) {
+                     if (ruleTitleLower.includes('20x110')) {
                         if (!vTitle.includes('15/20')) return false;
                      } else {
                         if (vTitle.includes('15/20')) return false;
                      }
                   }
-                  if (!ruleTitle.includes('7spd') && !ruleTitle.includes('7 spd') && (vTitle.includes('7spd') || vTitle.includes('7 spd'))) return false;
-                  if (!ruleTitle.includes('mini') && vTitle.includes('mini')) return false;
+                  if (!ruleTitleLower.includes('7spd') && !ruleTitleLower.includes('7 spd') && (vTitle.includes('7spd') || vTitle.includes('7 spd'))) return false;
+                  if (!ruleTitleLower.includes('mini') && vTitle.includes('mini')) return false;
                }
                return true;
             } else if (rule.vendor_name?.toLowerCase() === 'velonix' || (rule.vendor_url && rule.vendor_url.toLowerCase().includes('velonix'))) {
