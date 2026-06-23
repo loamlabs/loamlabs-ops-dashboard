@@ -709,7 +709,11 @@ export default async function handler(req, res) {
                   if (ruleTitle.includes('sidekick sl')) {
                      if (!vTitle.includes('110x15mm')) return false;
                   } else if (ruleTitle.includes('sidekick') && !ruleTitle.includes('sl') && isHub && isFrontRule) {
-                     if (vTitle.includes('110x15mm') && !vTitle.includes('15/20')) return false;
+                     if (ruleTitle.includes('20x110')) {
+                        if (!vTitle.includes('15/20')) return false;
+                     } else {
+                        if (vTitle.includes('15/20')) return false;
+                     }
                   }
                   if (!ruleTitle.includes('7spd') && !ruleTitle.includes('7 spd') && (vTitle.includes('7spd') || vTitle.includes('7 spd'))) return false;
                   if (!ruleTitle.includes('mini') && vTitle.includes('mini')) return false;
