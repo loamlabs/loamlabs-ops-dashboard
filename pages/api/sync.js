@@ -39,7 +39,7 @@ async function getShopifyToken() {
   return data.access_token;
 }
 
-const shopifyProductVariantsCache = {};
+let shopifyProductVariantsCache = {};
 
 async function getShopifyVariant(adminToken, productId, variantId) {
   const cacheKey = String(productId);
@@ -224,6 +224,7 @@ async function runAutoDiscovery(adminToken, supabase, initialRules) {
 }
 
 export default async function handler(req, res) {
+  shopifyProductVariantsCache = {};
   if (!checkSupabase(res)) return;
   const authHeader = (req.headers['x-loam-secret'] || req.headers['x-dashboard-auth'])?.trim();
   if (authHeader !== process.env.CRON_SECRET?.trim() && authHeader !== process.env.DASHBOARD_PASSWORD?.trim()) {
