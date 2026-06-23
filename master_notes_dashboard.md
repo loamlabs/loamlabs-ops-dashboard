@@ -1,5 +1,11 @@
 # Master Notes: LoamLabs Ops Dashboard (Current Context)
 
+## 🚨 STRICT AGENT DIRECTIVES: MODULE ISOLATION
+**CRITICAL INSTRUCTION FOR ALL AI AGENTS:**
+1. **Never Break Unrelated Projects:** When working on one specific feature or tool within this dashboard (e.g., adding a vendor to Vendor Watcher), you MUST NOT modify, refactor, or touch code belonging to an unrelated project (e.g., the Component Library).
+2. **Isolated Architecture:** The tools in this repository (Vendor Watcher, BTI Sync, Component Library, Insights) are intentionally built to run separately. A bug or change in one should *never* cascade and break another. Maintain this strict separation of concerns.
+3. **Building New Tools:** If requested to build a completely new tool (for example, a price comparison tool that simulates wheel builds against competitors), it MUST be built entirely separately from the existing tools. Do not entangle new experimental features with stable, production modules.
+
 ## 🏗️ Architecture Overview
 The dashboard is a Next.js application designed to bridge Shopify product data with external vendor pricing via Scraping and BTI matching.
 
@@ -20,13 +26,15 @@ Control product visibility per-tab using Shopify tags:
 - **Bulk Actions**: supports "Ignore & Purge" which applies the `lab-ignore` tag via `/api/bulk-update-tags`.
 - **Data Integrity Audit**: "Group-Aware" discrepancy engine audits variant metafield consistency across families (handling subset variations like rim size or hub hole count) and surfaces mismatches in a global notification center.
 
-## 🔄 Sync Engine & Arbitration (Stabilized Mar 2026)
-- **Arbitration Logic**: Vendor Watcher handles **Price Authority** even when items are Out-of-Stock (OOS) at the vendor. **Inventory Authority** is deferred to BTI ONLY when vendor is OOS.
+## 🔄 Sync Engine & Arbitration (Stabilized Mar/June 2026)
+- **Arbitration Logic (The "Golden Rule")**: Vendor Watcher handles **Price Authority** even when items are Out-of-Stock (OOS) at the vendor. **Inventory Authority** is deferred to BTI ONLY when vendor is OOS.
+- **BTI Price Loop Prevention**: A guard exists to prevent infinite loops between Watcher and BTI. If the vendor is OOS *and* BTI is active (`bti_inventory_active === true`), Vendor Watcher defers to BTI for pricing to prevent the scripts from reverting each other's adjustments.
+- **BTI Hand-Off Protocol**: When Watcher forces an override to reclaim control from BTI, the `custom.bti_part_number` metafield is wiped in Shopify so BTI ignores the product. The product remains marked as "LINKED" in Watcher to allow safe restoration of the BTI number if the vendor goes OOS again in the future.
 - **Authority Reclamation**: Sync engine automatically toggles the `inventory_monitoring_enabled` Shopify metafield. It reclaims authority (sets to `false`) immediately when an item returns to stock at the vendor.
 - **OOS Pricing**: Prices are updated for OOS items to ensure MSRP/MAP compliance even during backorders.
 - **Selective Sync**: API supports `ruleIds` for targeted refreshes of individual or bulk-selected items.
 - **Unified Sync Action**: "Sync to Family" button synchronizes metafields directly to Shopify via GraphQL and immediately upserts `watcher_rules` in Supabase to eliminate manual refresh steps.
-- **Scraper Resilience**: Implements User-Agent rotation to bypass vendor blocks.
+- **Scraper Resilience & Caching**: Implements User-Agent rotation to bypass vendor blocks. Includes in-memory caching for dynamic multi-fetch workflows (like the `e*thirteen` driver/surcharge logic) to prevent 429 Rate Limit crashes from repetitive sequential lookups.
 
 ## 📊 Operational Insights (New)
 - **Abandoned Builds**: Captures unfinished wheel builds directly from the Shopify theme (via `/api/log-abandoned-build`) and surfaces them in a dedicated insights table while retaining essential email alerts.

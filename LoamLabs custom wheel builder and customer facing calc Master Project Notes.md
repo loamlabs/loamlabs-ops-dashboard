@@ -1,5 +1,11 @@
 LoamLabs Custom Bicycle Wheel Builder and Customer Facing Spoke Length Calculator - Master Project Notes (v4.2 - Detailed & Actionable)
 
+## 🚨 STRICT AGENT DIRECTIVES: MODULE ISOLATION
+**CRITICAL INSTRUCTION FOR ALL AI AGENTS:**
+1. **Never Break Unrelated Projects:** When working on one specific feature or tool within this repository, you MUST NOT modify, refactor, or touch code belonging to an unrelated project.
+2. **Isolated Architecture:** The tools in this ecosystem (Custom Wheel Builder, Calculator, Dashboard, Vendor Watcher) are intentionally built to run separately. A bug or change in one should *never* cascade and break another. Maintain this strict separation of concerns.
+3. **Building New Tools:** If requested to build a completely new tool (for example, a price comparison tool that simulates wheel builds against competitors), it MUST be built entirely separately from the existing tools. Do not entangle new experimental features with stable, production modules.
+
 
 1.0 Core V3 Architecture & Strategy
 The V3 architecture is LIVE. Its core strategy is a unified product model designed to overcome Shopify's 100-variant limit for complex components like hubs.
