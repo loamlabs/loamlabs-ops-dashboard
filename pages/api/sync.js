@@ -655,7 +655,8 @@ export default async function handler(req, res) {
               }
               const normalizedTitleForTokens = vTitle.toLowerCase()
                  .replace(/[\"\':(),]/g, '')
-                 .replace(/shimano 11sp/g, 'shimano');
+                 .replace(/shimano 11sp/g, 'shimano')
+                 .replace(/\bhg\b/g, 'shimano');
                  
               for (let token of reqTokens) { 
                  if (!normalizedTitleForTokens.includes(token)) {
