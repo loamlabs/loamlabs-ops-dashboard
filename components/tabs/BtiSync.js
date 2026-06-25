@@ -1,9 +1,9 @@
 import React from 'react';
-import { RefreshCcw, Search, Package, X } from 'lucide-react';
+import { RefreshCcw, Search, Package, X, Activity } from 'lucide-react';
 
 export default function BtiSync(props) {
   const {
-    fetchRules, loading, selectedVendors, setSelectedVendors,
+    fetchRules, loading, runManualSync, selectedVendors, setSelectedVendors,
     visibleVendorNames, vendorLogos, toggleVendor, setVisibleCount,
     btiSyncFilter, setBtiSyncFilter, btiSearch, setBtiSearch,
     rules, visibleCount, setEditingRule
@@ -21,6 +21,9 @@ export default function BtiSync(props) {
         <div className="flex items-center gap-3">
           <button onClick={() => fetchRules()} className={`bg-blue-50 text-blue-700 p-3 px-6 rounded-xl font-black uppercase italic text-[10px] flex items-center gap-2 border border-blue-100 shadow-sm hover:bg-blue-100 transition-all ${loading ? 'opacity-50' : ''}`} disabled={loading}>
             <RefreshCcw size={14} className={loading ? 'animate-spin' : ''} /> Distributor Feed Active
+          </button>
+          <button onClick={runManualSync} disabled={loading} title="Forces an immediate scrape to synchronize all prices and inventory with Distributor sites" className="bg-orange-500 text-white p-3 px-6 rounded-xl font-black uppercase italic text-[10px] flex items-center gap-2 hover:bg-orange-600 transition-all shadow-lg">
+             <Activity size={14} /> Run Live Sync
           </button>
         </div>
       </div>
