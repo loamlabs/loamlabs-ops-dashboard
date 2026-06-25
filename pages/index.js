@@ -146,7 +146,8 @@ export default function OpsDashboard() {
     const [isAuditing, setIsAuditing] = useState(false);
     const [syncMismatches, setSyncMismatches] = useState({}); // { [rid]: [fieldKey1, fieldKey2] }
     const [showMismatchesOnly, setShowMismatchesOnly] = useState(false);
-  const [metafieldRegistry, setMetafieldRegistry] = useState([
+  const [metafieldRegistry, setMetafieldRegistry] = useState(() => {
+    const defaults = [
     { key: 'shopify_product_id', label: 'Shopify Product ID', categories: ['RIM', 'HUB', 'SPOKE', 'NIPPLE', 'VALVESTEM', 'ACCESSORY'], target: 'product', type: 'single_line_text_field' },
     { key: 'shopify_variant_id', label: 'Shopify Variant ID', categories: ['RIM', 'HUB', 'SPOKE', 'NIPPLE', 'VALVESTEM', 'ACCESSORY'], target: 'variant', type: 'single_line_text_field' },
     { key: '_variant_image_url', label: 'Variant Thumbnail Image URL (Paste Shopify Link)', categories: ['RIM', 'HUB', 'SPOKE', 'NIPPLE', 'VALVESTEM', 'ACCESSORY'], target: 'variant', type: 'url' },
@@ -190,7 +191,31 @@ export default function OpsDashboard() {
     { key: 'spoke_diameter_spec', label: 'Spoke Diameter Spec', categories: ['SPOKE'], target: 'product', type: 'single_line_text_field' },
     { key: 'spoke_rounding_rule', label: 'Spoke Rounding Rule', categories: ['SPOKE'], target: 'product', type: 'single_line_text_field' },
     { key: 'spoke_cross_section_area_mm2', label: 'Spoke Cross Section Area Mm2', categories: ['SPOKE'], target: 'product', type: 'number_decimal' }
-  ]);
+    ];
+    if (typeof window !== 'undefined') {
+       try {
+           const saved = localStorage.getItem('loamlabs_metafield_registry');
+           if (saved) {
+               const parsed = JSON.parse(saved);
+               const parsedMap = new Map(parsed.map(p => [p.key + '-' + p.target, p]));
+               const merged = defaults.map(d => {
+                   const p = parsedMap.get(d.key + '-' + d.target);
+                   if (p) {
+                       parsedMap.delete(d.key + '-' + d.target);
+                       return { ...d, categories: p.categories };
+                   }
+                   return d;
+               });
+               return [...merged, ...Array.from(parsedMap.values())];
+           }
+       } catch(e) {}
+    }
+    return defaults;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('loamlabs_metafield_registry', JSON.stringify(metafieldRegistry));
+  }, [metafieldRegistry]);
 
 
   const [resizingCol, setResizingCol] = useState(null);
