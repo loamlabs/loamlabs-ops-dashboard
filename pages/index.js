@@ -654,9 +654,9 @@ export default function OpsDashboard() {
                if (d.optionsDict) setMetafieldOptionsMap(d.optionsDict);
                if (d.definitions) {
                    setMetafieldRegistry(prev => {
-                       const existingKeys = new Set(prev.map(m => m.key));
+                       const existingEntries = new Set(prev.map(m => m.key + '-' + m.target));
                        const newDefs = d.definitions
-                           .filter(def => def.namespace === 'custom' && !existingKeys.has(def.key))
+                           .filter(def => def.ownerType === 'PRODUCTVARIANT' && def.namespace === 'custom' && !existingEntries.has(def.key + '-variant'))
                            .map(def => ({
                                key: def.key,
                                label: `Variant Metafield: ${def.namespace}.${def.key} [${def.type?.name || 'single_line_text_field'}]`,

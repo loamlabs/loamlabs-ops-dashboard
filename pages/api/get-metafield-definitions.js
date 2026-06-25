@@ -71,8 +71,8 @@ export default async function handler(req, res) {
       return res.status(600).json({ error: 'Shopify GraphQL Error', details: data.errors });
     }
 
-    const productDefs = data.data.productMetafields.edges.map(e => e.node);
-    const variantDefs = data.data.variantMetafields.edges.map(e => e.node);
+    const productDefs = data.data.productMetafields.edges.map(e => ({ ...e.node, ownerType: 'PRODUCT' }));
+    const variantDefs = data.data.variantMetafields.edges.map(e => ({ ...e.node, ownerType: 'PRODUCTVARIANT' }));
 
     // Combine and parse the choices
     const allDefs = [...productDefs, ...variantDefs];
