@@ -2889,7 +2889,9 @@ export default function OpsDashboard() {
                                                 try {
                                                   const p = JSON.parse(metaEditFields[m.key]);
                                                   return Array.isArray(p) && p.includes(opt);
-                                                } catch(e) { return metaEditFields[m.key].includes(opt); }
+                                                } catch(e) { 
+                                                   return metaEditFields[m.key].split(',').map(s=>s.trim()).includes(opt); 
+                                                }
                                              })();
                                              return (
                                                <label key={opt} className="flex items-center gap-2 cursor-pointer group">
