@@ -650,7 +650,27 @@ export default function OpsDashboard() {
         setVendorLogos(logoData.savedLogos || []);
         setIsAuthorized(true); 
         fetch('/api/get-metafield-definitions').then(r => r.json()).then(d => {
-           if (d.success && d.optionsDict) setMetafieldOptionsMap(d.optionsDict);
+           if (d.success) {
+               if (d.optionsDict) setMetafieldOptionsMap(d.optionsDict);
+               if (d.definitions) {
+                   setMetafieldRegistry(prev => {
+                       const existingKeys = new Set(prev.map(m => m.key));
+                       const newDefs = d.definitions
+                           .filter(def => def.namespace === 'custom' && !existingKeys.has(def.key))
+                           .map(def => ({
+                               key: def.key,
+                               label: `Variant Metafield: ${def.namespace}.${def.key} [${def.type?.name || 'single_line_text_field'}]`,
+                               categories: [],
+                               target: 'variant',
+                               type: def.type?.name || 'single_line_text_field'
+                           }));
+                       if (newDefs.length > 0) {
+                           return [...prev, ...newDefs];
+                       }
+                       return prev;
+                   });
+               }
+           }
         }).catch(e => console.error("Meta def sync err", e));
       } else {
         showNotification("❌ Dashboard Login Failed", 'error');
@@ -3319,6 +3339,25 @@ export default function OpsDashboard() {
                                                     className="flex items-center justify-between p-4 bg-zinc-100/30 hover:bg-zinc-200/50 cursor-pointer transition-colors group"
                                                   >
                                                      <div className="flex items-center gap-4">
+                                                        <input 
+                                                          type="checkbox" 
+                                                          className="w-4 h-4 rounded border-2 border-zinc-200 text-black focus:ring-black cursor-pointer pointer-events-auto"
+                                                          checked={variants.length > 0 && variants.every(v => selectedLabVariants.includes(String(v.shopify_variant_id)))}
+                                                          onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            const variantIds = variants.map(v => String(v.shopify_variant_id));
+                                                            const allSelected = variants.every(v => selectedLabVariants.includes(String(v.shopify_variant_id)));
+                                                            if (allSelected) {
+                                                              setSelectedLabVariants(prev => prev.filter(id => !variantIds.includes(String(id))));
+                                                            } else {
+                                                              setSelectedLabVariants(prev => {
+                                                                const newIds = variantIds.filter(id => !prev.includes(id));
+                                                                return [...prev, ...newIds];
+                                                              });
+                                                            }
+                                                          }}
+                                                          onChange={() => {}}
+                                                        />
                                                         <ChevronDown size={14} className={`text-zinc-400 transition-transform ${isGroupExpanded ? '' : '-rotate-90'}`} />
                                                         <div className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-600">{groupName}</div>
                                                         <span className="text-[8px] font-black bg-white px-2 py-0.5 rounded-full border border-zinc-200 text-zinc-400">{variants.length} Variant(s)</span>
