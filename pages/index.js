@@ -739,10 +739,19 @@ export default function OpsDashboard() {
           if (!auth) return;
           console.log(`[Lifecycle] Fetching components...`);
           const cb = Date.now();
-          const res = await fetch(`/api/components?cb=${cb}`, { headers: { 'x-dashboard-auth': auth } });
-          if (res.ok) {
-              const data = await res.json();
-              console.log(`[Lifecycle] Fetch SUCCESS. Received tabs: ${Object.keys(data).join(', ')}`);
+          const fetchTab = async (tab) => {
+              const r = await fetch(`/api/components?tab=${tab}&cb=${cb}`, { headers: { 'x-dashboard-auth': auth } });
+              if (r.ok) {
+                  const d = await r.json();
+                  return d[tab];
+              }
+              return [];
+          };
+
+          const [hubs, rims, spokes, nipples] = await Promise.all(['hubs', 'rims', 'spokes', 'nipples'].map(fetchTab));
+          const data = { hubs, rims, spokes, nipples };
+          
+          console.log(`[Lifecycle] Fetch SUCCESS. Received tabs: ${Object.keys(data).join(', ')}`);
               const hydrated = {};
               Object.keys(data).forEach(tab => {
                   const rawList = data[tab] || [];
@@ -776,9 +785,6 @@ export default function OpsDashboard() {
               const cleanData = unifyComponentKeys(hydrated);
               setComponentData(cleanData);
               setComponentsLoaded(true);
-          } else {
-              console.error(`[Lifecycle] Fetch FAILED: ${res.status}`);
-          }
       } catch (e) { console.error('Fetch Component Error: ', e); }
       setLoading(false);
   };
@@ -2368,7 +2374,7 @@ export default function OpsDashboard() {
       }
       if (selectedLabVariants.length > 0 && (variantFields.length > 0 || imageUrl)) {
         // Find the product ID for these variants from the local state
-        const firstVariantRow = allUniqueRules.find(r => selectedLabVariants.includes(r.shopify_variant_id));
+        const firstVariantRow = allUniqueRules.find(r => selectedLabVariants.includes(String(r.shopify_variant_id)));
         const productId = firstVariantRow ? firstVariantRow.shopify_product_id : null;
 
         const res = await fetch('/api/bulk-update-metafields', {

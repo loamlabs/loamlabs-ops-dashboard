@@ -1,9 +1,15 @@
 const { Redis } = require('@upstash/redis');
 
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN,
-});
+const redisUrl = process.env.UPSTASH_REDIS_REST_URL;
+const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+
+let redis = null;
+if (redisUrl && redisToken) {
+  redis = new Redis({
+    url: redisUrl,
+    token: redisToken,
+  });
+}
 
 async function readRawBody(req) {
   return new Promise((resolve, reject) => {
@@ -44,9 +50,12 @@ const handler = async (req, res) => {
       };
 
       // Push to Redis
-      await redis.lpush('abandoned_builds', JSON.stringify(dataToStore));
-      
-      console.log(`Successfully recorded abandoned build: ${buildData.buildId}`);
+      if (redis) {
+        await redis.lpush('abandoned_builds', JSON.stringify(dataToStore));
+        console.log(`Successfully recorded abandoned build: ${buildData.buildId}`);
+      } else {
+        console.warn('Redis not configured, skipping log of abandoned build.');
+      }
       res.status(202).json({ message: 'Accepted' });
     } catch (error) {
       console.error('Error recording build:', error.message);

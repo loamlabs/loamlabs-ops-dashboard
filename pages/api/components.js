@@ -34,7 +34,14 @@ export default async function handler(req, res) {
             try { return JSON.parse(text); } catch(e) { return []; }
         };
 
+        const requestedTab = req.query.tab;
+
         try {
+            if (requestedTab) {
+                const data = await fetchFile(`${requestedTab}.json`);
+                return res.status(200).json({ [requestedTab]: data });
+            }
+
             const [hubs, rims, spokes, nipples] = await Promise.all([
                 fetchFile('hubs.json'),
                 fetchFile('rims.json'),
