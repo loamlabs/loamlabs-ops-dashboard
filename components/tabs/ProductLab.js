@@ -2,7 +2,7 @@ import React from 'react';
 import { RefreshCcw, Search, Plus, Settings, X, ShieldAlert, ChevronDown, Info, ExternalLink, Loader2, AlertCircle } from 'lucide-react';
 
 export default function ProductLab(props) {
-  const { syncCatalogFull, loading, setActiveTab, selectedVendors, setSelectedVendors, visibleVendorNames, vendorLogos, toggleVendor, setVisibleCount, labSearch, setLabSearch, labCategory, setLabCategory, labDiscrepancyOnly, setLabDiscrepancyOnly, selectedLabProducts, setSelectedLabProducts, globalLabGroupMode, setGlobalLabGroupMode, setLabProductGroupModes, allUniqueRules, expandedGroups, setExpandedGroups, selectedLabVariants, setSelectedLabVariants, getDiscrepancies, metafieldRegistry, metafieldOptionsMap, toggleLabVariant, setLoading, fetchRules, syncFieldToFamily, setEditingRule, labProductGroupModes } = props;
+  const { expandedProducts, setExpandedProducts, syncCatalogFull, loading, setActiveTab, selectedVendors, setSelectedVendors, visibleVendorNames, vendorLogos, toggleVendor, setVisibleCount, labSearch, setLabSearch, labCategory, setLabCategory, labDiscrepancyOnly, setLabDiscrepancyOnly, selectedLabProducts, setSelectedLabProducts, globalLabGroupMode, setGlobalLabGroupMode, setLabProductGroupModes, allUniqueRules, expandedGroups, setExpandedGroups, selectedLabVariants, setSelectedLabVariants, getDiscrepancies, metafieldRegistry, metafieldOptionsMap, toggleLabVariant, setLoading, fetchRules, syncFieldToFamily, setEditingRule, labProductGroupModes } = props;
 
   return (
     <>
