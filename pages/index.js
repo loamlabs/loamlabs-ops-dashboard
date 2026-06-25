@@ -2715,7 +2715,7 @@ export default function OpsDashboard() {
       <main className="flex-grow ml-64 p-6 md:p-12 overflow-auto min-h-screen">
         
         {activeTab === 'vendors' ? (
-          <VendorWatcher {...{ filteredRules, rules, handleAutoImport, loading, runManualSync, fetchRules, selectedVendors, setSelectedVendors, visibleVendorNames, vendorLogos, toggleVendor, setVisibleCount, syncFilter, setSyncFilter, registrySearch, setRegistrySearch, selectedRules, setSelectedRules, bulkSetAutoSync, bulkSetPriceAdjust, bulkSetCompareAt, runSelectiveSync, setShowBulkEditModal, bulkDelete, bulkIgnore, paginatedRules, handleCheckboxClick, toggleAutoSync, setEditingRule, deleteRule, visibleCount, formatDate, bulkApproveChanges }} />
+          <VendorWatcher {...{ filteredRules, rules, handleAutoImport, loading, runManualSync, fetchRules, selectedVendors, setSelectedVendors, visibleVendorNames, vendorLogos, toggleVendor, setVisibleCount, syncFilter, setSyncFilter, registrySearch, setRegistrySearch, selectedRules, setSelectedRules, bulkSetAutoSync, bulkSetPriceAdjust, bulkSetCompareAt, runSelectiveSync, setShowBulkEditModal, bulkDelete, bulkIgnore, paginatedRules, handleCheckboxClick, toggleAutoSync, setEditingRule, deleteRule, visibleCount, bulkApproveChanges }} />
         ) : activeTab === 'bti_sync' ? (
           <BtiSync {...{ fetchRules, loading, selectedVendors, setSelectedVendors, visibleVendorNames, vendorLogos, toggleVendor, setVisibleCount, btiSyncFilter, setBtiSyncFilter, btiSearch, setBtiSearch, rules, visibleCount, setEditingRule }} />
         ) : activeTab === 'product_lab' ? (

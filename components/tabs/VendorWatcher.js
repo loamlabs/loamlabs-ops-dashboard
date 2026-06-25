@@ -9,7 +9,7 @@ export default function VendorWatcher(props) {
     setRegistrySearch, selectedRules, setSelectedRules, bulkSetAutoSync, 
     bulkSetPriceAdjust, bulkSetCompareAt, runSelectiveSync, setShowBulkEditModal, 
     bulkDelete, bulkIgnore, paginatedRules, handleCheckboxClick, toggleAutoSync, 
-    setEditingRule, deleteRule, visibleCount
+    setEditingRule, deleteRule, visibleCount, bulkApproveChanges
   } = props;
 
   return (
