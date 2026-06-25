@@ -4435,6 +4435,8 @@ export default function OpsDashboard() {
                              const realKey = m.key.replace(/^(product_|variant_)/, '');
                              const dynamicOptions = metafieldOptionsMap[realKey] || metafieldOptionsMap[m.key];
                              const isBool = m.type === 'boolean' || dynamicOptions === 'boolean';
+                             const isJson = m.type === 'json' || m.type === 'json_string';
+                             const isList = m.type?.startsWith('list.') || (m.type === 'single_line_text_field' && m.key.includes('freehub'));
                              const hasOptions = (m.options && m.options.length > 0) || (Array.isArray(dynamicOptions) && dynamicOptions.length > 0);
                              const mappedOptions = hasOptions ? (dynamicOptions || m.options) : [];
 
@@ -4462,6 +4464,45 @@ export default function OpsDashboard() {
                                          <option value="true">True (Yes)</option>
                                          <option value="false">False (No)</option>
                                        </select>
+                                    ) : isList && hasOptions ? (
+                                       <div className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-xl px-4 py-3 outline-none focus:border-black transition-all font-bold text-sm max-h-48 overflow-y-auto space-y-2">
+                                          {mappedOptions.map(opt => {
+                                             const isSelected = (() => {
+                                                if (metaEditFields[m.key] === '_CONFLICT_' || !metaEditFields[m.key]) return false;
+                                                try {
+                                                  const p = JSON.parse(metaEditFields[m.key]);
+                                                  return Array.isArray(p) && p.includes(opt);
+                                                } catch(e) { return metaEditFields[m.key].includes(opt); }
+                                             })();
+                                             return (
+                                               <label key={opt} className="flex items-center gap-2 cursor-pointer group">
+                                                 <input 
+                                                   type="checkbox"
+                                                   className="w-4 h-4 rounded border-2 border-zinc-200 text-black focus:ring-black cursor-pointer"
+                                                   checked={isSelected}
+                                                   onChange={(e) => {
+                                                     const checked = e.target.checked;
+                                                     let current = [];
+                                                     if (metaEditFields[m.key] !== '_CONFLICT_' && metaEditFields[m.key]) {
+                                                        try { 
+                                                           current = JSON.parse(metaEditFields[m.key]); 
+                                                           if(!Array.isArray(current)) current = [current]; 
+                                                        } catch(err) { 
+                                                           current = metaEditFields[m.key].split(',').map(s=>s.trim()).filter(Boolean); 
+                                                        }
+                                                     }
+                                                     if (checked) current.push(opt);
+                                                     else current = current.filter(x => x !== opt);
+                                                     
+                                                     if (current.length === 0) setMetaEditFields({...metaEditFields, [m.key]: ''});
+                                                     else setMetaEditFields({...metaEditFields, [m.key]: m.type?.startsWith('list.') ? JSON.stringify(current) : current.join(', ')});
+                                                   }}
+                                                 />
+                                                 <span className="text-xs text-zinc-600 group-hover:text-black">{opt}</span>
+                                               </label>
+                                             );
+                                          })}
+                                       </div>
                                     ) : hasOptions ? (
                                        <select
                                          value={(metaEditFields[m.key] !== '_CONFLICT_' ? String(metaEditFields[m.key]) : '') || ''}
@@ -4471,6 +4512,13 @@ export default function OpsDashboard() {
                                          <option value="">-- No Change --</option>
                                          {mappedOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                                        </select>
+                                    ) : isJson ? (
+                                       <textarea
+                                         placeholder="Paste JSON configuration..."
+                                         className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-xl px-4 py-3 outline-none focus:border-black transition-all font-mono text-xs placeholder:text-zinc-300 placeholder:italic placeholder:font-sans min-h-[120px]"
+                                         value={(metaEditFields[m.key] !== '_CONFLICT_' ? metaEditFields[m.key] : '') || ''}
+                                         onChange={(e) => setMetaEditFields({...metaEditFields, [m.key]: e.target.value})}
+                                       />
                                     ) : (
                                        <input 
                                          type="text" 
