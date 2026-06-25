@@ -126,6 +126,8 @@ export default function OpsDashboard() {
   const [isImportingProduct, setIsImportingProduct] = useState(false);
   const [productSyncId, setProductSyncId] = useState('');
   const [notification, setNotification] = useState(null);
+  const [globalLabGroupMode, setGlobalLabGroupMode] = useState('default');
+  const [labProductGroupModes, setLabProductGroupModes] = useState({});
   const [gridUnsavedChanges, setGridUnsavedChanges] = useState({}); 
   const [gridAddedRows, setGridAddedRows] = useState({ hubs: [], rims: [], spokes: [], nipples: [] });
   const [focusedCell, setFocusedCell] = useState(null); 
@@ -241,6 +243,22 @@ export default function OpsDashboard() {
   }, [metafieldRegistry]);
 
   const getVariantGroupKey = React.useCallback((variant, product) => {
+    const mode = labProductGroupModes[product.shopify_product_id] || globalLabGroupMode;
+
+    if (mode === 'Option 1' || mode === 'Option 2' || mode === 'Option 3') {
+       if (variant.option_values) {
+          let opts = variant.option_values;
+          if (typeof opts === 'string') {
+             try { opts = JSON.parse(opts); } catch(e) { opts = {}; }
+          }
+          const keys = Object.keys(opts);
+          const index = mode === 'Option 1' ? 0 : mode === 'Option 2' ? 1 : 2;
+          if (keys.length > index) {
+             return `${keys[index]}: ${opts[keys[index]]}`;
+          }
+       }
+    }
+
     const parentTitle = product.title.split('(')[0].trim().toLowerCase();
     let variantLabel = variant.title;
     if (variantLabel.toLowerCase().startsWith(parentTitle)) {
@@ -268,7 +286,7 @@ export default function OpsDashboard() {
       return parts[0]; // Size for rims, etc.
     }
     return 'Base Config';
-  }, []);
+  }, [labProductGroupModes, globalLabGroupMode]);
 
   const getProductGroupedDiscrepancies = React.useCallback((product, productVariants) => {
     const groups = productVariants.reduce((acc, v) => {
@@ -3186,7 +3204,24 @@ export default function OpsDashboard() {
                         />
                       </th>
                       <th className="w-4 p-0"></th>
-                      <th className="p-6">Product Family (A-Z)</th>
+                      <th className="p-6">
+                        <div className="flex flex-col gap-1 items-start">
+                          <span>Product Family (A-Z)</span>
+                          <select 
+                            value={globalLabGroupMode}
+                            onChange={e => {
+                               setGlobalLabGroupMode(e.target.value);
+                               setLabProductGroupModes({});
+                            }}
+                            className="text-[8px] font-black uppercase tracking-[0.2em] bg-transparent text-zinc-400 hover:text-black cursor-pointer outline-none border-0 p-0 transition-colors"
+                          >
+                            <option value="default">Group: Default Sort</option>
+                            <option value="Option 1">Group: Option 1</option>
+                            <option value="Option 2">Group: Option 2</option>
+                            <option value="Option 3">Group: Option 3</option>
+                          </select>
+                        </div>
+                      </th>
                       <th className="p-6">Vendor</th>
                       <th className="p-6 text-center">Variants</th>
                       <th className="p-6 text-center">Integrity</th>
@@ -3314,7 +3349,22 @@ export default function OpsDashboard() {
                             {isExpanded && (
                                <tr>
                                  <td colSpan="6" className="p-0 bg-white shadow-inner">
-                                   <div className="divide-y divide-zinc-50 border-x border-zinc-100 mx-6 mb-6 rounded-2xl overflow-hidden border border-zinc-200 bg-zinc-50">
+                                   <div className="flex items-center gap-2 px-6 pt-5 pb-3">
+                                      <span className="text-[9px] uppercase font-black text-zinc-400 tracking-widest">Group By:</span>
+                                      {['default', 'Option 1', 'Option 2', 'Option 3'].map(mode => {
+                                         const isActive = (labProductGroupModes[product.shopify_product_id] || globalLabGroupMode) === mode;
+                                         return (
+                                           <button 
+                                             key={mode}
+                                             onClick={() => setLabProductGroupModes(prev => ({...prev, [product.shopify_product_id]: mode}))}
+                                             className={`px-3 py-1.5 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${isActive ? 'bg-black text-white border-black shadow-md' : 'bg-white text-zinc-500 border-zinc-200 hover:border-black hover:text-black hover:bg-zinc-50'}`}
+                                           >
+                                              {mode.replace('Option ', 'Opt ')}
+                                           </button>
+                                         );
+                                      })}
+                                   </div>
+                                   <div className="divide-y divide-zinc-50 border-x border-b border-zinc-100 mx-6 mb-6 rounded-2xl overflow-hidden border border-zinc-200 bg-zinc-50">
                                      {(() => {
                                         const groups = productVariants.reduce((acc, v) => {
                                             const groupKey = getVariantGroupKey(v, product);
