@@ -499,6 +499,7 @@ export default function ProductLab(props) {
                   </tbody>
                 </table>
              </div>
+          </div>
     </>
   );
 }
