@@ -2348,11 +2348,11 @@ export default function OpsDashboard() {
     
     const productFields = validEntries.map(([key, val]) => ({ key, val, reg: metafieldRegistry.find(m => m.key === key) }))
       .filter(f => f.reg && f.reg.target === 'product')
-      .map(f => ({ namespace: 'custom', key: f.key.replace('product_', ''), value: f.val, type: f.reg.type }));
+      .map(f => ({ namespace: 'custom', key: f.key.replace(/^product_/, ''), value: f.val, type: f.reg.type }));
 
     const variantFields = validEntries.map(([key, val]) => ({ key, val, reg: metafieldRegistry.find(m => m.key === key) }))
       .filter(f => f.reg && f.reg.target === 'variant' && f.key !== '_variant_image_url')
-      .map(f => ({ namespace: 'custom', key: f.key.replace('variant_', ''), value: f.val, type: f.reg.type }));
+      .map(f => ({ namespace: 'custom', key: f.key.replace(/^variant_/, ''), value: f.val, type: f.reg.type }));
     
     const imageUrlField = validEntries.find(([key]) => key === '_variant_image_url');
     const imageUrl = imageUrlField ? imageUrlField[1] : null;
