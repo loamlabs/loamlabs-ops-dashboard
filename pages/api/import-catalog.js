@@ -170,6 +170,7 @@ export default async function handler(req, res) {
           for (const v of allVariantEdges) {
             const mappedOptions = {};
             v.node.selectedOptions.forEach(opt => { mappedOptions[opt.name] = opt.value; });
+            mappedOptions.__order = v.node.selectedOptions.map(o => o.name);
 
             const isRim = p.node.title.toLowerCase().includes('rim');
             const isWheelset = p.node.title.toLowerCase().includes('wheel');
@@ -220,10 +221,10 @@ export default async function handler(req, res) {
               if (colorValue) parts.push(colorValue);
               if (lengthValue) parts.push(lengthValue);
               titleSuffix = parts.length > 0 ? `(${parts.join(' / ')})` : '';
-            } else if (isWheelset) {
+            } else if (isWheelset || p.node.title.toLowerCase().includes('hub')) {
               // Extract all variants precisely
               technicalKey = `${p.node.id}-${v.node.id}`;
-              const parts = Object.values(mappedOptions).filter(Boolean);
+              const parts = Object.entries(mappedOptions).filter(([k, val]) => k !== '__order' && Boolean(val)).map(([k, val]) => val);
               titleSuffix = parts.length > 0 ? `(${parts.join(' / ')})` : '';
             }
 

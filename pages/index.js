@@ -251,10 +251,11 @@ export default function OpsDashboard() {
           if (typeof opts === 'string') {
              try { opts = JSON.parse(opts); } catch(e) { opts = {}; }
           }
-          const keys = Object.keys(opts);
+          const keys = opts.__order || Object.keys(opts).filter(k => k !== '__order');
           const index = mode === 'Option 1' ? 0 : mode === 'Option 2' ? 1 : 2;
           if (keys.length > index) {
-             return `${keys[index]}: ${opts[keys[index]]}`;
+             const key = keys[index];
+             return `${key}: ${opts[key]}`;
           }
        }
     }

@@ -177,6 +177,7 @@ async function runAutoDiscovery(adminToken, supabase, initialRules) {
           mappedOptions[opt.name] = opt.value; 
           if (opt.name === 'Pack Size') packSize = parseInt(opt.value, 10) || 1;
         });
+        mappedOptions.__order = v.selectedOptions.map(o => o.name);
         
         // Inherit custom mappings (like Type or Secure Lock) from existing rules
         if (data.rules.length > 0) {
