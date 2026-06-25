@@ -394,6 +394,8 @@ export default async function handler(req, res) {
         if (typeof parsedOptions === 'string') {
           try { parsedOptions = JSON.parse(parsedOptions); } catch (e) {}
         }
+        parsedOptions = { ...parsedOptions };
+        delete parsedOptions.__order;
           const normalize = (t) => String(t || "").replace(/×/g, 'x').replace(/\s+/g, ' ').trim();
           // Helper to strip " Spokes" suffix for uniform matching of spoke counts
           function normalizeSpokeCount(val) {
