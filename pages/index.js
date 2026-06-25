@@ -2721,7 +2721,6 @@ export default function OpsDashboard() {
           <BtiSync {...{ fetchRules, loading, selectedVendors, setSelectedVendors, visibleVendorNames, vendorLogos, toggleVendor, setVisibleCount, btiSyncFilter, setBtiSyncFilter, btiSearch, setBtiSearch, rules, visibleCount, setEditingRule }} />
         ) : activeTab === 'product_lab' ? (
           <ProductLab {...{ syncCatalogFull, loading, setActiveTab, selectedVendors, setSelectedVendors, visibleVendorNames, vendorLogos, toggleVendor, setVisibleCount, labSearch, setLabSearch, labCategory, setLabCategory, labDiscrepancyOnly, setLabDiscrepancyOnly, selectedLabProducts, setSelectedLabProducts, globalLabGroupMode, setGlobalLabGroupMode, setLabProductGroupModes, allUniqueRules, expandedLabProducts, setExpandedLabProducts, expandedGroups, setExpandedGroups, selectedLabVariants, setSelectedLabVariants, getDiscrepancies, metafieldRegistry, metafieldOptionsMap, toggleLabVariant, setLoading, fetchRules, syncFieldToFamily, setEditingRule, labProductGroupModes }} />
-          </div>
         ) : activeTab === 'insights' ? (
            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="flex items-center justify-between mb-8">
