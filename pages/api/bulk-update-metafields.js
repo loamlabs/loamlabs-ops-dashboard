@@ -40,7 +40,9 @@ export default async function handler(req, res) {
   if (req.headers['x-dashboard-auth']?.trim() !== process.env.DASHBOARD_PASSWORD?.trim()) return res.status(401).json({ error: 'Unauthorized' });
 
   const { ids, metafields, targetType, imageUrl, productId } = req.body; // ids: array of Shopify IDs (product or variant), targetType: 'Product' | 'ProductVariant'
+  console.log(`[Bulk Update API] targetType: ${targetType}, ids: ${ids.length}, metafields: ${JSON.stringify(metafields)}`);
   if (!ids || !Array.isArray(ids) || !metafields || !Array.isArray(metafields) || !targetType) {
+    console.log('[Bulk Update API] Bad Request');
     return res.status(400).json({ error: 'Missing ids, metafields (array) or targetType' });
   }
 

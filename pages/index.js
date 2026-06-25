@@ -2357,7 +2357,10 @@ export default function OpsDashboard() {
     const imageUrlField = validEntries.find(([key]) => key === '_variant_image_url');
     const imageUrl = imageUrlField ? imageUrlField[1] : null;
     
-    if (productFields.length === 0 && variantFields.length === 0 && !imageUrl) return;
+    if (productFields.length === 0 && variantFields.length === 0 && !imageUrl) {
+      alert("No valid fields found to sync! Did you define the metafield properly?");
+      return;
+    }
     setLoading(true);
     try {
       const auth = localStorage.getItem('loam_ops_auth');
