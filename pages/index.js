@@ -6,6 +6,9 @@ import BtiSync from '../components/tabs/BtiSync';
 import ProductLab from '../components/tabs/ProductLab';
 import { RefreshCcw, RefreshCw, Search, Package, ShieldCheck, ShieldAlert, Plus, X, Info, Image as ImageIcon, Loader2, LogOut, ChevronUp, ChevronDown, ChevronRight, Trash2, AlertCircle, AlertTriangle, Zap, ZapOff, DollarSign, Tag, History, Activity, Beaker, Edit3, Edit, Settings, ExternalLink, BarChart, Database, CheckCircle, Layers, Clock, Copy } from 'lucide-react';
 import ComponentLibrary from '../components/tabs/ComponentLibrary';
+import Insights from '../components/tabs/Insights';
+import AdminModule from '../components/tabs/AdminModule';
+import ShopHealth from '../components/tabs/ShopHealth';
 
 const COMPONENT_SUGGESTIONS = {};
 
@@ -2723,185 +2726,11 @@ export default function OpsDashboard() {
         ) : activeTab === 'product_lab' ? (
           <ProductLab {...{ getProductGroupedDiscrepancies, COMPONENT_SUGGESTIONS, toggleLabProduct, openDupModal, getVariantGroupKey, expandedProducts, setExpandedProducts, syncCatalogFull, loading, setActiveTab, selectedVendors, setSelectedVendors, visibleVendorNames, vendorLogos, toggleVendor, setVisibleCount, labSearch, setLabSearch, labCategory, setLabCategory, labDiscrepancyOnly, setLabDiscrepancyOnly, selectedLabProducts, setSelectedLabProducts, globalLabGroupMode, setGlobalLabGroupMode, setLabProductGroupModes, allUniqueRules, expandedGroups, setExpandedGroups, selectedLabVariants, setSelectedLabVariants, getDiscrepancies, metafieldRegistry, metafieldOptionsMap, toggleLabVariant, setLoading, fetchRules, syncFieldToFamily, setEditingRule, labProductGroupModes }} />
         ) : activeTab === 'insights' ? (
-           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="flex items-center justify-between mb-8">
-                <div>
-                  <h1 className="text-4xl font-black tracking-tight text-zinc-900 uppercase italic">Operational Insights</h1>
-                  <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mt-1 italic tracking-[0.2em]">Customer Behavior & Catalog Health</p>
-                </div>
-                <button onClick={runManualAuditReport} disabled={loading} className="bg-black text-white px-6 py-3 rounded-xl font-black uppercase text-[10px] flex items-center gap-2 hover:bg-zinc-800 transition-all shadow-lg">
-                  <Activity size={14}/> Run Daily Audit & Reports
-                </button>
-              </div>
-
-              <div className="grid grid-cols-3 gap-8 mb-12">
-                 <div className="bg-white p-8 rounded-[2rem] border border-zinc-200 shadow-sm">
-                    <div className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">Tracked Abandoned Builds</div>
-                    <div className="text-5xl font-black italic tracking-tighter">{abandonedBuilds.length}</div>
-                    <p className="text-[10px] text-zinc-400 mt-2">Captured in the last 24 hours</p>
-                 </div>
-                 <div className="bg-white p-8 rounded-[2rem] border border-zinc-200 shadow-sm">
-                    <div className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">Negative Inventory</div>
-                    <div className="text-5xl font-black italic tracking-tighter text-red-500">{rules.filter(r => r.last_availability === false && r.last_price > 0).length}</div>
-                    <p className="text-[10px] text-zinc-400 mt-2">Active items with 0 stock</p>
-                 </div>
-                 <div className="bg-white p-8 rounded-[2rem] border border-zinc-200 shadow-sm">
-                    <div className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">Catalog Health</div>
-                    <div className="text-5xl font-black italic tracking-tighter text-green-500">98%</div>
-                    <p className="text-[10px] text-zinc-400 mt-2">Registry Coverage Score</p>
-                 </div>
-              </div>
-
-              <div className="bg-white rounded-[2.5rem] border border-zinc-200 shadow-xl overflow-hidden">
-                 <div className="p-8 border-b border-zinc-100 flex items-center justify-between bg-zinc-50/50">
-                    <h3 className="font-black uppercase italic tracking-tight flex items-center gap-2"><History size={18}/> Abandoned Build Activity</h3>
-                    <button onClick={fetchAbandonedBuilds} className="p-2 text-zinc-400 hover:text-black transition-colors"><RefreshCcw size={16} className={insightsLoading ? 'animate-spin' : ''}/></button>
-                 </div>
-                 <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                       <thead>
-                          <tr className="border-b border-zinc-100 italic">
-                             <th className="p-6 text-[10px] font-black uppercase text-zinc-400 tracking-widest">Time</th>
-                             <th className="p-6 text-[10px] font-black uppercase text-zinc-400 tracking-widest">Build Type</th>
-                             <th className="p-6 text-[10px] font-black uppercase text-zinc-400 tracking-widest">Customer</th>
-                             <th className="p-6 text-[10px] font-black uppercase text-zinc-400 tracking-widest">Subtotal</th>
-                             <th className="p-6 text-[10px] font-black uppercase text-zinc-400 tracking-widest">Components</th>
-                          </tr>
-                       </thead>
-                       <tbody className="divide-y divide-zinc-50">
-                          {abandonedBuilds.length === 0 ? (
-                             <tr><td colSpan="5" className="p-12 text-center text-zinc-400 font-bold italic">No abandoned builds captured recently.</td></tr>
-                          ) : abandonedBuilds.map((build, i) => (
-                             <tr key={i} className="hover:bg-zinc-50/50 transition-colors">
-                                <td className="p-6 text-xs text-zinc-500 font-mono italic">{new Date(build.capturedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</td>
-                                <td className="p-6"><span className="px-3 py-1 bg-zinc-100 rounded-full text-[10px] font-black uppercase">{build.buildType}</span></td>
-                                <td className="p-6">
-                                   <div className="text-xs font-bold">{build.visitor?.isLoggedIn ? `${build.visitor.firstName} ${build.visitor.lastName}` : 'Anonymous Visitor'}</div>
-                                   <div className="text-[10px] text-zinc-400 font-mono">{build.visitor?.email || build.visitor?.anonymousId?.slice(0,8)}</div>
-                                </td>
-                                <td className="p-6 text-xs font-black italic">${((build.subtotal || 0)/100).toFixed(2)}</td>
-                                <td className="p-6 flex flex-wrap gap-2 max-w-sm">
-                                   {(build.components?.front || []).concat(build.components?.rear || []).slice(0,4).map((c, ci) => (
-                                      <div key={ci} className="text-[8px] bg-zinc-50 border border-zinc-100 px-2 py-0.5 rounded uppercase font-black text-zinc-400">{c.type}: {c.name.slice(0,15)}...</div>
-                                   ))}
-                                </td>
-                             </tr>
-                          ))}
-                       </tbody>
-                    </table>
-                 </div>
-              </div>
-           </div>
+          <Insights {...{ runManualAuditReport, loading, Activity, abandonedBuilds, rules, History, fetchAbandonedBuilds, insightsLoading }} />
         ) : activeTab === 'admin' ? (
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-             <div className="flex items-center justify-between mb-8">
-               <div>
-                  <h1 className="text-4xl font-black tracking-tight text-zinc-900 uppercase italic">Control Module</h1>
-                  <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mt-1 italic tracking-[0.2em]">Dashboard Configuration</p>
-               </div>
-             </div>
-
-             <div className="flex gap-4 mb-8 border-b-2 border-zinc-100 pb-2">
-                <button onClick={() => setAdminTab('control_module')} className={`px-6 py-3 font-black text-[10px] uppercase tracking-widest transition-all ${adminTab === 'control_module' ? 'text-black border-b-2 border-black -mb-[10px] bg-zinc-100 rounded-t-xl' : 'text-zinc-400 hover:text-zinc-600'}`}>Control Module</button>
-                <button onClick={() => setAdminTab('branding')} className={`px-6 py-3 font-black text-[10px] uppercase tracking-widest transition-all ${adminTab === 'branding' ? 'text-black border-b-2 border-black -mb-[10px] bg-zinc-100 rounded-t-xl' : 'text-zinc-400 hover:text-zinc-600'}`}>Branding Center</button>
-             </div>
-
-             {adminTab === 'control_module' && (
-                <div className="bg-white rounded-[2.5rem] border border-zinc-200 shadow-xl overflow-hidden p-12 animate-in fade-in">
-                   <div className="grid grid-cols-3 gap-12">
-                      {['RIM', 'HUB', 'SPOKE', 'NIPPLE', 'VALVESTEM', 'ACCESSORY'].map(cat => (
-                        <div key={cat} className="space-y-6">
-                           <div className="flex items-center justify-between border-b-4 border-black pb-4">
-                              <h3 className="text-xl font-black italic tracking-tighter truncate pr-2">{cat.replace('VALVESTEM','VALVE STEM')}</h3>
-                              <div className="w-8 h-8 rounded-full bg-zinc-100 flex-shrink-0 flex items-center justify-center"><Activity size={14}/></div>
-                           </div>
-                           <div className="space-y-2">
-                              {metafieldRegistry.map(m => (
-                                <div key={m.key} className="flex items-center gap-2 group/row">
-                                   <label className="flex-grow flex items-center justify-between p-4 bg-zinc-50 rounded-2xl hover:bg-zinc-100 transition-all cursor-pointer group">
-                                      <div className="flex flex-col">
-                                         <span className={m.categories.includes(cat) ? "text-[11px] font-black uppercase tracking-tight text-black" : "text-[11px] font-bold uppercase tracking-tight text-zinc-300 group-hover:text-zinc-400"}>{m.label}</span>
-                                         <span className="text-[8px] font-black uppercase text-zinc-400 opacity-50">{m.target}</span>
-                                      </div>
-                                      <input 
-                                        type="checkbox" 
-                                        className="w-5 h-5 rounded-lg border-2 border-zinc-200 text-black focus:ring-black"
-                                        checked={m.categories.includes(cat)}
-                                        onChange={() => {
-                                          setMetafieldRegistry(prev => prev.map(field => {
-                                              if (field.key !== m.key) return field;
-                                              const newCats = field.categories.includes(cat) 
-                                                  ? field.categories.filter(c => c !== cat) 
-                                                  : [...field.categories, cat];
-                                              return { ...field, categories: newCats };
-                                          }));
-                                        }}
-                                      />
-                                   </label>
-                                   <button onClick={() => removeMetafield(m.key)} className="opacity-0 group-hover/row:opacity-100 p-2 text-zinc-300 hover:text-red-500 transition-all"><Trash2 size={14}/></button>
-                                 </div>
-                               ))}
-                            </div>
-                            <button onClick={() => addNewMetafield(cat)} className="w-full py-4 border-2 border-dashed border-zinc-200 rounded-2xl text-[10px] font-black uppercase text-zinc-400 hover:border-black hover:text-black transition-all flex items-center justify-center gap-2">
-                               <Plus size={14}/> Add New {cat} Metafield
-                            </button>
-                        </div>
-                      ))}
-                   </div>
-                   <div className="mt-12 pt-12 border-t border-zinc-100 bg-zinc-50 -mx-12 -mb-12 p-12">
-                      <div className="flex items-center gap-4 text-zinc-400">
-                         <ShieldCheck size={20}/>
-                         <p className="text-[10px] font-black uppercase tracking-[0.2em]">Settings are currently session-scoped. Multi-user persistence coming in update 4.12.</p>
-                      </div>
-                   </div>
-                </div>
-             )}
-
-             {adminTab === 'branding' && (
-                <div className="grid gap-4 max-w-4xl animate-in fade-in">
-                   {visibleVendorNames.map(vendor => {
-                     const logo = vendorLogos.find(l => l.name === vendor);
-                     return (
-                       <div key={vendor} className="bg-white p-6 rounded-[2rem] border border-zinc-200 flex items-center gap-8 group hover:shadow-xl transition-all">
-                         <div className="w-20 h-20 bg-zinc-50 rounded-[1.5rem] flex items-center justify-center overflow-hidden border border-zinc-100">
-                           {logo?.logo_url ? <img src={logo.logo_url} className="w-full h-full object-contain p-2" alt="" /> : <ImageIcon className="text-zinc-200" />}
-                         </div>
-                         <div className="flex-grow">
-                           <label className="text-[10px] font-black uppercase text-zinc-400 mb-2 block tracking-widest italic">{vendor}</label>
-                           <div className="relative">
-                             <input 
-                               type="text" 
-                               placeholder="Paste Shopify Logo URL..." 
-                               className="w-full p-4 rounded-xl outline-none border-2 bg-zinc-50 border-transparent focus:border-black transition-all font-mono text-xs"
-                               defaultValue={logo?.logo_url || ''}
-                               onBlur={(e) => handleLogoUpdate(vendor, e.target.value)}
-                             />
-                             <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                               {savingLogo === vendor ? <Loader2 className="animate-spin text-zinc-400" size={16} /> : logo?.logo_url ? <ShieldCheck className="text-green-500" size={16} /> : null}
-                             </div>
-                           </div>
-                         </div>
-                       </div>
-                     );
-                   })}
-                </div>
-             )}
-          </div>
+          <AdminModule {...{ setAdminTab, adminTab, metafieldRegistry, setMetafieldRegistry, removeMetafield, addNewMetafield, visibleVendorNames, vendorLogos, ImageIcon, handleLogoUpdate, savingLogo }} />
         ) : activeTab === 'audit' ? (
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-             <h1 className="text-4xl font-black tracking-tight text-zinc-900 uppercase italic mb-2">Shop Health</h1>
-             <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest mb-12">Automated Data Audit & Integrity Engine</p>
-             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-                <HealthCard title="Missing URLs" count={rules.filter(r => !r.vendor_url).length} subtitle="Items requiring configuration" icon={<AlertCircle className="text-red-500"/>}/>
-                <HealthCard title="Missing Metafields" count="--" subtitle="Items lacking engineering data" icon={<Info className="text-blue-500"/>}/>
-                <HealthCard title="Sync Conflicts" count={rules.filter(r => r.needs_review).length} subtitle="Margin safety violations" icon={<RefreshCcw className="text-orange-500"/>}/>
-             </div>
-              <div className="bg-white p-20 rounded-[3rem] border-2 border-dashed border-zinc-200 text-center">
-                <ShieldCheck size={60} className="mx-auto text-zinc-200 mb-6"/>
-                <h3 className="text-xl font-black uppercase italic">Data Audit in Progress</h3>
-                <p className="text-zinc-400 text-sm max-w-xs mx-auto mt-2">Integrating Section 4.11 from Master Notes. Reporting on Negative Inventory coming next.</p>
-             </div>
-          </div>
+          <ShopHealth {...{ HealthCard, rules }} />
         ) : activeTab === 'component_library' ? (
           <ComponentLibrary {...{ fetchComponentHistory, loadingHistory, handleSyncSpecsFromShopify, loading, selectedComponents, componentTab, handleDiscoverVariantIds, isDiscoveringVariants, Zap, handleAuditShopifySync, isAuditing, handleAddNewRow, handleCreateNewComponent, Edit3, componentData, getComponentUniqueId, syncMismatches, setComponentTab, setComponentVendorFilter, setShowMissingOnly, setShowMismatchesOnly, uniqueVendors, componentVendorFilter, showMissingOnly, showMismatchesOnly, AlertTriangle, componentSearch, setComponentSearch, componentsLoaded, finalFilteredList, Database, ComponentLibraryGrid, setSelectedComponents, gridUnsavedChanges, handleGridEdit, handleGridPaste, componentColumnWidths, startResizing, handleDragStart, handleDragOver, handleDrop, formatColumnTitle, getComponentValidation, toggleComponentSelection, handleRemoveAddedRow, handleDeleteComponent, handleDuplicateComponent, DROPDOWN_OPTIONS, handleEditComponent, saveComponentChanges, focusedCell, setFocusedCell, selectedCells, setSelectedCells, handleClipboardCopy, handleBulkPaste, editingCell, setEditingCell, componentSaving, componentColumnOrder, isComponentDrawerOpen, editingComponent, setIsComponentDrawerOpen, isDuplicateMode, getComponentValue, setEditingComponent, productSyncId, setProductSyncId, isImportingProduct, handleImportProductByID, RefreshCw, MANDATORY_FIELDS, metafieldOptionsMap, spokePolish, isBulkEditDrawerOpen, setIsBulkEditDrawerOpen, bulkEditComponent, setBulkEditComponent, handleBulkEdit }} />
         ) : null}
