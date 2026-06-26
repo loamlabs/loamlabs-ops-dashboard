@@ -2430,12 +2430,6 @@ export default function OpsDashboard() {
           let cleanVal = '';
           if (val !== null && val !== undefined && val !== '') {
             cleanVal = String(val);
-            if (cleanVal.startsWith('[') && cleanVal.endsWith(']')) {
-              try {
-                const parsed = JSON.parse(cleanVal);
-                if (Array.isArray(parsed) && parsed.length > 0) cleanVal = String(parsed[0]);
-              } catch(e) {}
-            }
             cleanVal = cleanVal === 'true' ? true : cleanVal === 'false' ? false : cleanVal;
           }
           valueMap[key].add(cleanVal);
