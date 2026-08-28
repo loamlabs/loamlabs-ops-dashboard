@@ -63,6 +63,7 @@ function SidebarLink({ icon, label, active, onClick, badge, badgeOnClick }) {
 }
 
 export default function OpsDashboard() {
+  const lastFetchedRef = useRef(0);
   const [editingRule, setEditingRule] = useState(null);
   const [activeTab, setActiveTab] = useState('vendors');
   const [rules, setRules] = useState([]);
@@ -679,8 +680,7 @@ export default function OpsDashboard() {
         missing.push(field);
       }
     });
-
-    return { isValid: missing.length === 0, missingFields: missing };
+return { isValid: missing.length === 0, missingFields: missing };
   }, [getComponentValue]);
 
 
@@ -693,6 +693,7 @@ export default function OpsDashboard() {
     try {
       const res = await fetch('/api/get-rules', { headers: { 'x-dashboard-auth': auth } });
       if (res.ok) { 
+        lastFetchedRef.current = Date.now();
         const data = await res.json();
         setRules(data || []);
         localStorage.setItem('loam_ops_auth', auth);
@@ -752,39 +753,39 @@ export default function OpsDashboard() {
           const data = { hubs, rims, spokes, nipples };
           
           console.log(`[Lifecycle] Fetch SUCCESS. Received tabs: ${Object.keys(data).join(', ')}`);
-              const hydrated = {};
-              Object.keys(data).forEach(tab => {
-                  const rawList = data[tab] || [];
-                  const seenRids = new Set();
-                  const hydratedList = rawList.map((item, idx) => {
-                       const baseId = item.id || item.ID || item.shopify_product_id || item['Product ID'];
-                       const title = item.Title || item.title || item.Name || item.name || "NoTitle";
-                       const vendor = item.Vendor || item.vendor || item.Brand || item.brand || "NoVendor";
-                       const specKeys = Object.keys(item).filter(k => !['_rid', '_rawIdx', '_editIdx', '_isNew', 'id', 'ID', 'shopify_product_id', 'Product ID', 'Variant ID'].includes(k)).sort();
-                       const specs = specKeys.map(k => `${k}:${item[k]}`).join('|');
-                       const hash = `${title}_${vendor}_${specs}`.toLowerCase().replace(/[^a-z0-9]/g, '');
-                       
-                       let rid = item?._rid;
-                       // If RID is numeric (looks like a Shopify ID), prioritize the internal hash for separation
-                       if (!rid || /^\d+$/.test(String(rid))) {
-                          rid = `rid_${hash}`;
-                       }
+          const hydrated = {};
+          Object.keys(data).forEach(tab => {
+              const rawList = data[tab] || [];
+              const seenRids = new Set();
+              const hydratedList = rawList.map((item, idx) => {
+                   const baseId = item.id || item.ID || item.shopify_product_id || item['Product ID'];
+                   const title = item.Title || item.title || item.Name || item.name || "NoTitle";
+                   const vendor = item.Vendor || item.vendor || item.Brand || item.brand || "NoVendor";
+                   const specKeys = Object.keys(item).filter(k => !['_rid', '_rawIdx', '_editIdx', '_isNew', 'id', 'ID', 'shopify_product_id', 'Product ID', 'Variant ID'].includes(k)).sort();
+                   const specs = specKeys.map(k => `${k}:${item[k]}`).join('|');
+                   const hash = `${title}_${vendor}_${specs}`.toLowerCase().replace(/[^a-z0-9]/g, '');
+                   
+                   let rid = item?._rid;
+                   // If RID is numeric (looks like a Shopify ID), prioritize the internal hash for separation
+                   if (!rid || /^\d+$/.test(String(rid))) {
+                      rid = `rid_${hash}`;
+                   }
 
-                       if (seenRids.has(rid)) {
-                          rid = `${rid}_${idx}`;
-                       }
-                       seenRids.add(rid);
+                   if (seenRids.has(rid)) {
+                      rid = `${rid}_${idx}`;
+                   }
+                   seenRids.add(rid);
 
-                       return { ...item, shopify_product_id: baseId, _rid: rid, _rawIdx: idx };
-                   });
-                  
-                  hydrated[tab] = hydratedList;
-              });
+                   return { ...item, shopify_product_id: baseId, _rid: rid, _rawIdx: idx };
+               });
               
-              // JANITOR PASS: Unify ghost columns and standardise keys
-              const cleanData = unifyComponentKeys(hydrated);
-              setComponentData(cleanData);
-              setComponentsLoaded(true);
+              hydrated[tab] = hydratedList;
+          });
+          
+          // JANITOR PASS: Unify ghost columns and standardise keys
+          const cleanData = unifyComponentKeys(hydrated);
+          setComponentData(cleanData);
+          setComponentsLoaded(true);
       } catch (e) { console.error('Fetch Component Error: ', e); }
       setLoading(false);
   };
@@ -811,13 +812,35 @@ export default function OpsDashboard() {
     }
   }, [password, componentsLoaded, activeTab]);
 
-  // 3. Periodic Data Refresh (Registry Sync)
+  // 3. Smart Tab-Aware Data Refresh (Pauses completely when tab is hidden/inactive)
   useEffect(() => {
     if (!isAuthorized) return;
+
+    const handleVisibilityOrFocus = () => {
+      if (document.visibilityState === 'visible') {
+        const timeSinceLastFetch = Date.now() - lastFetchedRef.current;
+        // When tab is brought to foreground, refresh if older than 3 minutes
+        if (timeSinceLastFetch > 3 * 60 * 1000) {
+          fetchRules();
+        }
+      }
+    };
+
+    // Periodic refresh ONLY executes if the tab is actively visible in foreground
     const interval = setInterval(() => {
-      fetchRules();
-    }, 120000); // 2 minutes
-    return () => clearInterval(interval);
+      if (document.visibilityState === 'visible') {
+        fetchRules();
+      }
+    }, 5 * 60 * 1000); // 5 minutes while active tab
+
+    document.addEventListener('visibilitychange', handleVisibilityOrFocus);
+    window.addEventListener('focus', handleVisibilityOrFocus);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
+      window.removeEventListener('focus', handleVisibilityOrFocus);
+    };
   }, [isAuthorized]);
 
   const saveComponentChanges = React.useCallback(async (newArray, tabOverride = null) => {

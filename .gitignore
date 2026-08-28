@@ -1,6 +1,7 @@
 node_modules
 .vercel
 .next
+.agents
 .env*
 *.js.map
 *.txt
