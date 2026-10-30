@@ -1,17 +1,18 @@
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 import fs from 'fs';
+import { makeDryRunSupabase, makeDryRunFetch, makeDryRunResend, summarizePlannedWrites, isDryRunRequest } from '../../lib/dryrun';
 
 export const maxDuration = 300; // Allow Vercel to run up to 5 minutes
 
 // Initialize Supabase only if credentials exist
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const supabase = (supabaseUrl && supabaseKey) ? createClient(supabaseUrl, supabaseKey) : null;
+const supabaseClient = (supabaseUrl && supabaseKey) ? createClient(supabaseUrl, supabaseKey) : null;
 
 // Helper to check supabase
 const checkSupabase = (res) => {
-  if (!supabase) {
+  if (!supabaseClient) {
     res.status(500).json({ 
       error: 'Supabase configuration is missing. Please check the server environment variables.',
       details: 'SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is undefined.'
@@ -21,7 +22,7 @@ const checkSupabase = (res) => {
   return true;
 };
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resendClient = new Resend(process.env.RESEND_API_KEY);
 
 const cleanNum = (str) => str ? str.toString().replace(/\D/g, '') : '';
 
@@ -227,6 +228,14 @@ async function runAutoDiscovery(adminToken, supabase, initialRules) {
 export default async function handler(req, res) {
   shopifyProductVariantsCache = {};
   if (!checkSupabase(res)) return;
+
+  // DRY RUN: { "dryRun": true } in the POST body (or ?dryRun=1). Reads and decisions run as normal; every write
+  // (Shopify mutations / PUTs, Supabase writes, the report email) is recorded and returned instead of done.
+  const dryRun = !!isDryRunRequest(req);
+  const plannedWrites = [];
+  const supabase = dryRun ? makeDryRunSupabase(supabaseClient, plannedWrites) : supabaseClient;
+  const resend = dryRun ? makeDryRunResend(plannedWrites) : resendClient;
+  const fetch = dryRun ? makeDryRunFetch(globalThis.fetch, plannedWrites) : globalThis.fetch;
   const authHeader = (req.headers['x-loam-secret'] || req.headers['x-dashboard-auth'])?.trim();
   if (authHeader !== process.env.CRON_SECRET?.trim() && authHeader !== process.env.DASHBOARD_PASSWORD?.trim()) {
     return res.status(401).json({ error: 'Unauthorized' });
@@ -1125,6 +1134,17 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
     const logMessage = hasReport ? `Sync completed with ${updated.length} price updates and ${stockChanges.length} stock status changes.` : 'Sync completed. No changes detected.';
     await supabase.from('sync_logs').insert([{ status: logStatus, updated_count: updated.length, attention_count: attention.length, stock_changes_count: stockChanges.length, oos_reminders_count: oosReminders.length, message: logMessage }]);
 
+    if (dryRun) {
+      return res.status(200).json({
+        dryRun: true,
+        note: 'DRY RUN: nothing was written to Shopify, Supabase or email.',
+        updated: updated.length, attention: attention.length, stock_changes: stockChanges.length,
+        plannedWriteCounts: summarizePlannedWrites(plannedWrites),
+        shopifyWrites: plannedWrites.filter(w => w.target === 'shopify'),
+        emailSubjects: plannedWrites.filter(w => w.target === 'email').map(w => w.subject),
+        details: { updated, attention, stockChanges, oosReminders }
+      });
+    }
     res.status(200).json({ updated: updated.length, attention: attention.length, stock_changes: stockChanges.length });
   } catch (err) { 
     console.error('CRITICAL SYNC ERROR:', err);

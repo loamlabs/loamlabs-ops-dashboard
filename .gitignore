@@ -12,6 +12,8 @@ node_modules
 !api/**/*.jsx
 !components/**/*.js
 !components/**/*.jsx
+!lib/**/*.js
+!tests/**/*.js
 !public/**/*
 !*.js.config
 !next.config.js
