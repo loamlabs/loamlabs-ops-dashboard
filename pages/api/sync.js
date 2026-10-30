@@ -292,6 +292,12 @@ export default async function handler(req, res) {
     // bulk-update their last_run_at in a single query at the end instead of
     // awaiting thousands of individual row updates.
     const unchangedRuleIds = [];
+    // Circuit breaker: "vendor does not offer this variant" -> Shopify 'deny' writes are held back
+    // until the end of the run, so a vendor site change (0 matches for many rules) cannot switch off a whole product line.
+    const vendorStats = {};
+    const pendingNoMatchDeny = [];
+    const BREAKER_MIN_RULES = 5;      // need at least this many no-match rules for one vendor to trip
+    const BREAKER_MAX_RATIO = 0.2;    // more than 20% of that vendor's checked rules with 0 matches = trip
     const nowIso = new Date().toISOString();
     
     const USER_AGENTS = [
@@ -811,6 +817,11 @@ export default async function handler(req, res) {
           }
         }
 
+        const vendorKey = rule.vendor_name || 'unknown';
+        if (!vendorStats[vendorKey]) vendorStats[vendorKey] = { total: 0, noMatch: 0 };
+        vendorStats[vendorKey].total++;
+        if (!winner) vendorStats[vendorKey].noMatch++;
+
         console.log(`[RULE: ${rule.id}] Processing "${rule.title}" | Winner: "${winner?.public_title || 'None'}" | Status: ${vStatus}`);
         if (winner) {
           const variant = await getShopifyVariant(adminToken, rule.shopify_product_id, rule.shopify_variant_id);
@@ -1022,12 +1033,8 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
            if (rule.auto_update === true) {
              const variant = await getShopifyVariant(adminToken, rule.shopify_product_id, rule.shopify_variant_id);
              if (variant && (variant.inventoryQuantity || 0) <= 0 && variant.inventoryPolicy === 'CONTINUE') {
-                 await fetch(`https://${process.env.SHOPIFY_SHOP_NAME}.myshopify.com/admin/api/2024-04/variants/${rule.shopify_variant_id}.json`, {
-                   method: 'PUT', headers: { 'X-Shopify-Access-Token': adminToken, 'Content-Type': 'application/json' },
-                   body: JSON.stringify({ variant: { id: rule.shopify_variant_id, inventory_policy: 'deny' } })
-                 });
-                 stockChanges.push({ title: rule.title, action: '🔴 Made Unavailable (Vendor Does Not Offer)' });
-                    attention.push({ title: rule.title, reason: 'NOTE: Variant not found on vendor page; marked unavailable.' });
+                 // held back; applied after the loop unless the circuit breaker trips for this vendor
+                 pendingNoMatchDeny.push({ rule, vendorKey });
              }
            }
 
@@ -1048,6 +1055,30 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
           last_log: `CRASHED: ${ruleError.message.slice(0, 100)}`,
           last_run_at: nowIso
         }).eq('id', rule.id);
+      }
+    }
+
+    // --- CIRCUIT BREAKER: apply (or hold back) the "vendor does not offer this variant" deny writes ---
+    const trippedVendors = new Set();
+    for (const [vendor, st] of Object.entries(vendorStats)) {
+      if (st.noMatch >= BREAKER_MIN_RULES && st.noMatch / st.total > BREAKER_MAX_RATIO) {
+        trippedVendors.add(vendor);
+        console.error(`[SYNC BREAKER] ${vendor}: ${st.noMatch} of ${st.total} rules found 0 vendor matches. Holding back unavailable-writes.`);
+        attention.push({ title: `${vendor}: sync safety stop`, reason: `${st.noMatch} of ${st.total} checked items found no matching vendor variant (more than ${Math.round(BREAKER_MAX_RATIO * 100)}%). The vendor site probably changed. No items were switched to unavailable for this vendor; please check the vendor pages and the rule options.` });
+      }
+    }
+    for (const { rule, vendorKey } of pendingNoMatchDeny) {
+      if (trippedVendors.has(vendorKey)) continue;
+      try {
+        await fetch(`https://${process.env.SHOPIFY_SHOP_NAME}.myshopify.com/admin/api/2024-04/variants/${rule.shopify_variant_id}.json`, {
+          method: 'PUT', headers: { 'X-Shopify-Access-Token': adminToken, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ variant: { id: rule.shopify_variant_id, inventory_policy: 'deny' } })
+        });
+        stockChanges.push({ title: rule.title, action: '🔴 Made Unavailable (Vendor Does Not Offer)' });
+        attention.push({ title: rule.title, reason: 'NOTE: Variant not found on vendor page; marked unavailable.' });
+      } catch (denyErr) {
+        console.error(`[SYNC] Could not mark ${rule.title} unavailable:`, denyErr);
+        attention.push({ title: rule.title, reason: `Sync Failed: could not mark unavailable (${denyErr.message})` });
       }
     }
 

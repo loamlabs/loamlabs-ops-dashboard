@@ -13,6 +13,7 @@ async function getShopifyToken() {
 }
 
 export default async function handler(req, res) {
+  if (req.headers['x-dashboard-auth']?.trim() !== process.env.DASHBOARD_PASSWORD?.trim()) return res.status(401).json({ error: 'Unauthorized' });
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }

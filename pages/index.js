@@ -701,7 +701,7 @@ return { isValid: missing.length === 0, missingFields: missing };
         const logoData = await logoRes.json();
         setVendorLogos(logoData.savedLogos || []);
         setIsAuthorized(true); 
-        fetch('/api/get-metafield-definitions').then(r => r.json()).then(d => {
+        fetch('/api/get-metafield-definitions', { headers: { 'x-dashboard-auth': auth } }).then(r => r.json()).then(d => {
            if (d.success) {
                if (d.optionsDict) setMetafieldOptionsMap(d.optionsDict);
                if (d.definitions) {
@@ -2441,7 +2441,7 @@ return { isValid: missing.length === 0, missingFields: missing };
         const promises = Array.from(targetProductIds).map(id => 
           fetch('/api/get-live-metafields', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'x-dashboard-auth': localStorage.getItem('loam_ops_auth') || password },
             body: JSON.stringify({ productId: id })
           }).then(r => r.json())
         );

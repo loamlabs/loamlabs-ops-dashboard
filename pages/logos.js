@@ -18,7 +18,7 @@ export default function BrandingCenter() {
     setLoading(true);
     setError(null);
     try {
-      const vRes = await fetch('/api/search-products?query='); 
+      const vRes = await fetch('/api/search-products?query=', { headers: { 'x-dashboard-auth': auth } }); 
       const vData = await vRes.json();
       
       if (vData.error) throw new Error(vData.error);
