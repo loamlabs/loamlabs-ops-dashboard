@@ -1,0 +1,295 @@
+{
+ "_note": "Variant data of the e*thirteen rear-wheel pages as read on 2026-11-02 (public_title, price and compare_at_price in cents, available). Test fixture only.",
+ "alloy": [
+  {
+   "public_title": "29\" / 148x12mm Boost / XD",
+   "price": 42590,
+   "compare_at_price": 57597,
+   "available": true
+  },
+  {
+   "public_title": "29\" / 148x12mm Boost / Microspline",
+   "price": 42590,
+   "compare_at_price": 57597,
+   "available": true
+  },
+  {
+   "public_title": "29\" / 148x12mm Boost / HG",
+   "price": 42590,
+   "compare_at_price": 57597,
+   "available": true
+  },
+  {
+   "public_title": "29\" / 157x12mm Super Boost / XD",
+   "price": 35590,
+   "compare_at_price": 58597,
+   "available": true
+  },
+  {
+   "public_title": "29\" / 157x12mm Super Boost / Microspline",
+   "price": 35590,
+   "compare_at_price": 58597,
+   "available": true
+  },
+  {
+   "public_title": "29\" / 157x12mm Super Boost / HG",
+   "price": 35590,
+   "compare_at_price": 58597,
+   "available": true
+  },
+  {
+   "public_title": "27.5\" / 148x12mm Boost / XD",
+   "price": 42590,
+   "compare_at_price": 57597,
+   "available": false
+  },
+  {
+   "public_title": "27.5\" / 148x12mm Boost / Microspline",
+   "price": 42590,
+   "compare_at_price": 57597,
+   "available": false
+  },
+  {
+   "public_title": "27.5\" / 148x12mm Boost / HG",
+   "price": 42590,
+   "compare_at_price": 57597,
+   "available": false
+  },
+  {
+   "public_title": "27.5\" / 157x12mm Super Boost / XD",
+   "price": 35590,
+   "compare_at_price": 58597,
+   "available": true
+  },
+  {
+   "public_title": "27.5\" / 157x12mm Super Boost / Microspline",
+   "price": 35590,
+   "compare_at_price": 58597,
+   "available": true
+  },
+  {
+   "public_title": "27.5\" / 157x12mm Super Boost / HG",
+   "price": 35590,
+   "compare_at_price": 58597,
+   "available": true
+  }
+ ],
+ "carbon": [
+  {
+   "public_title": "29\" / 157x12mm Super Boost / XD",
+   "price": 59590,
+   "compare_at_price": 106597,
+   "available": false
+  },
+  {
+   "public_title": "29\" / 157x12mm Super Boost / Microspline",
+   "price": 59590,
+   "compare_at_price": 106597,
+   "available": false
+  },
+  {
+   "public_title": "29\" / 157x12mm Super Boost / HG",
+   "price": 59590,
+   "compare_at_price": 106597,
+   "available": false
+  },
+  {
+   "public_title": "29\" / 148x12mm Boost / XD",
+   "price": 78397,
+   "compare_at_price": 106597,
+   "available": false
+  },
+  {
+   "public_title": "29\" / 148x12mm Boost / Microspline",
+   "price": 78397,
+   "compare_at_price": 106597,
+   "available": false
+  },
+  {
+   "public_title": "29\" / 148x12mm Boost / HG",
+   "price": 78397,
+   "compare_at_price": 106597,
+   "available": false
+  },
+  {
+   "public_title": "27.5\" / 157x12mm Super Boost / XD",
+   "price": 59590,
+   "compare_at_price": 106597,
+   "available": true
+  },
+  {
+   "public_title": "27.5\" / 157x12mm Super Boost / Microspline",
+   "price": 59590,
+   "compare_at_price": 106597,
+   "available": true
+  },
+  {
+   "public_title": "27.5\" / 157x12mm Super Boost / HG",
+   "price": 59590,
+   "compare_at_price": 106597,
+   "available": true
+  },
+  {
+   "public_title": "27.5\" / 148x12mm Boost / XD",
+   "price": 78397,
+   "compare_at_price": 106597,
+   "available": false
+  },
+  {
+   "public_title": "27.5\" / 148x12mm Boost / Microspline",
+   "price": 78397,
+   "compare_at_price": 106597,
+   "available": false
+  },
+  {
+   "public_title": "27.5\" / 148x12mm Boost / HG",
+   "price": 78397,
+   "compare_at_price": 106597,
+   "available": false
+  }
+ ],
+ "enduro": [
+  {
+   "public_title": "29\" / 157x12mm Super Boost / XD",
+   "price": 63590,
+   "compare_at_price": 114597,
+   "available": true
+  },
+  {
+   "public_title": "29\" / 157x12mm Super Boost / Microspline",
+   "price": 63590,
+   "compare_at_price": 114597,
+   "available": true
+  },
+  {
+   "public_title": "29\" / 157x12mm Super Boost / HG",
+   "price": 63590,
+   "compare_at_price": 114597,
+   "available": true
+  },
+  {
+   "public_title": "29\" / 148x12mm Boost / XD",
+   "price": 83997,
+   "compare_at_price": 114597,
+   "available": false
+  },
+  {
+   "public_title": "29\" / 148x12mm Boost / Microspline",
+   "price": 83997,
+   "compare_at_price": 114597,
+   "available": false
+  },
+  {
+   "public_title": "29\" / 148x12mm Boost / HG",
+   "price": 83997,
+   "compare_at_price": 114597,
+   "available": false
+  },
+  {
+   "public_title": "27.5\" / 157x12mm Super Boost / XD",
+   "price": 63590,
+   "compare_at_price": 114597,
+   "available": true
+  },
+  {
+   "public_title": "27.5\" / 157x12mm Super Boost / Microspline",
+   "price": 63590,
+   "compare_at_price": 114597,
+   "available": true
+  },
+  {
+   "public_title": "27.5\" / 157x12mm Super Boost / HG",
+   "price": 63590,
+   "compare_at_price": 114597,
+   "available": true
+  },
+  {
+   "public_title": "27.5\" / 148x12mm Boost / XD",
+   "price": 83997,
+   "compare_at_price": 114597,
+   "available": false
+  },
+  {
+   "public_title": "27.5\" / 148x12mm Boost / Microspline",
+   "price": 83997,
+   "compare_at_price": 114597,
+   "available": false
+  },
+  {
+   "public_title": "27.5\" / 148x12mm Boost / HG",
+   "price": 83997,
+   "compare_at_price": 114597,
+   "available": false
+  }
+ ],
+ "downhill": [
+  {
+   "public_title": "29\" / 148x12mm Boost / 7spd Integrated Cassette",
+   "price": 104997,
+   "compare_at_price": 140097,
+   "available": true
+  },
+  {
+   "public_title": "29\" / 148x12mm Boost / Mini HG",
+   "price": 94497,
+   "compare_at_price": 129597,
+   "available": true
+  },
+  {
+   "public_title": "29\" / 157x12mm Super Boost / 7spd Integrated Cassette",
+   "price": 104997,
+   "compare_at_price": 140097,
+   "available": true
+  },
+  {
+   "public_title": "29\" / 157x12mm Super Boost / Mini HG",
+   "price": 94497,
+   "compare_at_price": 129597,
+   "available": true
+  },
+  {
+   "public_title": "27.5\" / 148x12mm Boost / 7spd Integrated Cassette",
+   "price": 104997,
+   "compare_at_price": 140097,
+   "available": true
+  },
+  {
+   "public_title": "27.5\" / 148x12mm Boost / Mini HG",
+   "price": 94497,
+   "compare_at_price": 129597,
+   "available": true
+  },
+  {
+   "public_title": "27.5\" / 157x12mm Super Boost / 7spd Integrated Cassette",
+   "price": 104997,
+   "compare_at_price": 140097,
+   "available": true
+  },
+  {
+   "public_title": "27.5\" / 157x12mm Super Boost / Mini HG",
+   "price": 94497,
+   "compare_at_price": 129597,
+   "available": true
+  }
+ ],
+ "legacy": [
+  {
+   "public_title": "Rear / 29\" / 148x12mm Boost",
+   "price": 50000,
+   "compare_at_price": 57597,
+   "available": true
+  },
+  {
+   "public_title": "Rear / 29\" / 157x12mm Super Boost",
+   "price": 50000,
+   "compare_at_price": 58597,
+   "available": true
+  },
+  {
+   "public_title": "Rear / 27.5\" / 148x12mm Boost",
+   "price": 50000,
+   "compare_at_price": 57597,
+   "available": true
+  }
+ ]
+}

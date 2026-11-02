@@ -5,6 +5,7 @@ import { mergeBtiNumber } from '../../lib/bti-number';
 import { isLiveVariant, breakerTripped } from '../../lib/breaker';
 import { groupOosReminders } from '../../lib/oos-summary';
 import { SURCHARGE_URL, findSurchargeCents } from '../../lib/ethirteen-surcharge';
+import { pickRearVariant } from '../../lib/ethirteen-wheel';
 
 export const maxDuration = 300; // Allow Vercel to run up to 5 minutes
 
@@ -531,23 +532,22 @@ export default async function handler(req, res) {
                 let finalPrice = 0;
                 let finalAvail = true;
                 let usedRear = null;
+                let kitIncludedInRear = false;   // complete-wheel listing: the freehub is already in the rear wheel price
 
                 if (!isRearNone) {
-                  const rearCandidates = vData.variants.filter(v => {
-                      const vt = normalize(v.public_title).toLowerCase().replace(/["']/g, '');
-                      if (!vt.includes('rear')) return false;
-                      if (sizeMatch && !vt.includes(sizeMatch[1])) return false;
-                      if (axleMatch && !vt.includes(axleMatch[1])) return false;
-                      if (isSuperboost && !vt.includes('superboost') && !vt.includes('157')) return false;
-                      if (!isSuperboost && (vt.includes('superboost') || vt.includes('157'))) return false;
-                      return true;
-                  });
-
-                  if (rearCandidates.length > 0) {
-                      usedRear = rearCandidates.reduce((a, b) => (Math.max(a.price, a.compare_at_price || 0) > Math.max(b.price, b.compare_at_price || 0) ? a : b));
-                      finalPrice += Math.max(usedRear.price, usedRear.compare_at_price || 0);
-                      finalAvail = finalAvail && usedRear.available;
+                  // Rear wheel: see lib/ethirteen-wheel.js. The current e*thirteen listing is a COMPLETE wheel (freehub already in the price),
+                  // so exactly the rule's freehub variant is taken and no separate kit price is added. If the rear wheel cannot be found
+                  // the rule is skipped; it is never priced as $0.
+                  const rear = pickRearVariant(vData.variants, { size: sizeMatch ? sizeMatch[1] : null, axle: axleMatch ? axleMatch[1] : null, superboost: isSuperboost, driver: driverValue });
+                  if (!rear.ok) {
+                      const rearErr = new Error(`Wheel price not read: ${rear.reason}`);
+                      rearErr.surchargeProblem = true;
+                      throw rearErr;
                   }
+                  usedRear = rear.variant;
+                  kitIncludedInRear = rear.kitIncluded;
+                  finalPrice += rear.price;
+                  finalAvail = finalAvail && usedRear.available;
                 }
 
                     const hasFront = frontWheelValue && frontWheelValue !== 'no front wheel' && frontWheelValue !== 'none';
@@ -564,7 +564,12 @@ export default async function handler(req, res) {
                                     ethirteenCache[frontJsUrl] = await frontResp.json();
                                 }
                                 const frontData = ethirteenCache[frontJsUrl];
-                                if (frontData?.variants?.length > 0) {
+                                if (!(frontData?.variants?.length > 0)) {
+                                    const frontErr = new Error('Wheel price not read: front wheel page has no variants');
+                                    frontErr.surchargeProblem = true;
+                                    throw frontErr;
+                                }
+                                {
                                     const bestFront = frontData.variants.reduce((a, b) => (Math.max(a.price, a.compare_at_price || 0) > Math.max(b.price, b.compare_at_price || 0) ? a : b));
                                     finalPrice += Math.max(bestFront.price, bestFront.compare_at_price || 0);
                                     finalAvail = finalAvail && bestFront.available;
@@ -576,7 +581,7 @@ export default async function handler(req, res) {
                         }
                     }
 
-                    if (driverValue && driverValue !== 'none' && driverValue !== 'no freehub') {
+                    if (driverValue && driverValue !== 'none' && driverValue !== 'no freehub' && !kitIncludedInRear) {
                         // Driver/freehub-kit surcharge: PRICE only, read from e*thirteen's "Sidekick Freehub Kits" page (lib/ethirteen-surcharge.js).
                         // The kit's availability is never read, so a sold-out kit changes nothing. If the price cannot be determined
                         // the rule is skipped (no guessed number, nothing written, no hub marked unavailable).
@@ -1078,7 +1083,7 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
 
     // e*thirteen surcharge problems: one line per distinct problem, not one per wheel set
     for (const [msg, count] of surchargeProblems.entries()) {
-      attention.push({ title: 'e*thirteen wheel sets: surcharge not read', reason: `${msg}. ${count} wheel set${count === 1 ? '' : 's'} skipped this run (their price and stock were left unchanged).` });
+      attention.push({ title: 'e*thirteen wheel sets: price not read', reason: `${msg}. ${count} wheel set${count === 1 ? '' : 's'} skipped this run (their price and stock were left unchanged).` });
     }
 
     // --- BULK TIMESTAMP UPDATE for all unchanged rules ---
