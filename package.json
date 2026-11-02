@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test": "node --test tests/bti-number.test.js"
+    "test": "node --test \"tests/*.test.js\""
   },
   "dependencies": {
     "@shopify/shopify-api": "^13.0.0",

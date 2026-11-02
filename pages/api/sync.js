@@ -2,6 +2,8 @@ import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 import fs from 'fs';
 import { mergeBtiNumber } from '../../lib/bti-number';
+import { isLiveVariant, breakerTripped } from '../../lib/breaker';
+import { groupOosReminders } from '../../lib/oos-summary';
 
 export const maxDuration = 300; // Allow Vercel to run up to 5 minutes
 
@@ -67,7 +69,7 @@ async function getShopifyVariant(adminToken, productId, variantId) {
                     compareAtPrice
                     inventoryQuantity
                     inventoryPolicy
-                    product { id handle }
+                    product { id handle status }
                     btiMonitor: metafield(namespace: "custom", key: "bti_sync_authority") { value }
                   }
                 }
@@ -297,8 +299,7 @@ export default async function handler(req, res) {
     // until the end of the run, so a vendor site change (0 matches for many rules) cannot switch off a whole product line.
     const vendorStats = {};
     const pendingNoMatchDeny = [];
-    const BREAKER_MIN_RULES = 5;      // need at least this many no-match rules for one vendor to trip
-    const BREAKER_MAX_RATIO = 0.2;    // more than 20% of that vendor's checked rules with 0 matches = trip
+    // Only items LIVE in Shopify (active, sellable or in stock) count toward the stop (lib/breaker.js); items already unavailable for months do not.
     const nowIso = new Date().toISOString();
     
     const USER_AGENTS = [
@@ -819,7 +820,7 @@ export default async function handler(req, res) {
         }
 
         const vendorKey = rule.vendor_name || 'unknown';
-        if (!vendorStats[vendorKey]) vendorStats[vendorKey] = { total: 0, noMatch: 0 };
+        if (!vendorStats[vendorKey]) vendorStats[vendorKey] = { total: 0, noMatch: 0, liveTotal: 0, liveNoMatch: 0 };
         vendorStats[vendorKey].total++;
         if (!winner) vendorStats[vendorKey].noMatch++;
 
@@ -833,6 +834,7 @@ export default async function handler(req, res) {
             continue;
           }
 const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true') : null;
+          if (isLiveVariant(variant)) vendorStats[vendorKey].liveTotal++;
           const productHandle = variant.product?.handle || '';
           const vendorPrice = winner ? (Math.max(winner.price, winner.compare_at_price || 0) / 100) : 0;
           const stdFactor = rule.price_adjustment_factor || 1.0;
@@ -1033,6 +1035,7 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
            
            if (rule.auto_update === true) {
              const variant = await getShopifyVariant(adminToken, rule.shopify_product_id, rule.shopify_variant_id);
+             if (isLiveVariant(variant)) { vendorStats[vendorKey].liveTotal++; vendorStats[vendorKey].liveNoMatch++; }
              if (variant && (variant.inventoryQuantity || 0) <= 0 && variant.inventoryPolicy === 'CONTINUE') {
                  // held back; applied after the loop unless the circuit breaker trips for this vendor
                  pendingNoMatchDeny.push({ rule, vendorKey });
@@ -1062,10 +1065,10 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
     // --- CIRCUIT BREAKER: apply (or hold back) the "vendor does not offer this variant" deny writes ---
     const trippedVendors = new Set();
     for (const [vendor, st] of Object.entries(vendorStats)) {
-      if (st.noMatch >= BREAKER_MIN_RULES && st.noMatch / st.total > BREAKER_MAX_RATIO) {
+      if (breakerTripped(st)) {
         trippedVendors.add(vendor);
-        console.error(`[SYNC BREAKER] ${vendor}: ${st.noMatch} of ${st.total} rules found 0 vendor matches. Holding back unavailable-writes.`);
-        attention.push({ title: `${vendor}: sync safety stop`, reason: `${st.noMatch} of ${st.total} checked items found no matching vendor variant (more than ${Math.round(BREAKER_MAX_RATIO * 100)}%). The vendor site probably changed. No items were switched to unavailable for this vendor; please check the vendor pages and the rule options.` });
+        console.error(`[SYNC BREAKER] ${vendor}: ${st.liveNoMatch} of ${st.liveTotal} live items found 0 vendor matches (${st.noMatch} of ${st.total} checked in all). Holding back unavailable-writes.`);
+        attention.push({ title: `${vendor}: sync safety stop`, reason: `${st.liveNoMatch} of ${st.liveTotal} items that are live in your shop found no matching vendor variant (more than 20%). The vendor site probably changed. No items were switched to unavailable for this vendor; please check the vendor pages and the rule options.` });
       }
     }
     for (const { rule, vendorKey } of pendingNoMatchDeny) {
@@ -1113,7 +1116,13 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
           autoCreatedVariants.map(v => `<li>Created variant: <b>${v.productTitle} (${v.variantTitle})</b> at $${v.price}</li>`).join('') + '</ul>';
       }
       let stockHtml = stockChanges.length > 0 ? `<h3 style="margin-top:20px;">📦 Stock Status Changes (${stockChanges.length})</h3><ul>` + stockChanges.map(s => `<li>${s.action}: <b>${s.title}</b></li>`).join('') + '</ul>' : '';
-      let oosHtml = oosReminders.length > 0 ? `<h3 style="margin-top:20px;">⏰ Items Still Out of Stock</h3><ul>` + oosReminders.map(r => `<li><b>${r.title}</b> — out of stock for <b>${r.days} days</b></li>`).join('') + '</ul>' : '';
+      let oosHtml = '';
+      if (oosReminders.length > 0) {
+        const oosGroups = groupOosReminders(oosReminders, 10);
+        oosHtml = `<h3 style="margin-top:20px;">⏰ Items Still Out of Stock (${oosGroups.totalItems} items in ${oosGroups.totalProducts} products)</h3><ul>` +
+          oosGroups.lines.map(g => `<li><b>${g.product}</b> — ${g.count} item${g.count === 1 ? '' : 's'} out, longest <b>${g.maxDays} days</b></li>`).join('') +
+          (oosGroups.more > 0 ? `<li>…and ${oosGroups.more} more product${oosGroups.more === 1 ? '' : 's'}</li>` : '') + '</ul>';
+      }
       const totalAlerts = updated.length + attention.length + stockChanges.length + autoCreatedVariants.length;
       await resend.emails.send({
         from: 'Watcher <system@loamlabsusa.com>', to: process.env.REPORT_EMAIL,
