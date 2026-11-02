@@ -7,6 +7,7 @@ import { groupOosReminders } from '../../lib/oos-summary';
 import { SURCHARGE_URL, findSurchargeCents } from '../../lib/ethirteen-surcharge';
 import { pickRearVariant } from '../../lib/ethirteen-wheel';
 import { decideOwner, isOneOwnerVendor } from '../../lib/ownership';
+import { decideReviewFlag } from '../../lib/review-flag';
 
 export const maxDuration = 300; // Allow Vercel to run up to 5 minutes
 
@@ -932,12 +933,11 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
               forceNeedsReview = false;
               reviewReason = null;
               console.log(`[!] Force Overriding and applying updates for ${rule.title}`);
-          } else if (vendorInStock && !needsPriceUpdate) {
-              if (forceNeedsReview) {
-                  forceNeedsReview = false;
-                  reviewReason = null;
-                  console.log(`[SYNC] Clearing stuck review flag for ${rule.title} because item is in stock and requires no price update.`);
-              }
+          } else if (decideReviewFlag({ needsPriceUpdate, requiresReviewForStock, forceApprove, flagged: forceNeedsReview }) === 'clear') {
+              // Nothing is waiting for approval any more (vendor price equals Shopify again), whether or not the vendor has it in stock.
+              forceNeedsReview = false;
+              reviewReason = null;
+              console.log(`[SYNC] Clearing stuck review flag for ${rule.title} because nothing is waiting for approval.`);
           }
 
           let newPriceLastChangedAt = rule.price_last_changed_at || null;
