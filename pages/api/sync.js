@@ -4,6 +4,7 @@ import fs from 'fs';
 import { mergeBtiNumber } from '../../lib/bti-number';
 import { isLiveVariant, breakerTripped } from '../../lib/breaker';
 import { groupOosReminders } from '../../lib/oos-summary';
+import { SURCHARGE_URL, findSurchargeCents } from '../../lib/ethirteen-surcharge';
 
 export const maxDuration = 300; // Allow Vercel to run up to 5 minutes
 
@@ -312,6 +313,7 @@ export default async function handler(req, res) {
 
     const urlCache = {};
     const ethirteenCache = {};
+    const surchargeProblems = new Map();   // e*thirteen surcharge page problems, reported once per run instead of once per wheel set
 
     for (const rule of rules) {
       try {
@@ -575,49 +577,33 @@ export default async function handler(req, res) {
                     }
 
                     if (driverValue && driverValue !== 'none' && driverValue !== 'no freehub') {
-                        let accessoryUrl = 'https://www.ethirteen.com/products/replacement-freehub-body-kit-sidekick';
-                        if (driverValue.includes('7 spd') || driverValue.includes('7spd') || driverValue.includes('cassette') || driverValue.includes('mini')) {
-                            accessoryUrl = 'https://www.ethirteen.com/products/sidekick-driver-kit-downhill';
-                        }
-                        
-                        try {
-                            const accJsUrl = accessoryUrl + '.js';
-                            if (!ethirteenCache[accJsUrl]) {
+                        // Driver/freehub-kit surcharge: PRICE only, read from e*thirteen's "Sidekick Freehub Kits" page (lib/ethirteen-surcharge.js).
+                        // The kit's availability is never read, so a sold-out kit changes nothing. If the price cannot be determined
+                        // the rule is skipped (no guessed number, nothing written, no hub marked unavailable).
+                        const accJsUrl = SURCHARGE_URL + '.js';
+                        let accData = ethirteenCache[accJsUrl];
+                        if (!accData) {
+                            try {
                                 await new Promise(r => setTimeout(r, 600));
                                 const accResp = await fetch(accJsUrl, { headers: { 'User-Agent': randomUA } });
-                                if (!accResp.ok) throw new Error(`Surcharge fetch failed (${accResp.status})`);
-                                ethirteenCache[accJsUrl] = await accResp.json();
+                                if (!accResp.ok) throw new Error(`HTTP ${accResp.status}`);
+                                accData = await accResp.json();
+                            } catch (ae) {
+                                accData = { __failed: ae.message };      // remembered for the whole run: one failed fetch, not one per wheel set
                             }
-                            const accData = ethirteenCache[accJsUrl];
-                            if (accData?.variants?.length > 0) {
-                                let driverSurcharge = 17995; 
-                                const axleString = axleMatch ? axleMatch[1] : (isSuperboost ? '157' : '148');
-                                
-                                const matchingVariant = accData.variants.find(v => {
-                                    const vt = normalize(v.public_title).toLowerCase();
-                                    if (!vt.includes(axleString)) return false;
-                                    if (driverValue.includes('7 spd') || driverValue.includes('7spd') || driverValue.includes('cassette')) {
-                                        return vt.includes('7 spd') || vt.includes('cassette');
-                                    }
-                                    if (driverValue.includes('mini')) return vt.includes('mini');
-                                    if (driverValue === 'xd') return vt.includes('xd') && !vt.includes('ms');
-                                    if (driverValue === 'ms' || driverValue === 'microspline') return vt.includes('microspline') || vt.includes('ms');
-                                    if (driverValue === 'hg') return vt.includes('hg') && !vt.includes('mini');
-                                    return vt.includes(driverValue);
-                                });
-
-                                if (matchingVariant) {
-                                    driverSurcharge = Math.max(matchingVariant.price, matchingVariant.compare_at_price || 0);
-                                    console.log(`[SYNC] Dynamic Surcharge for ${driverValue}: $${(driverSurcharge/100).toFixed(2)} (from ${accessoryUrl})`);
-                                } else {
-                                    console.warn(`[SYNC] No exact match for driver ${driverValue} in ${accessoryUrl}. Falling back to 179.95.`);
-                                }
-                                finalPrice += driverSurcharge;
-                            }
-                        } catch (ae) {
-                            console.error(`Surcharge fetch failed for ${accessoryUrl}: ${ae.message}`);
-                            throw ae; // Re-throw to abort partial calculation
+                            ethirteenCache[accJsUrl] = accData;
                         }
+                        const sur = accData.__failed
+                            ? { ok: false, reason: `surcharge page unavailable (${accData.__failed})` }
+                            : findSurchargeCents(accData, driverValue);
+                        if (!sur.ok) {
+                            const surErr = new Error(`Surcharge not read: ${sur.reason}`);
+                            surErr.surchargeProblem = true;
+                            throw surErr;
+                        }
+                        if (sur.pricesDiffer) console.warn(`[SYNC] e*thirteen kit prices differ by hub model for ${sur.kit}; using the higher one.`);
+                        finalPrice += sur.cents;
+                        console.log(`[SYNC] Dynamic Surcharge for ${driverValue} (${sur.kit}): $${(sur.cents / 100).toFixed(2)} from ${SURCHARGE_URL}`);
                     }
 
                     winner = { 
@@ -1054,7 +1040,11 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
         }
       } catch (ruleError) {
         console.error(`FAILURE on rule ${rule.id} (${rule.title}):`, ruleError);
-        attention.push({ title: rule.title, reason: `Sync Failed: ${ruleError.message}` });
+        if (ruleError.surchargeProblem) {
+          surchargeProblems.set(ruleError.message, (surchargeProblems.get(ruleError.message) || 0) + 1);
+        } else {
+          attention.push({ title: rule.title, reason: `Sync Failed: ${ruleError.message}` });
+        }
         await supabase.from('watcher_rules').update({
           last_log: `CRASHED: ${ruleError.message.slice(0, 100)}`,
           last_run_at: nowIso
@@ -1084,6 +1074,11 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
         console.error(`[SYNC] Could not mark ${rule.title} unavailable:`, denyErr);
         attention.push({ title: rule.title, reason: `Sync Failed: could not mark unavailable (${denyErr.message})` });
       }
+    }
+
+    // e*thirteen surcharge problems: one line per distinct problem, not one per wheel set
+    for (const [msg, count] of surchargeProblems.entries()) {
+      attention.push({ title: 'e*thirteen wheel sets: surcharge not read', reason: `${msg}. ${count} wheel set${count === 1 ? '' : 's'} skipped this run (their price and stock were left unchanged).` });
     }
 
     // --- BULK TIMESTAMP UPDATE for all unchanged rules ---
