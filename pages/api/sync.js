@@ -8,6 +8,7 @@ import { SURCHARGE_URL, findSurchargeCents } from '../../lib/ethirteen-surcharge
 import { pickRearVariant } from '../../lib/ethirteen-wheel';
 import { decideOwner, isOneOwnerVendor } from '../../lib/ownership';
 import { decideReviewFlag } from '../../lib/review-flag';
+import { createFailureTracker } from '../../lib/vendor-page-failures';
 
 export const maxDuration = 300; // Allow Vercel to run up to 5 minutes
 
@@ -337,6 +338,7 @@ export default async function handler(req, res) {
 
     const urlCache = {};
     const ethirteenCache = {};
+    const pageFailures = createFailureTracker();   // vendor pages that could not be read, with how many rules were not checked because of it
     const surchargeProblems = new Map();   // e*thirteen surcharge page problems, reported once per run instead of once per wheel set
 
     for (const rule of rules) {
@@ -352,6 +354,7 @@ export default async function handler(req, res) {
 
         // Skip immediately if we already know this URL is dead (e.g. 404)
         if (urlCache[url] === 'FAILED') {
+            pageFailures.skip(url);
             continue;
         }
 
@@ -395,6 +398,7 @@ export default async function handler(req, res) {
             }
             // Mark as failed in cache so we don't retry and sleep for every rule that points to this dead URL
             urlCache[url] = 'FAILED';
+            pageFailures.fail(url, fetchErr.message);
             
             // Add a long delay if rate limited so we don't completely spam them
             await new Promise(r => setTimeout(r, 2000));
@@ -420,6 +424,7 @@ export default async function handler(req, res) {
             }
             // Mark as failed in cache
             urlCache[url] = 'FAILED';
+            pageFailures.fail(url, 'The page did not return readable data');
             continue; // Skip processing this rule so we don't accidentally mark it Out of Stock!
           }
         }
@@ -1137,6 +1142,9 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
     for (const [msg, count] of surchargeProblems.entries()) {
       attention.push({ title: 'e*thirteen wheel sets: price not read', reason: `${msg}. ${count} wheel set${count === 1 ? '' : 's'} skipped this run (their price and stock were left unchanged).` });
     }
+
+    // vendor pages that could not be read: one line per page, with the number of rules that were not checked
+    pageFailures.lines().forEach(l => attention.push(l));
 
     // --- BULK TIMESTAMP UPDATE for all unchanged rules ---
     // This is the key performance optimization: instead of thousands of sequential
