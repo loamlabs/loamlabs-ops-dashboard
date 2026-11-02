@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { mergeBtiNumber } from '../../lib/bti-number';
 
 // Initialize Supabase only if credentials exist
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -261,6 +262,16 @@ export default async function handler(req, res) {
         }
         
         if (variantBatch.length > 0) {
+          // Never replace a real stored BTI part number with blank or IGNORE (see lib/bti-number.js)
+          const storedNumbers = new Map();
+          const ids = variantBatch.map(r => r.shopify_variant_id);
+          for (let i = 0; i < ids.length; i += 150) {
+            const { data: existing, error: existingError } = await supabase.from('watcher_rules').select('shopify_variant_id, bti_part_number').in('shopify_variant_id', ids.slice(i, i + 150));
+            if (existingError) throw existingError;
+            (existing || []).forEach(r => storedNumbers.set(String(r.shopify_variant_id), r.bti_part_number));
+          }
+          variantBatch.forEach(r => { r.bti_part_number = mergeBtiNumber(r.bti_part_number, storedNumbers.get(String(r.shopify_variant_id))); });
+
           const { error: upsertError } = await supabase.from('watcher_rules').upsert(variantBatch, { onConflict: 'shopify_variant_id', ignoreDuplicates: false });
           if (upsertError) throw upsertError;
           importedTotal += variantBatch.length;

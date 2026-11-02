@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 import fs from 'fs';
+import { mergeBtiNumber } from '../../lib/bti-number';
 
 export const maxDuration = 300; // Allow Vercel to run up to 5 minutes
 
@@ -206,7 +207,7 @@ async function runAutoDiscovery(adminToken, supabase, initialRules) {
           option_values: mappedOptions,
           vendor_url: data.vendor_url,
           tags: productTags || [],
-          bti_part_number: mFields.bti_part_number || null,
+          bti_part_number: mergeBtiNumber(mFields.bti_part_number, null),
           bti_inventory_active: mFields.bti_sync_authority === 'true',
           auto_update: true,
           price_adjustment_factor: packSize
