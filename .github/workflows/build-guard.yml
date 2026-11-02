@@ -1,0 +1,46 @@
+name: Build Availability Guard
+
+# NOT ENABLED YET: this file exists on the branch only. Do not push it to main until Jerry says go.
+# Starts as a DRY RUN (plans only, writes nothing). To go live, Jerry decides, then the run command below gets
+#   --live --phrase "RUN BUILD GUARD LIVE"
+# Times (UTC): the Watcher emails arrive about 14:03 UTC and the BTI sync runs at 19:00 UTC (Vercel cron), so the guard runs 30 minutes after each.
+# (daily-sync.yml says 10:00 UTC for the Watcher; the real Watcher run times in sync_logs are about 14:03 UTC. Confirm before enabling.)
+
+on:
+  schedule:
+    - cron: '35 14 * * *'
+    - cron: '30 19 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-guard
+  cancel-in-progress: false
+
+jobs:
+  run-guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Setup Environment File
+        run: |
+          echo "$ENV_FILE" > .env.local
+        env:
+          ENV_FILE: ${{ secrets.ENV_FILE }}
+
+      - name: Run Build Guard (dry run)
+        run: node run-build-guard-locally.js
