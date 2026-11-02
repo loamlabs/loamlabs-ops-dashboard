@@ -6,6 +6,7 @@ import { isLiveVariant, breakerTripped } from '../../lib/breaker';
 import { groupOosReminders } from '../../lib/oos-summary';
 import { SURCHARGE_URL, findSurchargeCents } from '../../lib/ethirteen-surcharge';
 import { pickRearVariant } from '../../lib/ethirteen-wheel';
+import { decideOwner, isOneOwnerVendor } from '../../lib/ownership';
 
 export const maxDuration = 300; // Allow Vercel to run up to 5 minutes
 
@@ -44,6 +45,25 @@ async function getShopifyToken() {
   return data.access_token;
 }
 
+// Writes variant metafields with GraphQL variables (no string building). Returns { ok, errors }.
+async function setVariantMetafields(adminToken, variantId, entries) {
+  try {
+    const response = await fetch(`https://${process.env.SHOPIFY_SHOP_NAME}.myshopify.com/admin/api/2024-04/graphql.json`, {
+      method: 'POST',
+      headers: { 'X-Shopify-Access-Token': adminToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query: `mutation($m: [MetafieldsSetInput!]!) { metafieldsSet(metafields: $m) { userErrors { message } } }`,
+        variables: { m: entries.map(e => ({ ownerId: `gid://shopify/ProductVariant/${variantId}`, namespace: 'custom', key: e.key, type: e.type, value: e.value })) }
+      })
+    });
+    const data = await response.json();
+    const errors = [...(data.errors || []).map(e => e.message), ...(data.data?.metafieldsSet?.userErrors || []).map(e => e.message)];
+    return { ok: errors.length === 0 && !!data.data, errors };
+  } catch (e) {
+    return { ok: false, errors: [e.message] };
+  }
+}
+
 let shopifyProductVariantsCache = {};
 
 async function getShopifyVariant(adminToken, productId, variantId) {
@@ -73,6 +93,7 @@ async function getShopifyVariant(adminToken, productId, variantId) {
                     inventoryPolicy
                     product { id handle status }
                     btiMonitor: metafield(namespace: "custom", key: "bti_sync_authority") { value }
+                    btiNumber: metafield(namespace: "custom", key: "bti_part_number") { value }
                   }
                 }
               }
@@ -291,6 +312,7 @@ export default async function handler(req, res) {
     }
     let updated = [], attention = [], inSync = [];
     let stockChanges = [], oosReminders = [];
+    const ownershipLines = [];   // owner flips and number restores done by the Watcher this run (allowlisted vendors)
     const processedProducts = new Set();
     const autoCreatedVariants = [];
     // Collect IDs of rules that were processed but had NO changes, so we can
@@ -825,6 +847,36 @@ export default async function handler(req, res) {
             continue;
           }
 const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true') : null;
+
+          // --- ONE OWNER PER VARIANT (allowlisted vendors only, see lib/ownership.js) ---
+          // The Watcher alone writes custom.bti_sync_authority: vendor in stock = false (Watcher owns inventory), vendor out of stock = true (BTI owns).
+          // It never writes IGNORE, never wipes a number, and restores a lost number only from the exact real value stored in watcher_rules.
+          // These writes do not wait for price approval. Everything else (non-allowlisted vendors) keeps the old behaviour below.
+          const ownership = decideOwner({
+            vendorAllowed: isOneOwnerVendor(rule.vendor_name),
+            autoUpdate: rule.auto_update === true,
+            vendorInStock: winner.available,
+            currentFlag: variant.btiMonitor ? variant.btiMonitor.value : null,
+            shopifyNumber: variant.btiNumber ? variant.btiNumber.value : null,
+            storedNumber: rule.bti_part_number
+          });
+          let ownerFlagNow = currentBtiFlag;   // the flag as it stands after any write below
+          if (ownership.managed) {
+            const ownerWrites = [];
+            if (ownership.restoreNumber) ownerWrites.push({ key: 'bti_part_number', value: ownership.restoreNumber, type: 'single_line_text_field' });
+            if (ownership.writeFlag && ownership.desiredFlag !== null) ownerWrites.push({ key: 'bti_sync_authority', value: String(ownership.desiredFlag), type: 'boolean' });
+            if (ownerWrites.length > 0) {
+              const result = await setVariantMetafields(adminToken, rule.shopify_variant_id, ownerWrites);
+              if (result.ok) {
+                if (ownership.writeFlag && ownership.desiredFlag !== null) ownerFlagNow = ownership.desiredFlag;
+                if (ownership.restoreNumber) ownershipLines.push(`${rule.title}: BTI part number ${ownership.restoreNumber} restored (it was blank or IGNORE in Shopify)`);
+                if (ownership.writeFlag && ownership.desiredFlag !== null) ownershipLines.push(`${rule.title}: inventory owner is now ${ownership.desiredFlag ? 'BTI (vendor out of stock)' : 'the Watcher (vendor in stock)'}`);
+              } else {
+                attention.push({ title: rule.title, reason: `Could not update owner/number in Shopify (${result.errors.join('; ').slice(0, 120)}). Nothing was changed for this item.` });
+              }
+            }
+            if (ownership.numberMismatch) attention.push({ title: rule.title, reason: `BTI part number in Shopify (${variant.btiNumber?.value}) differs from the stored one (${rule.bti_part_number}). Nothing was changed; please check.` });
+          }
           if (isLiveVariant(variant)) vendorStats[vendorKey].liveTotal++;
           const productHandle = variant.product?.handle || '';
           const vendorPrice = winner ? (Math.max(winner.price, winner.compare_at_price || 0) / 100) : 0;
@@ -841,11 +893,11 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
           const myCompare = variant.compareAtPrice ? parseFloat(variant.compareAtPrice).toFixed(2) : null;
           const isDiff = Number(goalPrice) !== Number(myPrice);
           const ignorePriceUpdate = String(rule.shopify_product_id) === '10180231921971' || String(rule.shopify_product_id) === '10191716548915' || rule.tags?.includes('spokes') || rule.title.toLowerCase().includes('nipples');
-          const needsPriceUpdate = !ignorePriceUpdate && (isDiff || (myCompare && Number(myCompare) < Number(goalPrice))) && (winner.available || currentBtiFlag !== true);
+          const needsPriceUpdate = !ignorePriceUpdate && (isDiff || (myCompare && Number(myCompare) < Number(goalPrice))) && (winner.available || currentBtiFlag !== true || ownership.managed);
 
           let needsStockUpdate = false;
           let stockAction = null;
-          let currentEffectiveBtiFlag = currentBtiFlag;
+          let currentEffectiveBtiFlag = ownerFlagNow;
           const shopifyQty = variant.inventoryQuantity || 0;
           const vendorInStock = winner.available;
 
@@ -901,7 +953,7 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
           let updatePayloadForPrice = { id: rule.shopify_variant_id };
           let shouldPutPrice = false;
 
-          if (rule.auto_update === true && !forceNeedsReview) {
+          if (rule.auto_update === true && !forceNeedsReview && !ownership.managed) {
              if (winner.available && (currentBtiFlag === true || forceApprove)) {
                 console.log(`[SYNC] Vendor BACK-IN-STOCK for ${rule.title}. Reclaiming authority from BTI by clearing part number.`);
                 updatePayloadForPrice.metafields = [{ namespace: "custom", key: "bti_part_number", value: "IGNORE", type: "single_line_text_field" }];
@@ -1106,7 +1158,7 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
     await supabase.from('sync_logs').delete().lt('created_at', thirtyDaysAgo);
 
-    const hasReport = updated.length > 0 || attention.length > 0 || stockChanges.length > 0 || oosReminders.length > 0 || autoCreatedVariants.length > 0;
+    const hasReport = updated.length > 0 || ownershipLines.length > 0 || attention.length > 0 || stockChanges.length > 0 || oosReminders.length > 0 || autoCreatedVariants.length > 0;
     if (hasReport) {
       const updatedHtml = updated.map(i => `<li style="color:green;">🚀 <b>UPDATED:</b> ${i.title}<br><small>${i.reason}</small></li>`).join('');
       const attentionHtml = attention.map(i => `<li style="color:red;">⚠️ <b>ALERT:</b> ${i.title}<br><small>${i.reason}</small></li>`).join('');
@@ -1116,6 +1168,12 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
           autoCreatedVariants.map(v => `<li>Created variant: <b>${v.productTitle} (${v.variantTitle})</b> at $${v.price}</li>`).join('') + '</ul>';
       }
       let stockHtml = stockChanges.length > 0 ? `<h3 style="margin-top:20px;">📦 Stock Status Changes (${stockChanges.length})</h3><ul>` + stockChanges.map(s => `<li>${s.action}: <b>${s.title}</b></li>`).join('') + '</ul>' : '';
+      let ownershipHtml = '';
+      if (ownershipLines.length > 0) {
+        ownershipHtml = `<h3 style="margin-top:20px;">🔁 Inventory Owner / Number Restores (${ownershipLines.length})</h3><ul>` +
+          ownershipLines.slice(0, 10).map(l => `<li>${l}</li>`).join('') +
+          (ownershipLines.length > 10 ? `<li>…and ${ownershipLines.length - 10} more</li>` : '') + '</ul>';
+      }
       let oosHtml = '';
       if (oosReminders.length > 0) {
         const oosGroups = groupOosReminders(oosReminders, 10);
@@ -1123,11 +1181,11 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
           oosGroups.lines.map(g => `<li><b>${g.product}</b> — ${g.count} item${g.count === 1 ? '' : 's'} out, longest <b>${g.maxDays} days</b></li>`).join('') +
           (oosGroups.more > 0 ? `<li>…and ${oosGroups.more} more product${oosGroups.more === 1 ? '' : 's'}</li>` : '') + '</ul>';
       }
-      const totalAlerts = updated.length + attention.length + stockChanges.length + autoCreatedVariants.length;
+      const totalAlerts = updated.length + attention.length + stockChanges.length + ownershipLines.length + autoCreatedVariants.length;
       await resend.emails.send({
         from: 'Watcher <system@loamlabsusa.com>', to: process.env.REPORT_EMAIL,
         subject: `Vendor Watcher: ${totalAlerts} Updates${autoCreatedVariants.length > 0 ? ` (+${autoCreatedVariants.length} New Variants)` : ''}${oosReminders.length > 0 ? ` + ${oosReminders.length} OOS Reminders` : ''}`,
-        html: `<div style="font-family:sans-serif;"><h2>Shop Sync Report</h2><ul>${updatedHtml}${attentionHtml}</ul>${autoCreatedHtml}${stockHtml}${oosHtml}</div>`
+        html: `<div style="font-family:sans-serif;"><h2>Shop Sync Report</h2><ul>${updatedHtml}${attentionHtml}</ul>${autoCreatedHtml}${stockHtml}${ownershipHtml}${oosHtml}</div>`
       });
     }
 
