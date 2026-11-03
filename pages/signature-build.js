@@ -155,7 +155,7 @@ export default function SignatureBuild() {
             <div>Spokes: {plan.colours.spoke.offered.map((c) => <label key={c} style={{ marginRight: 10 }}><input type="checkbox" checked={(spokeColors || plan.colours.spoke.offered).includes(c)} onChange={() => { toggle(spokeColors, setSpokeColors, plan.colours.spoke.offered, c); }} /> {c}</label>)}</div>
             <div style={{ color: '#71717a' }}>{plan.colours.spoke.note} Left out: {plan.colours.spoke.excluded.map((c) => `${c.name} (${c.reason})`).join('; ') || 'none'}</div>
             <div style={{ marginTop: 6 }}>Freehub bodies offered (first is the default): {plan.freehub.options.map((o, i) => <label key={o} style={{ marginRight: 10 }}><input type="checkbox" disabled={i === 0} checked={(freehubOptions || plan.freehub.options).includes(o)} onChange={() => toggle(freehubOptions, setFreehubOptions, plan.freehub.options, o)} /> {o}</label>)}</div>
-            <div style={{ marginTop: 6 }}>Spoke lengths (mm): front {plan.spokeLengths.front.join(' + ')}, rear {plan.spokeLengths.rear.join(' + ')}. These come from the builder; check them.</div>
+            {plan.spokeLengths.front.length > 0 ? <div style={{ marginTop: 6 }}>Spoke lengths (mm): front {plan.spokeLengths.front.join(' + ')}, rear {plan.spokeLengths.rear.join(' + ')}. These were supplied with the build; check them.</div> : <div style={{ marginTop: 6 }}>Spoke lengths were not supplied; the guard watches the builder spoke variant of the default colour.</div>}
             <button style={{ ...btn('#3f3f46', busy), marginTop: 8 }} disabled={busy} onClick={() => preview()}>Refresh preview</button>
           </div>
 

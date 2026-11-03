@@ -494,3 +494,48 @@ test('adapter: reads the paint flag from the variants it loads', async () => {
   const m = await createShopifyBuildStore(gql).getVariants(['9']);
   assert.equal(m.get('9').paintFee, true);
 });
+
+// ---------- spokeLengths optional ----------
+const noLengths = (w) => { const r = w.recipe(); delete r.spokeLengths; return r; };
+
+test('spoke lengths optional: a recipe without them is valid, plans, and shows the plain-words warning (not a blocker)', async () => {
+  const s = setup();
+  const r = noLengths(s.world);
+  assert.equal(validateRecipe(r).ok, true);
+  const plan = await planOf(s, {}, r);
+  assert.deepEqual(plan.blockers, []);
+  const w = plan.warnings.find((x) => x.code === 'SPOKE_LENGTHS_NOT_CHECKED');
+  assert.equal(w.message, "Spoke lengths were not calculated here, so stock at the cut lengths was not checked. Check Backend 1's spoke length report on the first order.");
+  assert.deepEqual(plan.spokeLengths, { front: [], rear: [] });
+  // the guard list watches the builder (Length -) variant of the default colour, one per wheel, no 'all' mode
+  const comps = JSON.parse(plan.variant.metafields[0].value).components;
+  const sf = comps.find((c) => c.role === 'spokes_front');
+  assert.deepEqual(sf.variants, [`gid://shopify/ProductVariant/${r.parts.frontSpokes}`]); assert.equal(sf.mode, undefined);
+  assert.equal(s.store.writes.length, 0);
+});
+
+test('spoke lengths optional: spoke colours are judged on the builder variant (stock, paint, price), and it can be created', async () => {
+  const s = setup();
+  const r = noLengths(s.world);
+  const plan = await planOf(s, {}, r);
+  assert.deepEqual(plan.colours.spoke.offered.sort(), ['Black', 'Red', 'Silver']);       // no length data, so Silver/Red are not excluded for cut-length stock
+  const silver = s.world.P[400].variants.find((v) => v.title === 'Silver / -');
+  silver.qty = 0;                                                                         // out of stock at the builder variant itself
+  const plan2 = await planOf(s, {}, r);
+  assert.deepEqual(plan2.colours.spoke.offered.sort(), ['Black', 'Red']);
+  assert.match(plan2.colours.spoke.excluded.find((c) => c.name === 'Silver').reason, /out of stock/);
+  const out = await createBuild({ store: s.store, db: s.db, planId: plan2.planId, planHash: plan2.planHash, price: 2100 });
+  assert.equal(out.ok, true);
+});
+
+test('spoke lengths supplied: unchanged (checked, no warning); a half-filled one is still rejected', async () => {
+  const s = setup();
+  const plan = await planOf(s);
+  assert.ok(!plan.warnings.some((x) => x.code === 'SPOKE_LENGTHS_NOT_CHECKED'));
+  assert.deepEqual(plan.spokeLengths, { front: [296, 298], rear: [296, 298] });
+  assert.deepEqual(plan.colours.spoke.offered, ['Black']);
+  const half = validateRecipe({ ...s.recipe, spokeLengths: { front: { left: 296 } } });
+  assert.equal(half.ok, false);
+  const link = await planOf(s, {}, s.world.recipe({ spokeLengths: { front: { left: 296, right: 301 }, rear: { left: 296, right: 298 } } }));
+  assert.ok(codes(link.blockers).includes('SPOKE_LENGTH_NOT_FOUND'));
+});
