@@ -9,6 +9,7 @@ import { pickRearVariant } from '../../lib/ethirteen-wheel';
 import { decideOwner, isOneOwnerVendor } from '../../lib/ownership';
 import { decideReviewFlag } from '../../lib/review-flag';
 import { createFailureTracker } from '../../lib/vendor-page-failures';
+import { withoutSkippedLengths } from '../../lib/spoke-length-skip';
 
 export const maxDuration = 300; // Allow Vercel to run up to 5 minutes
 
@@ -487,7 +488,7 @@ export default async function handler(req, res) {
                 const velonixLengths = vData.options?.find(opt => opt.name.toLowerCase() === 'length')?.values || [];
                 
                 // Compare and filter missing lengths
-                const missingLengths = velonixLengths.filter(vl => !existingLengths.includes(vl));
+                const missingLengths = withoutSkippedLengths(prodIdStr, velonixLengths.filter(vl => !existingLengths.includes(vl)));   // lengths Jerry decided to ignore (lib/spoke-length-skip.js) are not reported
                 
                 // Apply strict safety bounds: numbers between 130 and 320
                 const validMissingLengths = missingLengths.filter(vl => {
