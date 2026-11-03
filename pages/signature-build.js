@@ -140,7 +140,7 @@ export default function SignatureBuild() {
                   <td>{p.cost !== null ? money(p.cost) : <input placeholder="COST MISSING" value={costs[p.id] || ''} onChange={(e) => setCosts({ ...costs, [p.id]: e.target.value })} style={{ width: 110, border: '1px solid #f59e0b', borderRadius: 4, padding: 2 }} />}</td></tr>
               ))}</tbody>
             </table>
-            <div style={{ marginTop: 8 }}>Parts total {money(plan.partsSum)}. Builder total (minus the 10%) {money(plan.suggestedPrice)}. Parts cost {money(plan.margin.partsCost)}{plan.margin.incomplete ? ' (incomplete)' : ''}. Labour {money(plan.margin.labour)}, shipping {money(plan.margin.shipping)}, card fees {(plan.margin.feePct * 100).toFixed(0)}%. <b>Floor price {money(plan.margin.floor)}</b>.</div>
+            <div style={{ marginTop: 8 }}>Parts total {money(plan.partsSum)} ({plan.partsSumNote}). Builder total (minus the 10%) {money(plan.suggestedPrice)}. Parts cost {money(plan.margin.partsCost)}{plan.margin.incomplete ? ' (incomplete)' : ''}. Labour {money(plan.margin.labour)}, shipping {money(plan.margin.shipping)}, card fees {(plan.margin.feePct * 100).toFixed(0)}%. <b>Floor price {money(plan.margin.floor)}</b>.</div>
             <div style={{ marginTop: 8 }}>
               <b>Your price</b> <input value={price} onChange={(e) => setPrice(e.target.value)} onBlur={() => preview()} style={{ width: 110, padding: 4, border: '1px solid #d4d4d8', borderRadius: 6 }} />
               {plan.margin.price !== undefined && <span style={{ marginLeft: 8 }}>Margin before labour {money(plan.margin.marginBeforeLabour)}, after labour {money(plan.margin.marginAfterLabour)}</span>}
@@ -151,7 +151,7 @@ export default function SignatureBuild() {
           <div style={box}>
             <b>Colours that keep the master price</b> (untick to leave one out)
             <div>Hubs: {plan.colours.hub.offered.map((c) => <label key={c} style={{ marginRight: 10 }}><input type="checkbox" checked={(hubColors || plan.colours.hub.offered).includes(c)} onChange={() => { toggle(hubColors, setHubColors, plan.colours.hub.offered, c); }} /> {c}</label>)}</div>
-            {plan.colours.hub.excluded.length > 0 && <div style={{ color: '#71717a' }}>Left out: {plan.colours.hub.excluded.map((c) => c.name).join(', ')} (different price)</div>}
+            {plan.colours.hub.excluded.length > 0 && <div style={{ color: '#71717a' }}>Left out: {plan.colours.hub.excluded.map((c) => `${c.name} (${c.reason})`).join('; ')}</div>}
             <div>Spokes: {plan.colours.spoke.offered.map((c) => <label key={c} style={{ marginRight: 10 }}><input type="checkbox" checked={(spokeColors || plan.colours.spoke.offered).includes(c)} onChange={() => { toggle(spokeColors, setSpokeColors, plan.colours.spoke.offered, c); }} /> {c}</label>)}</div>
             <div style={{ color: '#71717a' }}>{plan.colours.spoke.note} Left out: {plan.colours.spoke.excluded.map((c) => `${c.name} (${c.reason})`).join('; ') || 'none'}</div>
             <div style={{ marginTop: 6 }}>Freehub bodies offered (first is the default): {plan.freehub.options.map((o, i) => <label key={o} style={{ marginRight: 10 }}><input type="checkbox" disabled={i === 0} checked={(freehubOptions || plan.freehub.options).includes(o)} onChange={() => toggle(freehubOptions, setFreehubOptions, plan.freehub.options, o)} /> {o}</label>)}</div>

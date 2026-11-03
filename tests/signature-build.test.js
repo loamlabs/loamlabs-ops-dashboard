@@ -402,3 +402,95 @@ test('adapter: creates DRAFT only, never publishes, never writes guard state, ne
   assert.doesNotMatch(JSON.stringify(sent.map((x) => x.vars)), /build_guard_state|build_guard_off/);
   assert.equal(sent.find((x) => x.query.includes('productVariantsBulkUpdate')).vars.variants[0].compareAtPrice, null);
 });
+
+// ---------- colour rules update (Agent B, release 9) ----------
+const addPaintedBlue = (w) => {
+  const mk = (id, title, price, opts, extra = {}) => { const v = { id: I(id), gid: `gid://shopify/ProductVariant/${I(id)}`, title, price, cost: 20, qty: 5, policy: 'DENY', selectedOptions: opts, productGid: w.P[400].gid, productTitle: w.P[400].title, paintFee: false, ...extra }; w.V[v.id] = v; w.P[400].variants.push(v); return v; };
+  const builder = mk(4101, 'Blue / -', 54.99, [{ name: 'Color', value: 'Blue' }, { name: 'Length', value: '-' }], { paintFee: true });
+  mk(4102, 'Blue / 296mm', 0, [{ name: 'Color', value: 'Blue' }, { name: 'Length', value: '296mm' }]);
+  mk(4103, 'Blue / 298mm', 0, [{ name: 'Color', value: 'Blue' }, { name: 'Length', value: '298mm' }]);
+  return builder;
+};
+
+test('colours: painted spoke colours are never listed, the plan says why, and they cannot be ticked back in', async () => {
+  const s = setup();
+  addPaintedBlue(s.world);
+  const plan = await planOf(s);
+  assert.deepEqual(plan.blockers, []);
+  assert.deepEqual(plan.colours.spoke.offered, ['Black']);
+  assert.match(plan.colours.spoke.excluded.find((c) => c.name === 'Blue').reason, /painted.*\$35 per wheel/);
+  assert.deepEqual(plan.rules[0].newRule.spokeColors, ['Black']);
+  const tick = await planOf(s, { spokeColors: ['Black', 'Blue'] });
+  assert.ok(codes(tick.blockers).includes('COLOUR_NOT_ALLOWED'));
+});
+
+test('colours: a painted DEFAULT spoke colour is a blocker', async () => {
+  const s = setup();
+  const b = addPaintedBlue(s.world);
+  const r = s.world.recipe({ parts: { ...s.recipe.parts, frontSpokes: b.id, rearSpokes: b.id } });
+  const plan = await planOf(s, {}, r);
+  assert.ok(codes(plan.blockers).includes('PAINTED_SPOKE_COLOUR'));
+  assert.match(plan.blockers.find((x) => x.code === 'PAINTED_SPOKE_COLOUR').message, /paint fee/);
+  assert.equal(s.store.writes.length, 0);
+});
+
+test('colours: a colour at a different price is left out with its prices shown, and cannot be ticked in', async () => {
+  const s = setup();
+  const plan = await planOf(s);
+  const gold = plan.colours.hub.excluded.find((c) => c.name === 'Gold');
+  assert.match(gold.reason, /price differs/); assert.match(gold.reason, /\$260\.00/);
+  assert.ok(!plan.rules[0].newRule.hubColors.includes('Gold'));
+  assert.ok(codes((await planOf(s, { hubColors: ['Black', 'Gold'] })).blockers).includes('COLOUR_NOT_ALLOWED'));
+});
+
+test('colours: front and rear hubs (and spokes) must start in the same colour', async () => {
+  const s = setup();
+  const hubs = await planOf(s, {}, s.world.recipe({ parts: { ...s.recipe.parts, rearHub: I(3002) } }));
+  assert.ok(codes(hubs.blockers).includes('COLOUR_MISMATCH'));
+  const silver = s.world.P[400].variants.find((v) => v.title === 'Silver / -').id;
+  const spokes = await planOf(s, {}, s.world.recipe({ parts: { ...s.recipe.parts, rearSpokes: silver } }));
+  assert.ok(codes(spokes.blockers).includes('COLOUR_MISMATCH'));
+});
+
+test('colours: names are copied exactly from the Color values; the default is in the list; fewer than 2 colours is fine', async () => {
+  const s = setup();
+  for (const pid of [200, 300]) s.world.P[pid].variants.forEach((v) => v.selectedOptions.forEach((o) => { if (o.name === 'Color' && o.value === 'Black') o.value = 'Black (Anodized)'; }));
+  const plan = await planOf(s);
+  assert.deepEqual(plan.blockers, []);
+  assert.ok(plan.rules[0].newRule.hubColors.includes('Black (Anodized)'));
+  assert.ok(!plan.rules[0].newRule.hubColors.includes('Black'));
+  const one = await planOf(s, { hubColors: ['Blue'] });                                         // the default is added back even if unticked
+  assert.ok(one.rules[0].newRule.hubColors.includes('Black (Anodized)'));
+  assert.deepEqual(plan.rules[0].newRule.spokeColors, ['Black']);                               // a single-colour list: no picker, no problem
+});
+
+test('colours: a product whose colour option is not named "Color" gets a one-colour list and a warning', async () => {
+  const s = setup();
+  s.world.P[200].options.forEach((o) => { if (o.name === 'Color') o.name = 'Colour'; });
+  const plan = await planOf(s);
+  assert.ok(plan.warnings.some((w) => w.code === 'COLOUR_OPTION_NAME'));
+  assert.deepEqual(plan.rules[0].newRule.hubColors, ['Black']);
+  assert.deepEqual(plan.colours.hub.offered, ['Black']);
+  const s2 = setup();
+  s2.world.P[400].options.forEach((o) => { if (o.name === 'Color') o.name = 'Colour'; });
+  assert.deepEqual((await planOf(s2)).rules[0].newRule.spokeColors, ['Black']);
+});
+
+test('pricing: parts sum is parts only and the plan says assembly is not in it; assembly is not a cost', async () => {
+  const s = setup();
+  const plan = await planOf(s);
+  assert.match(plan.partsSumNote, /Assembly \(\$80 per wheel\) is not in it/);
+  assert.equal(plan.parts.length, 8);
+  assert.equal(plan.partsSum, Math.round(plan.parts.reduce((t, p) => t + p.price, 0) * 100) / 100);
+  assert.equal(plan.margin.partsCost, Math.round(plan.parts.reduce((t, p) => t + (p.cost || 0), 0) * 100) / 100);
+});
+
+test('adapter: reads the paint flag from the variants it loads', async () => {
+  const { createShopifyBuildStore } = require('../lib/signature-build/shopify');
+  const gql = async (q) => {
+    if (q.includes('nodes(ids')) return { nodes: [{ id: 'gid://shopify/ProductVariant/9', title: 'Blue Berd / -', price: '319.99', inventoryQuantity: 1, inventoryPolicy: 'DENY', selectedOptions: [], paint: { value: 'Yes' }, inventoryItem: { unitCost: null }, product: { id: 'gid://shopify/Product/1', title: 'Berd', handle: 'b', status: 'ACTIVE' } }] };
+    throw new Error('unexpected');
+  };
+  const m = await createShopifyBuildStore(gql).getVariants(['9']);
+  assert.equal(m.get('9').paintFee, true);
+});

@@ -12,7 +12,8 @@ function makeWorld(over = {}) {
     const P = {};
     const addProduct = (id, title, extra = {}) => { P[id] = { gid: `gid://shopify/Product/${id}`, title, vendor: 'X', options: [], variants: [], freehub: null, freehubMap: null, rulesRaw: null, ...extra }; return P[id]; };
     const addVariant = (pid, id, title, price, selectedOptions, extra = {}) => {
-        const v = { id: I(id), gid: `gid://shopify/ProductVariant/${I(id)}`, title, price, cost: extra.cost === undefined ? 10 : extra.cost, qty: extra.qty ?? 5, policy: extra.policy || 'DENY', selectedOptions, productGid: P[pid].gid, productTitle: P[pid].title };
+        const v = { id: I(id), gid: `gid://shopify/ProductVariant/${I(id)}`, title, price, cost: extra.cost === undefined ? 10 : extra.cost, qty: extra.qty ?? 5, policy: extra.policy || 'DENY', selectedOptions, productGid: P[pid].gid, productTitle: P[pid].title, paintFee: !!extra.paintFee };
+        selectedOptions.forEach((o) => { if (!P[pid].options.some((x) => x.name === o.name)) P[pid].options.push({ name: o.name, values: [] }); });
         V[v.id] = v; P[pid].variants.push(v); return v;
     };
     // rim 100 (29" 28h black)
