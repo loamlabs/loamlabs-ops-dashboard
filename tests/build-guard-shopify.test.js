@@ -25,6 +25,7 @@ function fakeShopify(initial) {
       return { nodes: v.ids.map((gid) => { const c = state.components[gid.split('/').pop()]; return c ? { id: gid, title: c.title, inventoryQuantity: c.qty, inventoryPolicy: c.policy, product: { title: 'Part' } } : null; }) };
     }
     const find = (gid) => state.products.flatMap((p) => p.variants).find((x) => 'gid://shopify/ProductVariant/' + x.id === gid);
+    if (query.includes('inventoryLevels(first: 10)') && query.includes('inventoryItem(id')) { calls.push('levels'); return { inventoryItem: { inventoryLevels: { edges: [{ node: { location: { id: 'gid://shopify/Location/1' } } }] } } }; }
     if (query.includes('productVariantsBulkUpdate')) {
       calls.push('bulkUpdate'); const x = find(v.variants[0].id); x.policy = v.variants[0].inventoryPolicy; if (v.variants[0].inventoryItem) x.tracked = v.variants[0].inventoryItem.tracked; return { productVariantsBulkUpdate: { userErrors: [] } };
     }
@@ -118,4 +119,15 @@ test('request mode: dry run by default, live needs the exact phrase, never silen
   assert.equal(parseGuardRequest({ live: '1', dry: '1', phrase: PHRASE }).ok, false);
   const live = parseGuardRequest({ live: '1', phrase: PHRASE, only: 'gid://shopify/ProductVariant/201', max: '1' });
   assert.deepEqual(live, { ok: true, dry: false, only: '201', max: 1 });
+});
+
+test('no inventory scope needed when the master is already at 0 and tracked: only policy + state are written', async () => {
+  const f = fakeShopify(base()); f.state.components[12].qty = 0;
+  f.calls.length = 0;
+  await runBuildGuard(createShopifyStore(f.gql, { onlyVariantId: '201' }));          // draft master: qty 0
+  assert.equal(f.calls.includes('levels'), false); assert.equal(f.calls.includes('setQty'), false);
+  assert.deepEqual(f.calls.filter((c) => ['bulkUpdate', 'metafieldsSet'].includes(c)), ['bulkUpdate', 'metafieldsSet']);
+  const f2 = fakeShopify(base()); f2.state.components[12].qty = 0; f2.calls.length = 0;
+  await runBuildGuard(createShopifyStore(f2.gql, { onlyVariantId: '101' }));          // active master holds 3: quantity has to be zeroed
+  assert.equal(f2.calls.includes('levels'), true); assert.equal(f2.calls.includes('setQty'), true);
 });
