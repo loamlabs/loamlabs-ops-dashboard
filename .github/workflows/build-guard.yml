@@ -1,7 +1,6 @@
 name: Build Availability Guard
 
-# DRY RUN ONLY (plans only, writes nothing, sends no email). To go live, Jerry decides, then the run command below gets
-#   --live --phrase "RUN BUILD GUARD LIVE"
+# LIVE since 2026-11-04 (Jerry typed RUN BUILD GUARD LIVE). Each run may change at most 10 masters (--max 10). To go back to a dry run, remove --live/--phrase/--max from the last step.
 # Times (UTC): the Watcher emails arrive about 14:03 UTC and the BTI sync runs at 19:00 UTC (Vercel cron), so the guard runs 30 minutes after each.
 # (daily-sync.yml says 10:00 UTC for the Watcher; the real Watcher run times in sync_logs are about 14:03 UTC. Confirm before enabling.)
 
@@ -41,5 +40,13 @@ jobs:
         env:
           ENV_FILE: ${{ secrets.ENV_FILE }}
 
-      - name: Run Build Guard (dry run)
-        run: node run-build-guard-locally.js
+      - name: Check the email settings are in ENV_FILE (names only, values never printed)
+        run: |
+          missing=""
+          for k in RESEND_API_KEY REPORT_EMAIL; do
+            grep -q "^$k=." .env.local || missing="$missing $k"
+          done
+          if [ -n "$missing" ]; then echo "ENV_FILE is missing:$missing - not running live without the report email"; exit 1; fi
+
+      - name: Run Build Guard (LIVE, max 10 masters)
+        run: node run-build-guard-locally.js --live --phrase "RUN BUILD GUARD LIVE" --max 10
