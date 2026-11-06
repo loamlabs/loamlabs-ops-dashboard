@@ -97,9 +97,12 @@ function makeStore(world, opts = {}) {
 }
 
 function makeDb() {
-    const plans = {}, runs = {}, locks = {}, fails = [];
+    const plans = {}, runs = {}, locks = {}, fails = [], basis = {};
     return {
-        plans, runs, locks, fails,
+        plans, runs, locks, fails, basis,
+        async readBasis(ids) { return new Map(ids.filter((i) => basis[i]).map((i) => [i, basis[i]])); },
+        async saveBasis(rows) { rows.forEach((r) => { basis[r.variant_id] = { ...basis[r.variant_id], ...r }; }); },
+        async listBasis() { return Object.values(basis); },
         async savePlan({ planId, planHash, plan, expiresAt }) { plans[planId] = { plan_id: planId, plan_hash: planHash, plan, expires_at: expiresAt }; },
         async getPlan(id) { return plans[id] || null; },
         async createRun({ runId, fingerprint, status, name, record }) { runs[runId] = { run_id: runId, fingerprint, status, name, record }; },
