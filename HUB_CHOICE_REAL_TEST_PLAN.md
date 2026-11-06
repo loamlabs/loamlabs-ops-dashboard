@@ -44,3 +44,8 @@ Any mismatch in step 5 or 6: stop creating anything else and run step 7 at once.
 
 ## Not covered by this test
 The storefront (the page's option picker, the Customize link, `hubPriceCents` matching, the price cache above 250 ids), the real order webhook with a hub-choice master line (Backend 1 checked it on fake orders), and Active/published behaviour (nothing is ever activated).
+
+## Update 2026-11-05 (stage 2 prep): what is ready and the proposed time
+Ready: the variant metafield definition `custom.build_variant_recipe` exists (json, storefront PUBLIC_READ); Backend 1's length table was regenerated at 19:38 with the Sidekick Pro front (so e*thirteen is no longer dropped); Agent C's catalogue exists and the adapter reads it; the four setups are in `agent-prompts\data\hub_choice_setups\` and the four dry-run plans show no blockers.
+Use `setup_reserve-30-dh-mullet.json` renamed to `TEST DELETE ME Reserve 30|DH Mullet` for the throwaway (it is the product that appends 15 rules to a live rim; the rim is restored byte for byte by undo).
+Still needed: Jerry's typed phrase and a time. Proposed: **Friday Nov 6, 17:00 to 17:40 UTC (12:00 to 12:40 pm EST)**: more than 2 hours after the 14:35 UTC guard and the Watcher (about 14:00 to 15:00 UTC), and 2 hours before the BTI cron window (any minute from 19:00 to 19:59 UTC on Vercel Hobby) and the 19:30 UTC guard. An alternative is 21:00 to 23:00 UTC (4 to 6 pm EST).
