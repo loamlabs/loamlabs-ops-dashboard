@@ -182,7 +182,7 @@ test('plan: specs hole count must equal the rims; rim data and the washer are ch
     assert.ok((await planHubChoice({ store: makeHubStore(wm), db: makeDb(), config: wm.config(), lengthsCsv: makeLengthsCsv(wm) })).blockers.some((b) => b.code === 'WASHER_THICKNESS_MISSING'));
     const ok = makeHubWorld(); ok.P[100].meta.rim_washer_policy = 'Mandatory'; ok.P[100].meta.nipple_washer_thickness = '1.0';
     const pw = await planHubChoice({ store: makeHubStore(ok), db: makeDb(), config: ok.config(), lengthsCsv: makeLengthsCsv(ok) });
-    assert.equal(pw.ok, true); assert.match(pw.notes[0], /mandatory rim washer \(1.0 mm per side\).*No washer product exists/);
+    assert.equal(pw.ok, true); assert.match(pw.notes[0], /mandatory rim washer \(1.0 mm per side\).*free stock, included in the build price/);
     const multi = makeHubWorld(); multi.P[400].variants.push({ id: '8099999', gid: 'g', title: 'Black / 144mm / 14 Spokes', price: 0, selectedOptions: [], productGid: multi.P[400].gid, productTitle: 'x' });
     assert.ok((await planHubChoice({ store: makeHubStore(multi), db: makeDb(), config: multi.config(), lengthsCsv: makeLengthsCsv(multi) })).blockers.some((b) => b.code === 'SPOKE_PRODUCT_MULTI_COUNT'));
 });

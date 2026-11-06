@@ -174,18 +174,18 @@ test('seo description is 120 to 140 characters for four and five hubs', () => {
 });
 
 // ---------------------------------------------------------------- rules
-const rule = (o = {}) => buildHubRule({ name: 'N1', thisRimProduct: '100', frontRimProduct: '100', rearRimProduct: '100', frontHubProduct: '601', rearHubProduct: '603', spokeProduct: '400', spokeColors: ['Black'], spacing: SPACINGS[0], sizes: { front: '29"', rear: '27.5"' }, hubPriceCents: { front: 24000, rear: 51000 }, variantKey: '0A', ...o });
+const rule = (o = {}) => buildHubRule({ name: 'N1', thisRimProduct: '100', frontRimProduct: '100', rearRimProduct: '100', frontHubProduct: '601', rearHubProduct: '603', spokeProduct: '400', spokeColors: ['Black'], labels: { front: '15x110mm', rear: '12x148mm (Boost)' }, sizes: { front: '29"', rear: '27.5"' }, hubPriceCents: { front: 24000, rear: 51000 }, variantKey: '0A', ...o });
 
 test('rule object: the contract fields, no hubColors list, spacing, sizes, hub prices, placeholder master variant', () => {
     const r = rule();
     assert.deepEqual(Object.keys(r).sort(), ['frontHubSpacing', 'frontWheelSize', 'freehubLine', 'hubColorsAny', 'hubPriceCents', 'masterVariantGid', 'name', 'pairedRimProductId', 'rearHubSpacing', 'rearWheelSize', 'requiredFrontHubProductId', 'requiredRearHubProductId', 'requiredSpokeProductId', 'spokeColors', 'valves'].sort());
     assert.equal(r.hubColorsAny, true); assert.equal(r.hubColors, undefined); assert.equal(r.pairedRimProductId, 'gid://shopify/Product/100');
-    assert.deepEqual(r.hubPriceCents, { front: 24000, rear: 51000 }); assert.equal(r.frontHubSpacing, '15x110'); assert.equal(r.rearHubSpacing, '12x148');
+    assert.deepEqual(r.hubPriceCents, { front: 24000, rear: 51000 }); assert.equal(r.frontHubSpacing, '15x110mm'); assert.equal(r.rearHubSpacing, '12x148mm (Boost)');
     assert.equal(rule({ frontRimProduct: '100', rearRimProduct: '101', thisRimProduct: '100' }).pairedRimProductId, 'gid://shopify/Product/101');   // two rim products: the other one
 });
 
 test('rules never overlap: different spacing, different hubs, and the 29/29 twin against the Mullet twin are all mutually exclusive', () => {
-    const a = rule(), sameButSpacing = rule({ name: 'N2', spacing: SPACINGS[1], rearHubProduct: '604' });
+    const a = rule(), sameButSpacing = rule({ name: 'N2', labels: { front: '15x110mm', rear: '12x157mm (SuperBoost)' }, rearHubProduct: '604' });
     assert.equal(conflicts(a, sameButSpacing), false);
     const twin = rule({ name: 'T', sizes: { front: '29"', rear: '29"' } });
     assert.equal(conflicts(a, twin), false);                                                       // 27.5" rear against 29" rear
@@ -195,7 +195,7 @@ test('rules never overlap: different spacing, different hubs, and the 29/29 twin
 });
 
 test('checkHubRules: internal clashes, an older master rule with the same hubs, same name, and unreadable legacy rules are all told apart', () => {
-    const rules = [rule(), rule({ name: 'N2', spacing: SPACINGS[1], rearHubProduct: '604', variantKey: '0B' })];
+    const rules = [rule(), rule({ name: 'N2', labels: { front: '15x110mm', rear: '12x157mm (SuperBoost)' }, rearHubProduct: '604', variantKey: '0B' })];
     const clean = checkHubRules(rules, [{ name: 'legacy' }]);
     assert.deepEqual([clean.internal.length, clean.existing.length, clean.nameExists.length, clean.notComparable], [0, 0, 0, 1]);
     assert.equal(checkHubRules([rule(), rule({ name: 'N1b' })], []).internal.length, 1);
@@ -239,7 +239,7 @@ test('build_components per variant: every colour as an "any" group, every freehu
 test('build_variant_recipe follows the contract; the shared product recipe has no hubs, spacing or freehub', () => {
     const w = makeHubWorld(); const { f15, r148 } = hubIds(w, 'Industry Nine Hydra2');
     const fit = evaluateHubCombo({ spacing: SPACINGS[0], holes: '32', frontProduct: f15, rearProduct: r148 });
-    const r = buildVariantRecipe({ hubModel: 'Industry Nine Hydra2', spacing: SPACINGS[0], ruleName: 'R', holes: '32', defaultColour: 'Black', front: fit.front, rear: fit.rear, colours: fit.colours, freehubs: [{ key: 'XD', label: 'SRAM XD', gid: w.fh.XD.gid }] });
+    const r = buildVariantRecipe({ hubModel: 'Industry Nine Hydra2', labels: fit.labels, ruleName: 'R', holes: '32', defaultColour: 'Black', front: fit.front, rear: fit.rear, colours: fit.colours, freehubs: [{ key: 'XD', label: 'SRAM XD', gid: w.fh.XD.gid }] });
     assert.deepEqual(Object.keys(r), ['v', 'hubModel', 'spacing', 'brakeStyle', 'ruleName', 'rows', 'frontHub', 'rearHub', 'hubColors', 'freehubs', 'freehubVariantMap']);
     assert.equal(r.brakeStyle, '6-Bolt'); assert.equal(r.rows[0].value, 'Industry Nine Hydra2, 6-Bolt, 15x110, 32h, Black'); assert.equal(r.rows[1].value, 'Industry Nine Hydra2, 6-Bolt, 12x148, 32h, Black');
     assert.deepEqual(r.freehubs, ['SRAM XD']); assert.equal(r.freehubVariantMap['SRAM XD'], w.fh.XD.gid); assert.equal(typeof r.frontHub.productId, 'number');

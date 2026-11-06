@@ -8,6 +8,8 @@ const G = (n) => `gid://shopify/ProductVariant/${I(n)}`;
 const PG = (n) => `gid://shopify/Product/${n}`;
 const FLANGE = { hub_flange_diameter_left: '59.5', hub_flange_diameter_right: '46.0', hub_flange_offset_left: '28.0', hub_flange_offset_right: '41.0', hub_spoke_hole_diameter: '2.6' };
 
+// the builder's Step 2 labels as the real store carries them on the hub variants
+const LABEL = { '15x110': '15x110mm', '20x110': '20x110mm (Boost)', '12x148': '12x148mm (Boost)', '12x157': '12x157mm (SuperBoost)' };
 const SPACING = { A: { front: '15x110', rear: '12x148' }, B: { front: '15x110', rear: '12x157' }, C: { front: '20x110', rear: '12x157' } };
 
 /**
@@ -45,7 +47,7 @@ function makeHubWorld(over = {}) {
         addProduct(id, title, { vendor, meta: { hub_type: o.hubType === undefined ? 'Classic Flange' : o.hubType, ...(o.noFlange ? {} : FLANGE) }, tags: o.tags || [],
             ...(side === 'rear' ? { freehub: o.freehub || ['XD', 'HG', 'MS'], freehubMap: o.freehubMap || Object.fromEntries(['XD', 'HG', 'MS'].map((k) => [k, fh[k].gid])) } : {}) });
         for (const hole of (o.holes || ['28h', '32h'])) for (const c of colours) {
-            addVariant(id, `${hole} / ${c}`, price, [{ name: 'Spoke Count', value: hole }, { name: 'Color', value: c }], { cost: price * 0.65, spacing: `${spacing}mm`, brake: ['6-Bolt'], qty: o.qty ?? 0, policy: o.policy || 'CONTINUE' });
+            addVariant(id, `${hole} / ${c}`, price, [{ name: 'Spoke Count', value: hole }, { name: 'Color', value: c }], { cost: price * 0.65, spacing: LABEL[spacing], brake: ['6-Bolt'], qty: o.qty ?? 0, policy: o.policy || 'CONTINUE' });
         }
         return id;
     };
@@ -157,4 +159,4 @@ function makeHubStore(world, opts = {}) {
     return store;
 }
 
-module.exports = { makeHubWorld, makeLengthsCsv, makeHubStore, makeDb, SPACING, I, G };
+module.exports = { makeHubWorld, makeLengthsCsv, makeHubStore, makeDb, SPACING, LABEL, I, G };
