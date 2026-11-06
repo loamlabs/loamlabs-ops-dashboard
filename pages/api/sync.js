@@ -361,7 +361,8 @@ export default async function handler(req, res) {
         if (itemTags.includes('watcher-ignore')) continue;
         if (!rule.vendor_url) continue;
         const polite = isPoliteRule(rule);
-        if (polite && !req.query?.vendor) continue;   // polite vendors (5 s between pages) run as their own call with ?vendor=, so they never push the main run past its 300 s
+        // polite vendors (5 s between pages) run as their own call (?vendor=Project321) or for one product / chosen rows (dashboard buttons), never in the full run, so they cannot push it past 300 s
+        if (polite && !req.query?.vendor && !req.query?.productId && !req.body?.productId && !req.query?.id && !(req.body?.ruleIds && req.body.ruleIds.length)) continue;
         if (timeBudgetExceeded(handlerStartedAt)) { stoppedForTime++; continue; }   // stop cleanly at 270 s; the rest is reported
 
         const url = rule.vendor_url.endsWith('.js') ? rule.vendor_url : `${rule.vendor_url}.js`;
