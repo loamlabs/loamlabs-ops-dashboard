@@ -33,7 +33,7 @@ test('labels: the rule and the variant recipe carry the EXACT builder label the 
         assert.deepEqual([r.frontHubSpacing, r.rearHubSpacing], want[key], r.name);
     }
     for (const v of plan.variants) { const rec = JSON.parse(v.metafields[1].value); assert.ok(BUILDER_SPACING_LABELS.front.includes(rec.spacing.front) && BUILDER_SPACING_LABELS.rear.includes(rec.spacing.rear)); }
-    assert.deepEqual(plan.product.options[0].values, ['15x110mm Boost / 12x148mm Boost', '15x110mm Boost / 12x157mm SuperBoost', '20x110mm Boost / 12x157mm SuperBoost']);   // the option text stays human and identical for every hub
+    assert.deepEqual(plan.product.options[0].values, ['15x110mm Boost / 12x148mm Boost', '15x110mm Boost / 12x157mm SuperBoost', '20x110mm Boost / 12x157mm SuperBoost or DH']);   // the option text stays human and identical for every hub
 });
 
 test('labels: the recipe rows show the numbers only, the labels sit in the spacing field', async () => {

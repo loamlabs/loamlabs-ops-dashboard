@@ -247,5 +247,5 @@ test('build_variant_recipe follows the contract; the shared product recipe has n
     const shared = buildSharedRecipe({ ridingStyle: 'mtb', specs: { frontWheelSize: '29"', rearWheelSize: '27.5"', spokeCount: '32' }, rims: { front: '1', rear: '2' }, spokes: '3', nipples: '4', useSentence: 'MTB' });
     assert.deepEqual(Object.keys(shared.parts), ['frontRim', 'rearRim', 'frontSpokes', 'rearSpokes', 'frontNipples', 'rearNipples']);
     assert.equal(shared.specs.brakeStyle, '6-Bolt'); assert.equal(shared.specs.frontHubSpacing, undefined); assert.equal(shared.freehub, undefined);
-    assert.equal(spacingValue(SPACINGS[2]), '20x110mm Boost / 12x157mm SuperBoost'); assert.equal(spacingValue(SPACINGS[3]), '20x110mm Boost / 12x157mm DH'); assert.equal(SPACINGS.length, 4);
+    assert.equal(spacingValue(SPACINGS[2]), '20x110mm Boost / 12x157mm SuperBoost or DH'); assert.equal(spacingValue(SPACINGS[3]), '20x110mm Boost / 12x157mm DH'); assert.equal(SPACINGS.length, 4);
 });

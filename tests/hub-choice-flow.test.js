@@ -30,7 +30,7 @@ test('plan: 12 variants (4 hubs x 3 spacings), two options, Hydra2 first, nothin
     assert.equal(plan.ok, true); assert.equal(plan.kind, 'hub-choice'); assert.equal(plan.blockers.length, 0);
     assert.equal(plan.variants.length, 12); assert.equal(plan.dropped.length, 0);
     assert.deepEqual(plan.product.options.map((o) => o.name), ['Axle spacing', 'Hub model']);
-    assert.deepEqual(plan.product.options[0].values, ['15x110mm Boost / 12x148mm Boost', '15x110mm Boost / 12x157mm SuperBoost', '20x110mm Boost / 12x157mm SuperBoost']);
+    assert.deepEqual(plan.product.options[0].values, ['15x110mm Boost / 12x148mm Boost', '15x110mm Boost / 12x157mm SuperBoost', '20x110mm Boost / 12x157mm SuperBoost or DH']);
     assert.equal(plan.product.options[1].values[0], 'Industry Nine Hydra2');
     assert.equal(plan.variants[0].optionValues[1], 'Industry Nine Hydra2');
     assert.equal(plan.product.status, 'DRAFT'); assert.deepEqual(plan.product.tags, ['loamlabs-build']); assert.equal(plan.product.templateSuffix, 'loamlabs-build');
