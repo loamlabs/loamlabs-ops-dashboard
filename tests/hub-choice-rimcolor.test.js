@@ -101,3 +101,53 @@ test('create, read-back and undo work with the third option; undo restores the r
     const u = await undoRun({ store: ctx.store, db: ctx.db, runId: r.runId, confirm: `UNDO ${r.runId}` });
     assert.equal(u.ok, true); assert.equal(ctx.w.P[100].rulesRaw, before); assert.equal(Object.keys(ctx.store.created).length, 0);
 });
+
+// ---------------------------------------------------------------- item 17: nipple condition, rule order, page data
+test('17a every rule carries requiredNipplesProductId (the nipple PRODUCT), Reserve and FR alike', async () => {
+    for (const mut of [null, (w) => addSilver(w)]) {
+        const { plan, w } = await run(mut);
+        const want = String(w.nip.productGid.split('/').pop());
+        const rules = plan.rules[0].newRules;
+        assert.ok(rules.length >= 12); assert.ok(rules.every((r) => r.requiredNipplesProductId === want), 'every rule has the field');
+        assert.equal(typeof rules[0].requiredNipplesProductId, 'string');
+    }
+});
+
+test('17b on the rim each Black rule is immediately followed by its Silver twin; rimColor is exactly Black / Silver; names end with the color', async () => {
+    const { plan } = await run((w) => addSilver(w));
+    const rules = plan.rules[0].newRules;
+    for (let i = 0; i < rules.length; i += 2) {
+        assert.equal(rules[i].rimColor, 'Black'); assert.equal(rules[i + 1].rimColor, 'Silver');
+        assert.ok(rules[i].name.endsWith(' Black') && rules[i + 1].name.endsWith(' Silver'));
+        assert.equal(rules[i].name.replace(/ Black$/, ''), rules[i + 1].name.replace(/ Silver$/, ''));           // twins: same hub and spacing
+        assert.equal(rules[i].requiredFrontHubProductId, rules[i + 1].requiredFrontHubProductId);
+    }
+    assert.deepEqual([...new Set(rules.map((r) => r.rimColor))], ['Black', 'Silver']);
+});
+
+test('17c shared spec_table (rims, spokes, nipples, rotor mount) and per-variant spoke length rows; Reserve stays two options and 12 variants (fake world)', async () => {
+    const { plan } = await run();
+    const shared = JSON.parse(plan.product.metafields.find((m) => m.key === 'build_recipe').value);
+    assert.deepEqual(shared.spec_table.map((r) => r[0]), ['Front Rim', 'Rear Rim', 'Spokes', 'Nipples', 'Rotor mount']);
+    assert.equal(shared.spec_table[0][1], 'Reserve 30|DH Carbon Rim, 29", 32h, Black'); assert.equal(shared.spec_table[1][1], 'Reserve 30|DH Carbon Rim, 27.5", 32h, Black');
+    assert.equal(shared.spec_table[2][1], 'Sapim Race J-bend, Black'); assert.equal(shared.spec_table[3][1], 'Sapim Brass Nipples, Black'); assert.equal(shared.spec_table[4][1], '6-Bolt');
+    const rec = JSON.parse(plan.variants[0].metafields[1].value);
+    assert.deepEqual(rec.rows.map((r) => r.label), ['Front Hub', 'Rear Hub', 'Front Spoke Length', 'Rear Spoke Length']);
+    assert.match(rec.rows[2].value, /^\d{3} mm( left \/ \d{3} mm right)?$/);
+    assert.equal(plan.product.options.length, 2); assert.equal(plan.variants.length, 12);
+});
+
+test('17c with two rim colors the shared table names no rim color (the page adds "Rim color" from the variant) and each variant has its own lengths', async () => {
+    const { plan } = await run((w) => addSilver(w));
+    const shared = JSON.parse(plan.product.metafields.find((m) => m.key === 'build_recipe').value);
+    assert.equal(shared.spec_table[0][1], 'Reserve 30|DH Carbon Rim, 29", 32h'); assert.ok(!/Black|Silver/.test(JSON.stringify(shared.spec_table.slice(0, 2))));
+    const s = JSON.parse(plan.variants.find((v) => v.optionValues[2] === 'Silver').metafields[1].value);
+    assert.equal(s.rows.length, 4);
+});
+
+test('no length table: no spoke length rows (nothing invented)', async () => {
+    const w = makeHubWorld();
+    const plan = await planHubChoice({ store: makeHubStore(w), db: makeDb(), config: w.config() });
+    const rec = JSON.parse(plan.variants[0].metafields[1].value);
+    assert.deepEqual(rec.rows.map((r) => r.label), ['Front Hub', 'Rear Hub']);
+});
