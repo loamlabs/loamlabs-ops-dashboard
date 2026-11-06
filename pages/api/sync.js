@@ -10,6 +10,9 @@ import { decideOwner, isOneOwnerVendor } from '../../lib/ownership';
 import { decideReviewFlag } from '../../lib/review-flag';
 import { createFailureTracker } from '../../lib/vendor-page-failures';
 import { guardAfterWatcher } from '../../lib/guard-trigger';
+import { fetchVendorText, isPoliteRule, gapMs } from '../../lib/watcher-fetch';
+import { matchColourHoles, readProject321 } from '../../lib/watcher-project321';
+import { createFlipLimiter, flipCapFor, confirmedTwice, timeBudgetExceeded, urlBreakerTripped, groupLines, productOfTitle, hasTag } from '../../lib/watcher-safety';
 import { withoutSkippedLengths } from '../../lib/spoke-length-skip';
 
 export const maxDuration = 300; // Allow Vercel to run up to 5 minutes
@@ -287,6 +290,7 @@ export default async function handler(req, res) {
         } else if (req.query?.id) {
           query = query.eq('id', req.query.id);
         }
+        if (req.query?.vendor) query = query.ilike('vendor_name', String(req.query.vendor));   // one vendor only (Project321 runs as its own call: 5 s between its pages)
         const { data, error } = await query.range(rangeStart, rangeStart + 999);
         if (error) throw error;
         if (data && data.length > 0) {
@@ -341,6 +345,13 @@ export default async function handler(req, res) {
 
     const urlCache = {};
     const ethirteenCache = {};
+    // safety nets (lib/watcher-safety.js): flip cap per vendor (both directions), baseline proposals, held flips, per-page breaker
+    const vendorRuleCounts = {};
+    rules.forEach((r) => { if (r.vendor_url) vendorRuleCounts[r.vendor_name || 'unknown'] = (vendorRuleCounts[r.vendor_name || 'unknown'] || 0) + 1; });
+    const flipLimiter = createFlipLimiter((vendor) => flipCapFor(vendorRuleCounts[vendor] || 0));
+    const baselineItems = [], heldOnceItems = [], autoApprovedItems = [];
+    const urlStats = {};
+    let stoppedForTime = 0;
     const pageFailures = createFailureTracker();   // vendor pages that could not be read, with how many rules were not checked because of it
     const surchargeProblems = new Map();   // e*thirteen surcharge page problems, reported once per run instead of once per wheel set
 
@@ -349,6 +360,9 @@ export default async function handler(req, res) {
         const itemTags = Array.isArray(rule.tags) ? rule.tags : [];
         if (itemTags.includes('watcher-ignore')) continue;
         if (!rule.vendor_url) continue;
+        const polite = isPoliteRule(rule);
+        if (polite && !req.query?.vendor) continue;   // polite vendors (5 s between pages) run as their own call with ?vendor=, so they never push the main run past its 300 s
+        if (timeBudgetExceeded(handlerStartedAt)) { stoppedForTime++; continue; }   // stop cleanly at 270 s; the rest is reported
 
         const url = rule.vendor_url.endsWith('.js') ? rule.vendor_url : `${rule.vendor_url}.js`;
         const randomUA = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
@@ -364,30 +378,13 @@ export default async function handler(req, res) {
         if (urlCache[url]) {
           vData = urlCache[url];
         } else {
-          // Wait before fetching to avoid rate limits
-          await new Promise(r => setTimeout(r, 1000));
-          let vResponse;
+          // Wait before fetching to avoid rate limits (5 s for polite vendors)
+          await new Promise(r => setTimeout(r, gapMs(polite)));
+          let vResponseText;
           try {
-            let retries = 3;
-            let success = false;
-            while (retries > 0 && !success) {
-                vResponse = await fetch(url, { headers: { 'User-Agent': randomUA } });
-                if (vResponse.ok) {
-                    success = true;
-                } else if (vResponse.status === 503 || vResponse.status === 429) {
-                    retries--;
-                    if (retries > 0) {
-                        console.log(`[SYNC WARNING] Rate limited (${vResponse.status}) on ${url}. Retrying...`);
-                        await new Promise(r => setTimeout(r, 4000)); // wait 4 seconds and retry
-                    } else {
-                        throw new Error(`Fetch failed (${vResponse.status}) after retries`);
-                    }
-                } else {
-                    throw new Error(`Fetch failed (${vResponse.status})`);
-                }
-            }
+            vResponseText = await fetchVendorText({ url, polite, randomUA });   // 10 s timeout; polite: honest agent, one try, no retry after 429/403
           } catch (fetchErr) {
-            const errLog = `Fetch failed for ${url}: ${fetchErr.message}`;
+            const errLog = `Fetch failed for ${url}: ${fetchErr.message}${fetchErr.blocked ? ' (blocked: not retried)' : ''}`;
             console.error(`[SYNC ERROR] ${errLog}`);
             
             // Only write if the error log actually changed
@@ -408,7 +405,7 @@ export default async function handler(req, res) {
             continue; // Skip processing this rule so we don't accidentally mark it Out of Stock!
           }
 
-          const textObj = await vResponse.text();
+          const textObj = vResponseText;
           try {
             vData = JSON.parse(textObj);
             urlCache[url] = vData;
@@ -521,6 +518,8 @@ export default async function handler(req, res) {
 
         // 1. DYNAMIC MATCHING ENGINE
         let winner = null;
+        let p321Read = null;
+        const isP321 = String(rule.vendor_name || '').trim().toLowerCase() === 'project321';
         let vStatus = 'No specific match logic applied';
         const ruleTitle = normalize(rule.title);
         const ruleTitleLower = ruleTitle.toLowerCase();
@@ -649,7 +648,7 @@ export default async function handler(req, res) {
                     };
                 }
         } else {
-          let candidates = vData.variants.filter(v => {
+          let candidates = isP321 ? matchColourHoles(vData.variants, parsedOptions) : vData.variants.filter(v => {
             const vTitle = normalize(v.public_title).toLowerCase();
             if (rule.vendor_name === 'Berd') {
               let reqTokens = [];
@@ -838,6 +837,10 @@ export default async function handler(req, res) {
               winner = { ...winner, available: anyAvailable };
               if (anyAvailable) vStatus += ` (Aggregated availability from ${candidates.length} variants)`;
             }
+            if (winner && isP321) {   // Project321: price from the highest color (tag price-max-color), pre-order read from the option text, never from 'available' alone
+              p321Read = readProject321({ candidates, variants: vData.variants, rule });
+              if (p321Read) { winner = { ...winner, price: p321Read.price, available: p321Read.available }; vStatus += ` ${p321Read.note || ''}`.trimEnd(); }
+            }
           }
         }
 
@@ -845,6 +848,7 @@ export default async function handler(req, res) {
         if (!vendorStats[vendorKey]) vendorStats[vendorKey] = { total: 0, noMatch: 0, liveTotal: 0, liveNoMatch: 0 };
         vendorStats[vendorKey].total++;
         if (!winner) vendorStats[vendorKey].noMatch++;
+        if (!urlStats[url]) urlStats[url] = { live: 0, noMatch: 0 };
 
         console.log(`[RULE: ${rule.id}] Processing "${rule.title}" | Winner: "${winner?.public_title || 'None'}" | Status: ${vStatus}`);
         if (winner) {
@@ -886,7 +890,7 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
             }
             if (ownership.numberMismatch) attention.push({ title: rule.title, reason: `BTI part number in Shopify (${variant.btiNumber?.value}) differs from the stored one (${rule.bti_part_number}). Nothing was changed; please check.` });
           }
-          if (isLiveVariant(variant)) vendorStats[vendorKey].liveTotal++;
+          if (isLiveVariant(variant)) { vendorStats[vendorKey].liveTotal++; urlStats[url].live++; }
           const productHandle = variant.product?.handle || '';
           const vendorPrice = winner ? (Math.max(winner.price, winner.compare_at_price || 0) / 100) : 0;
           const stdFactor = rule.price_adjustment_factor || 1.0;
@@ -910,7 +914,7 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
           const shopifyQty = variant.inventoryQuantity || 0;
           const vendorInStock = winner.available;
 
-          if (rule.auto_update === true && currentEffectiveBtiFlag !== true && shopifyQty <= 0) {
+          if (rule.auto_update === true && currentEffectiveBtiFlag !== true && shopifyQty <= 0 && !(p321Read && p321Read.holdStock)) {
               if (!vendorInStock && variant.inventoryPolicy === 'CONTINUE') {
                   needsStockUpdate = true;
                   stockAction = 'deny';
@@ -923,7 +927,8 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
           let forceNeedsReview = rule.needs_review;
 
           const forceApprove = req.body && req.body.force_approve;
-          const requiresReviewForStock = needsStockUpdate && stockAction === 'deny';
+          const autoApproveOos = hasTag(rule, 'auto-approve-oos');   // Jerry's tag: a close does not wait for approval (still logged, one line per product)
+          const requiresReviewForStock = needsStockUpdate && stockAction === 'deny' && !autoApproveOos;
 
           let reviewReason = rule.review_reason || null;
           if ((needsPriceUpdate || requiresReviewForStock) && !forceApprove) {
@@ -1010,16 +1015,24 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
           }
 
           let effectivePolicy = variant.inventoryPolicy;
-          if (needsStockUpdate && rule.auto_update === true && !forceNeedsReview) {
+          let stockWriteAllowed = needsStockUpdate && rule.auto_update === true && !forceNeedsReview;
+          if (stockWriteAllowed) {
+              const productName = productOfTitle(rule.title);
+              if (hasTag(rule, 'baseline')) { stockWriteAllowed = false; baselineItems.push({ product: productName, action: stockAction === 'deny' ? 'would close' : 'would open' }); }
+              else if (polite && !confirmedTwice(rule, winner.available)) { stockWriteAllowed = false; heldOnceItems.push({ product: productName, action: stockAction === 'deny' ? 'close waits for a second run' : 'open waits for a second run' }); }
+              else if (!flipLimiter.tryFlip(vendorKey)) { stockWriteAllowed = false; }
+              else if (autoApproveOos) autoApprovedItems.push({ product: productName, action: stockAction === 'deny' ? 'closed' : 'opened' });
+          }
+          if (stockWriteAllowed) {
               await fetch(`https://${process.env.SHOPIFY_SHOP_NAME}.myshopify.com/admin/api/2024-04/variants/${rule.shopify_variant_id}.json`, {
                 method: 'PUT', headers: { 'X-Shopify-Access-Token': adminToken, 'Content-Type': 'application/json' },
                 body: JSON.stringify({ variant: { id: rule.shopify_variant_id, inventory_policy: stockAction } })
               });
               if (stockAction === 'deny') {
-                stockChanges.push({ title: rule.title, action: '🔴 Made Unavailable (Vendor OOS)' });
+                if (!autoApproveOos) stockChanges.push({ title: rule.title, action: '🔴 Made Unavailable (Vendor OOS)' });
                 effectivePolicy = 'DENY';
               } else {
-                stockChanges.push({ title: rule.title, action: '🟢 Back In Stock (Vendor Available)' });
+                if (!autoApproveOos) stockChanges.push({ title: rule.title, action: '🟢 Back In Stock (Vendor Available)' });
                 effectivePolicy = 'CONTINUE';
               }
           }
@@ -1086,10 +1099,10 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
            
            if (rule.auto_update === true) {
              const variant = await getShopifyVariant(adminToken, rule.shopify_product_id, rule.shopify_variant_id);
-             if (isLiveVariant(variant)) { vendorStats[vendorKey].liveTotal++; vendorStats[vendorKey].liveNoMatch++; }
+             if (isLiveVariant(variant)) { vendorStats[vendorKey].liveTotal++; vendorStats[vendorKey].liveNoMatch++; urlStats[url].live++; urlStats[url].noMatch++; }
              if (variant && (variant.inventoryQuantity || 0) <= 0 && variant.inventoryPolicy === 'CONTINUE') {
                  // held back; applied after the loop unless the circuit breaker trips for this vendor
-                 pendingNoMatchDeny.push({ rule, vendorKey });
+                 pendingNoMatchDeny.push({ rule, vendorKey, url });
              }
            }
 
@@ -1126,8 +1139,18 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
         attention.push({ title: `${vendor}: sync safety stop`, reason: `${st.liveNoMatch} of ${st.liveTotal} items that are live in your shop found no matching vendor variant (more than 20%). The vendor site probably changed. No items were switched to unavailable for this vendor; please check the vendor pages and the rule options.` });
       }
     }
-    for (const { rule, vendorKey } of pendingNoMatchDeny) {
+    const trippedUrls = new Set();
+    for (const [u, st] of Object.entries(urlStats)) {
+      if (urlBreakerTripped(st)) {
+        trippedUrls.add(u);
+        attention.push({ title: 'Vendor page safety stop', reason: `${st.noMatch} of ${st.live} live items on ${u} found no match (the page may have changed). Nothing on it was made unavailable.` });
+      }
+    }
+    for (const { rule, vendorKey, url: pendingUrl } of pendingNoMatchDeny) {
       if (trippedVendors.has(vendorKey)) continue;
+      if (trippedUrls.has(pendingUrl)) continue;
+      if (hasTag(rule, 'baseline')) { baselineItems.push({ product: productOfTitle(rule.title), action: 'would close (not on the vendor page)' }); continue; }
+      if (!flipLimiter.tryFlip(vendorKey)) continue;
       try {
         await fetch(`https://${process.env.SHOPIFY_SHOP_NAME}.myshopify.com/admin/api/2024-04/variants/${rule.shopify_variant_id}.json`, {
           method: 'PUT', headers: { 'X-Shopify-Access-Token': adminToken, 'Content-Type': 'application/json' },
@@ -1140,6 +1163,13 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
         attention.push({ title: rule.title, reason: `Sync Failed: could not mark unavailable (${denyErr.message})` });
       }
     }
+
+    // grouped lines: baseline proposals, flips that wait for a second run, auto-approved closes/opens, the flip cap, the time stop
+    groupLines(baselineItems).forEach((l) => attention.push({ title: 'Baseline (nothing written)', reason: l }));
+    groupLines(heldOnceItems).forEach((l) => attention.push({ title: 'Waiting for a second run', reason: l }));
+    groupLines(autoApprovedItems).forEach((l) => stockChanges.push({ title: l, action: '📦 Auto-approved' }));
+    flipLimiter.lines().forEach((l) => attention.push({ title: 'Sync safety stop', reason: l }));
+    if (stoppedForTime > 0) attention.push({ title: 'Sync stopped for time', reason: `The run reached 270 s and stopped cleanly; ${stoppedForTime} rule${stoppedForTime === 1 ? '' : 's'} were not checked today.` });
 
     // e*thirteen surcharge problems: one line per distinct problem, not one per wheel set
     for (const [msg, count] of surchargeProblems.entries()) {
