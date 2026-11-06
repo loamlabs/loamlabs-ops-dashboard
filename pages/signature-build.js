@@ -84,7 +84,7 @@ export default function SignatureBuild() {
   return (
     <div style={{ maxWidth: 980, margin: '0 auto', padding: 16, fontFamily: 'system-ui, sans-serif', color: '#18181b' }}>
       <h1 style={{ fontSize: 22, fontWeight: 700 }}>Create Signature Build</h1>
-      <p style={{ color: '#52525b' }}>Preview first. One click creates a <b>DRAFT</b> product and adds its rule to the rim products. Nothing goes live: you activate and publish it yourself in Shopify.</p>
+      <p style={{ color: '#52525b' }}>Preview first. One click creates a <b>DRAFT</b> product and adds its rule to the rim products. Nothing goes live: you activate and publish it yourself in Shopify. <a href="/signature-build-hubs">Hub choice builds</a></p>
 
       <div style={box}>
         <b>Sign in</b> (both are needed)
