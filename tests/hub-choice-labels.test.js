@@ -135,3 +135,11 @@ test('assembly rule as the theme states it: higher of hub and rim, else the one 
     assert.equal(assemblyPerWheel('Onyx Racing', 'DT Swiss').fee, 80); assert.equal(assemblyPerWheel('Project321', 'DT Swiss').fee, 60);
     assert.equal(assemblyPerWheel('HOPE', 'reserve').fee, 70);                                   // vendor names are matched case-insensitively, like the theme
 });
+
+test('a rim that cannot be ordered today is warned about (it would switch every variant off)', async () => {
+    const out = await run((w) => { w.V[w.rim275.id].qty = 0; w.V[w.rim275.id].policy = 'DENY'; });
+    const w1 = out.plan.warnings.filter((x) => x.code === 'RIM_OUT_OF_STOCK_TODAY');
+    assert.equal(w1.length, 1); assert.match(w1[0].message, /rear rim .*27\.5".*ALL variants off/);
+    assert.equal(out.plan.variants.length, 12);                                                     // still made; the guard decides
+    assert.equal((await run()).plan.warnings.some((x) => x.code === 'RIM_OUT_OF_STOCK_TODAY'), false);
+});
