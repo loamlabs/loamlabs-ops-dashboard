@@ -164,7 +164,7 @@ test('naming: titles, handles, SEO title chain (47 to 59 characters) for the fou
     assert.equal(four[0].seoTitle, 'Reserve 30|DH Mullet 6-Bolt Wheelset, Choose Hub | LoamLabs');       // the contract pattern is 64 characters here
     assert.equal(hubChoiceNames('We Are One X').forbidden, true);
     const names = new Set(); for (const h of ['Industry Nine Hydra2', 'Hope Pro 5']) for (const s of SPACINGS) names.add(ruleNameFor('Reserve 30|DH Mullet', h, s));
-    assert.equal(names.size, 6); assert.ok(names.has('LoamLabs Reserve 30|DH Mullet + Industry Nine Hydra2 15x110/12x157'));
+    assert.equal(names.size, 8); assert.ok(names.has('LoamLabs Reserve 30|DH Mullet + Hope Pro 5 20x110/12x157 DH')); assert.ok(names.has('LoamLabs Reserve 30|DH Mullet + Industry Nine Hydra2 15x110/12x157'));
 });
 
 test('seo description is 120 to 140 characters for four and five hubs', () => {
@@ -247,5 +247,5 @@ test('build_variant_recipe follows the contract; the shared product recipe has n
     const shared = buildSharedRecipe({ ridingStyle: 'mtb', specs: { frontWheelSize: '29"', rearWheelSize: '27.5"', spokeCount: '32' }, rims: { front: '1', rear: '2' }, spokes: '3', nipples: '4', useSentence: 'MTB' });
     assert.deepEqual(Object.keys(shared.parts), ['frontRim', 'rearRim', 'frontSpokes', 'rearSpokes', 'frontNipples', 'rearNipples']);
     assert.equal(shared.specs.brakeStyle, '6-Bolt'); assert.equal(shared.specs.frontHubSpacing, undefined); assert.equal(shared.freehub, undefined);
-    assert.equal(spacingValue(SPACINGS[2]), '20x110mm / 12x157mm');
+    assert.equal(spacingValue(SPACINGS[2]), '20x110mm Boost / 12x157mm SuperBoost'); assert.equal(spacingValue(SPACINGS[3]), '20x110mm Boost / 12x157mm DH'); assert.equal(SPACINGS.length, 4);
 });

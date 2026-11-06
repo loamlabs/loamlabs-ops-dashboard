@@ -7,7 +7,7 @@ const box = { border: '1px solid #d4d4d8', borderRadius: 8, padding: 12, marginB
 const btn = (bg, dis) => ({ background: dis ? '#a1a1aa' : bg, color: '#fff', border: 0, borderRadius: 6, padding: '8px 14px', cursor: dis ? 'not-allowed' : 'pointer', fontWeight: 600 });
 const input = { padding: 6, border: '1px solid #d4d4d8', borderRadius: 6 };
 const money = (n) => (typeof n === 'number' ? '$' + n.toFixed(2) : '-');
-const SPACING_LABEL = { A: '15x110 / 12x148', B: '15x110 / 12x157', C: '20x110 / 12x157' };
+const SPACING_LABEL = { A: '15x110 / 12x148', B: '15x110 / 12x157', C: '20x110 / 12x157', D: '20x110 / 12x157 DH' };
 
 export default function SignatureBuildHubs() {
   const [dash, setDash] = useState('');
@@ -110,13 +110,13 @@ export default function SignatureBuildHubs() {
           <div style={box}>
             <b>Hub x spacing</b>: price, margin after labour, assembly per wheel. Type a hub price to override it for all its spacings, then Refresh preview.
             <table style={{ width: '100%', marginTop: 6, fontSize: 14, borderCollapse: 'collapse' }}>
-              <thead><tr style={{ textAlign: 'left' }}><th>Hub</th><th>Your price (all spacings)</th>{['A', 'B', 'C'].map((s) => <th key={s}>{SPACING_LABEL[s]}</th>)}</tr></thead>
+              <thead><tr style={{ textAlign: 'left' }}><th>Hub</th><th>Your price (all spacings)</th>{['A', 'B', 'C', 'D'].map((s) => <th key={s}>{SPACING_LABEL[s]}</th>)}</tr></thead>
               <tbody>
                 {hubs.map((h) => (
                   <tr key={h} style={{ borderTop: '1px solid #e4e4e7', verticalAlign: 'top' }}>
                     <td><b>{h}</b></td>
                     <td><input placeholder="builder price" value={hubPrices[h] || ''} onChange={(e) => setHubPrices({ ...hubPrices, [h]: e.target.value })} style={{ width: 100, ...input, padding: 3 }} /></td>
-                    {['A', 'B', 'C'].map((s) => { const c = cell(h, s); return c ? (
+                    {['A', 'B', 'C', 'D'].map((s) => { const c = cell(h, s); return c ? (
                       <td key={s} style={{ color: c.belowFloor ? '#b91c1c' : undefined }}>
                         {money(c.price)}{c.overridden ? ' (yours)' : ''}<br /><span style={{ fontSize: 12, color: '#52525b' }}>margin {money(c.marginAfterLabour)}{c.costMissing ? ' (cost missing)' : ''}<br />assembly ${c.assemblyPerWheel} per wheel<br />{c.colours.length} colour{c.colours.length === 1 ? '' : 's'}{c.lengths ? `, spokes ${c.lengths.front.join('/')} front, ${c.lengths.rear.join('/')} rear` : ''}</span>
                         {c.warnings.length > 0 && <div style={{ fontSize: 12, color: '#b45309' }}>{c.warnings.join(', ')}</div>}

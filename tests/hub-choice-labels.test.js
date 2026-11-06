@@ -33,7 +33,7 @@ test('labels: the rule and the variant recipe carry the EXACT builder label the 
         assert.deepEqual([r.frontHubSpacing, r.rearHubSpacing], want[key], r.name);
     }
     for (const v of plan.variants) { const rec = JSON.parse(v.metafields[1].value); assert.ok(BUILDER_SPACING_LABELS.front.includes(rec.spacing.front) && BUILDER_SPACING_LABELS.rear.includes(rec.spacing.rear)); }
-    assert.deepEqual(plan.product.options[0].values, ['15x110mm / 12x148mm', '15x110mm / 12x157mm', '20x110mm / 12x157mm']);   // the option text stays human and identical for every hub
+    assert.deepEqual(plan.product.options[0].values, ['15x110mm Boost / 12x148mm Boost', '15x110mm Boost / 12x157mm SuperBoost', '20x110mm Boost / 12x157mm SuperBoost']);   // the option text stays human and identical for every hub
 });
 
 test('labels: the recipe rows show the numbers only, the labels sit in the spacing field', async () => {
@@ -42,14 +42,45 @@ test('labels: the recipe rows show the numbers only, the labels sit in the spaci
     assert.equal(rec.spacing.front, '20x110mm (Boost)'); assert.equal(rec.rows[0].value, 'Industry Nine Hydra2, 6-Bolt, 20x110, 32h, Black'); assert.equal(rec.rows[1].value, 'Industry Nine Hydra2, 6-Bolt, 12x157, 32h, Black');
 });
 
-test('labels: each rule carries its OWN hub\'s label; two hubs labelling one spacing differently is reported, not guessed', async () => {
-    const { w, plan } = await run((w) => { const p = productsOf(w, 'Hope Pro 5'); setLabel(p.r157, '12x157mm (DH)'); });
-    assert.ok(plan.warnings.some((x) => x.code === 'SPACING_LABEL_HUBS_DIFFER' && /Spacing B/.test(x.message) && /12x157mm \(DH\)/.test(x.message) && /12x157mm \(SuperBoost\)/.test(x.message)));
-    const hope = plan.rules[0].newRules.find((r) => r.name.endsWith('Hope Pro 5 15x110/12x157'));
-    assert.equal(hope.rearHubSpacing, '12x157mm (DH)');
-    const hydra = plan.rules[0].newRules.find((r) => r.name.endsWith('Industry Nine Hydra2 15x110/12x157'));
-    assert.equal(hydra.rearHubSpacing, '12x157mm (SuperBoost)');
+test('labels: a rear hub labelled DH is refused at the SuperBoost combinations B and C, and the reason names both labels', async () => {
+    const { plan } = await run((w) => { const p = productsOf(w, 'Hope Pro 5'); setLabel(p.r157, '12x157mm (DH)'); });
+    for (const k of ['B', 'C']) assert.ok(plan.dropped.some((d) => d.hub === 'Hope Pro 5' && d.spacing === k && d.code === 'SPACING_MISMATCH' && /12x157mm \(DH\)/.test(d.reason) && /12x157mm \(SuperBoost\)/.test(d.reason)), k);
+    assert.equal(plan.variants.length, 10);                       // Hope keeps only A
+    assert.ok(plan.rules[0].newRules.find((r) => r.name.endsWith('Hope Pro 5 15x110/12x148')));
+});
+
+test('combination D (20x110mm Boost front + 12x157mm DH rear): offered only when the setup names a DH rear product; every other hub is listed as not offered', async () => {
+    const { plan, w } = await run((w) => {
+        const h = w.hubs.find((x) => x.model === 'Hope Pro 5');
+        const dh = JSON.parse(JSON.stringify(w.P[h.rearProducts['12x157']]));
+        dh.title = 'Hope Pro5 DH Rear Hub - 6-Bolt - 12x157mm DH'; dh.variants.forEach((v) => { v.spacing = '12x157mm (DH)'; });
+        w.P[9999991] = dh; h.rearProducts.D = '9999991';
+        w.P[9999991].id = 9999991; w.P[9999991].gid = 'gid://shopify/Product/9999991';
+    });
     assert.ok(w);
+    // the fake length table has no D rows, so the variant is dropped for that reason only; the label step passed (no SPACING_MISMATCH)
+    assert.ok(!plan.dropped.some((d) => d.spacing === 'D' && d.code === 'SPACING_MISMATCH'));
+    assert.ok(plan.dropped.some((d) => d.hub === 'Hope Pro 5' && d.spacing === 'D' && d.code === 'LENGTHS_MISSING'));
+    const others = plan.notOffered.filter((n) => n.spacing === 'D').map((n) => n.hub);
+    assert.equal(others.length, 3); assert.ok(!others.includes('Hope Pro 5')); assert.ok(plan.notOffered.every((n) => n.code === 'NO_DH_REAR' && /12x157mm \(DH\)/.test(n.reason)));
+    assert.equal(plan.variants.length, 12);                       // A, B, C for four hubs, unchanged
+});
+
+test('combination D with no length table: the DH variant is made with option text, rule name, labels and recipe of D', async () => {
+    const w = makeHubWorld(); const h = w.hubs.find((x) => x.model === 'Hope Pro 5');
+    const dh = JSON.parse(JSON.stringify(w.P[h.rearProducts['12x157']])); dh.title = 'Hope Pro5 DH Rear Hub - 6-Bolt - 12x157mm DH'; dh.variants.forEach((v) => { v.spacing = '12x157mm (DH)'; });
+    dh.id = 9999991; dh.gid = 'gid://shopify/Product/9999991'; w.P[9999991] = dh; h.rearProducts.D = '9999991';
+    const plan = await planHubChoice({ store: makeHubStore(w), db: makeDb(), config: w.config() });
+    assert.ok(plan.ok, JSON.stringify(plan.blockers));
+    const v = plan.variants.find((x) => x.key === '1D'); assert.ok(v);
+    assert.deepEqual(v.optionValues, ['20x110mm Boost / 12x157mm DH', 'Hope Pro 5']);
+    const rec = JSON.parse(v.metafields[1].value); assert.deepEqual(rec.spacing, { front: '20x110mm (Boost)', rear: '12x157mm (DH)' });
+    const rule = plan.rules[0].newRules.find((r) => r.name.endsWith('Hope Pro 5 20x110/12x157 DH'));
+    assert.deepEqual([rule.frontHubSpacing, rule.rearHubSpacing], ['20x110mm (Boost)', '12x157mm (DH)']);
+    const c = plan.rules[0].newRules.find((r) => r.name.endsWith('Hope Pro 5 20x110/12x157'));
+    assert.equal(c.rearHubSpacing, '12x157mm (SuperBoost)');                      // C and D never share a label, so they never match the same build
+    assert.equal(new Set(plan.rules[0].newRules.map((r) => r.name)).size, plan.rules[0].newRules.length);
+    assert.deepEqual(plan.product.options[0].values.slice(-1), ['20x110mm Boost / 12x157mm DH']);
 });
 
 test('labels: a variant with no label, an unknown label, and colour variants that differ from their siblings', () => {
@@ -75,7 +106,7 @@ test('labels: plan drops a variant whose hub has no usable label or an unknown o
     assert.ok(missing.plan.dropped.some((d) => d.hub === 'Hope Pro 5' && d.spacing === 'A' && d.code === 'SPACING_LABEL_MISSING'));
     assert.equal(missing.plan.variants.length, 11);
     const unknown = await run((w) => { const p = productsOf(w, 'Project321 G3'); setLabel(p.f20, '20x110mm Boost'); });
-    assert.ok(unknown.plan.dropped.some((d) => d.hub === 'Project321 G3' && d.spacing === 'C' && d.code === 'SPACING_LABEL_UNKNOWN'));
+    assert.ok(unknown.plan.dropped.some((d) => d.hub === 'Project321 G3' && d.spacing === 'C' && ['SPACING_LABEL_UNKNOWN', 'SPACING_MISMATCH'].includes(d.code)));   // a label that is not the combo's exact builder text is refused
     const sib = await run((w) => { const p = productsOf(w, 'Industry Nine Hydra2'); p.f15.variants[4].spacing = '15x110mm (Foo)'; });   // a colour variant (not the default Black) with another label
     assert.ok(sib.plan.warnings.some((x) => x.code === 'SPACING_LABEL_SIBLINGS_DIFFER'));
     assert.equal(sib.plan.variants.length, 12);
