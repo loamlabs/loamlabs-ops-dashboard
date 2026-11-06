@@ -3,6 +3,7 @@
 //   node run-build-guard-locally.js --live --phrase "RUN BUILD GUARD LIVE" [--only <master variant id>] [--max 10]
 require('dotenv').config({ path: '.env.local' });
 const { executeGuard } = require('./lib/build-guard-run');
+const { createGuardLock } = require('./lib/guard-lock');
 
 const argv = process.argv.slice(2);
 const arg = (name) => { const i = argv.indexOf(name); return i >= 0 ? argv[i + 1] : undefined; };
@@ -23,7 +24,7 @@ if (arg('--max')) query.max = arg('--max');
       });
     };
   }
-  const { status, body } = await executeGuard({ query, env: process.env, fetchFn: fetch, sendEmail });
+  const { status, body } = await executeGuard({ query, env: process.env, fetchFn: fetch, sendEmail, trigger: process.env.GITHUB_ACTIONS ? 'github' : 'manual', lock: createGuardLock(process.env) });
   console.log('Status:', status);
   console.log('Response JSON:', JSON.stringify(body, null, 2));
   if (status !== 200) process.exitCode = 1;

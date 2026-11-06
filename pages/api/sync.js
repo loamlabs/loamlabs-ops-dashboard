@@ -9,6 +9,7 @@ import { pickRearVariant } from '../../lib/ethirteen-wheel';
 import { decideOwner, isOneOwnerVendor } from '../../lib/ownership';
 import { decideReviewFlag } from '../../lib/review-flag';
 import { createFailureTracker } from '../../lib/vendor-page-failures';
+import { guardAfterWatcher } from '../../lib/guard-trigger';
 import { withoutSkippedLengths } from '../../lib/spoke-length-skip';
 
 export const maxDuration = 300; // Allow Vercel to run up to 5 minutes
@@ -254,6 +255,7 @@ async function runAutoDiscovery(adminToken, supabase, initialRules) {
 }
 
 export default async function handler(req, res) {
+  const handlerStartedAt = Date.now();
   shopifyProductVariantsCache = {};
   if (!checkSupabase(res)) return;
   const authHeader = (req.headers['x-loam-secret'] || req.headers['x-dashboard-auth'])?.trim();
@@ -1201,6 +1203,9 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
     const logStatus = hasReport ? 'success' : 'no_changes';
     const logMessage = hasReport ? `Sync completed with ${updated.length} price updates and ${stockChanges.length} stock status changes.` : 'Sync completed. No changes detected.';
     await supabase.from('sync_logs').insert([{ status: logStatus, updated_count: updated.length, attention_count: attention.length, stock_changes_count: stockChanges.length, oos_reminders_count: oosReminders.length, message: logMessage }]);
+
+    // the build guard, started right after the Watcher (dry run for now: plans only, writes nothing to the store; the result goes to sync_logs). Never changes this response.
+    await guardAfterWatcher({ env: process.env, supabase, startedAtMs: handlerStartedAt });
 
     res.status(200).json({ updated: updated.length, attention: attention.length, stock_changes: stockChanges.length });
   } catch (err) { 

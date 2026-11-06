@@ -1,5 +1,6 @@
 import { Resend } from 'resend';
 import { executeGuard } from '../../lib/build-guard-run';
+import { createGuardLock } from '../../lib/guard-lock';
 
 export const maxDuration = 300;
 
@@ -23,7 +24,9 @@ export default async function handler(req, res) {
         });
       }
     : null;
-  const { status, body } = await executeGuard({ query: { ...(req.query || {}), ...(req.body || {}) }, env: process.env, fetchFn: fetch, sendEmail });
+  const query = { ...(req.query || {}), ...(req.body || {}) };
+  const trigger = ['watcher', 'bti', 'github', 'manual'].includes(query.trigger) ? query.trigger : null;   // only a label (log and email subject)
+  const { status, body } = await executeGuard({ query, env: process.env, fetchFn: fetch, sendEmail, trigger, lock: createGuardLock(process.env) });
   if (status !== 200) console.error('[BUILD GUARD] failed:', body);
   return res.status(status).json(body);
 }
