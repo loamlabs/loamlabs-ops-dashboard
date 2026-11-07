@@ -12,7 +12,7 @@ import { createFailureTracker } from '../../lib/vendor-page-failures';
 import { guardAfterWatcher } from '../../lib/guard-trigger';
 import { fetchVendorText, isPoliteRule, gapMs } from '../../lib/watcher-fetch';
 import { matchColourHoles, readProject321 } from '../../lib/watcher-project321';
-import { createFlipLimiter, flipCapFor, confirmedTwice, timeBudgetExceeded, urlBreakerTripped, groupLines, productOfTitle, hasTag } from '../../lib/watcher-safety';
+import { createFlipLimiter, closeNeedsApproval, flipCapFor, confirmedTwice, timeBudgetExceeded, urlBreakerTripped, groupLines, productOfTitle, hasTag } from '../../lib/watcher-safety';
 import { withoutSkippedLengths } from '../../lib/spoke-length-skip';
 
 export const maxDuration = 300; // Allow Vercel to run up to 5 minutes
@@ -929,7 +929,7 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
 
           const forceApprove = req.body && req.body.force_approve;
           const autoApproveOos = hasTag(rule, 'auto-approve-oos');   // Jerry's tag: a close does not wait for approval (still logged, one line per product)
-          const requiresReviewForStock = needsStockUpdate && stockAction === 'deny' && !autoApproveOos;
+          const requiresReviewForStock = closeNeedsApproval({ needsStockUpdate, stockAction, rule });   // not for auto-approve-oos rows, not in baseline mode
 
           let reviewReason = rule.review_reason || null;
           if ((needsPriceUpdate || requiresReviewForStock) && !forceApprove) {

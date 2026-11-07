@@ -128,3 +128,12 @@ test('grouped lines: one line per product; product name from a rule title', () =
     assert.equal(S.productOfTitle(t('Black')), 'Project321 G3 6-Bolt Front Hub - 15x110mm');
     assert.equal(S.hasTag({ tags: ['baseline'] }, 'baseline'), true); assert.equal(S.hasTag({}, 'baseline'), false);
 });
+
+test('baseline mode and auto-approve-oos: a close asks for no approval; a normal row still does; opens never did', () => {
+    const base = { needsStockUpdate: true, stockAction: 'deny' };
+    assert.equal(S.closeNeedsApproval({ ...base, rule: { tags: [] } }), true);
+    assert.equal(S.closeNeedsApproval({ ...base, rule: { tags: ['baseline'] } }), false);
+    assert.equal(S.closeNeedsApproval({ ...base, rule: { tags: ['auto-approve-oos'] } }), false);
+    assert.equal(S.closeNeedsApproval({ needsStockUpdate: true, stockAction: 'continue', rule: { tags: [] } }), false);
+    assert.equal(S.closeNeedsApproval({ needsStockUpdate: false, stockAction: 'deny', rule: { tags: [] } }), false);
+});
