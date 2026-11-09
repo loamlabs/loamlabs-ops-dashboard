@@ -12,7 +12,7 @@ import { createFailureTracker } from '../../lib/vendor-page-failures';
 import { guardAfterWatcher } from '../../lib/guard-trigger';
 import { fetchVendorText, isPoliteRule, gapMs } from '../../lib/watcher-fetch';
 import { matchColourHoles, readProject321 } from '../../lib/watcher-project321';
-import { createFlipLimiter, closeNeedsApproval, flipCapFor, confirmedTwice, timeBudgetExceeded, urlBreakerTripped, groupLines, productOfTitle, hasTag } from '../../lib/watcher-safety';
+import { createFlipLimiter, needsSecondRun, closeNeedsApproval, flipCapFor, confirmedTwice, timeBudgetExceeded, urlBreakerTripped, groupLines, productOfTitle, hasTag } from '../../lib/watcher-safety';
 import { withoutSkippedLengths } from '../../lib/spoke-length-skip';
 import { stampSince, parseSince, classify, createLinkReport, redirectedAway } from '../../lib/broken-links';
 
@@ -1033,7 +1033,7 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
           if (stockWriteAllowed) {
               const productName = productOfTitle(rule.title);
               if (hasTag(rule, 'baseline')) { stockWriteAllowed = false; baselineItems.push({ product: productName, action: stockAction === 'deny' ? 'would close' : 'would open' }); }
-              else if (polite && !confirmedTwice(rule, winner.available)) { stockWriteAllowed = false; heldOnceItems.push({ product: productName, action: stockAction === 'deny' ? 'close waits for a second run' : 'open waits for a second run' }); }
+              else if (needsSecondRun(rule, polite) && !confirmedTwice(rule, winner.available)) { stockWriteAllowed = false; heldOnceItems.push({ product: productName, action: stockAction === 'deny' ? 'close waits for a second run' : 'open waits for a second run' }); }
               else if (!flipLimiter.tryFlip(vendorKey)) { stockWriteAllowed = false; }
               else if (autoApproveOos) autoApprovedItems.push({ product: productName, action: stockAction === 'deny' ? 'closed' : 'opened' });
           }

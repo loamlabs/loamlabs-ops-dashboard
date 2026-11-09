@@ -59,3 +59,12 @@ test('fetchVendorText reports a redirect through onInfo and still returns the te
   const t = await fetchVendorText({ url: 'https://a.com/x.js', fetchFn, onInfo: (i) => { seen = i; } });
   assert.equal(t, '{}'); assert.deepEqual(seen, { redirected: true, finalUrl: 'https://a.com/other' });
 });
+
+test("two-run rule: polite vendors and rows tagged 'confirm-twice' only", () => {
+  const { needsSecondRun, confirmedTwice } = require('../lib/watcher-safety');
+  assert.equal(needsSecondRun({ tags: ['auto-approve-oos', 'confirm-twice'] }, false), true);
+  assert.equal(needsSecondRun({ tags: ['auto-approve-oos'] }, false), false);
+  assert.equal(needsSecondRun({ tags: [] }, true), true);
+  assert.equal(confirmedTwice({ last_availability: false }, false), true);    // vendor was out last run and is out now: close
+  assert.equal(confirmedTwice({ last_availability: true }, false), false);    // first time out: wait one run
+});
