@@ -14,6 +14,7 @@ import { fetchVendorText, isPoliteRule, gapMs } from '../../lib/watcher-fetch';
 import { matchColourHoles, readProject321 } from '../../lib/watcher-project321';
 import { createFlipLimiter, closeNeedsApproval, flipCapFor, confirmedTwice, timeBudgetExceeded, urlBreakerTripped, groupLines, productOfTitle, hasTag } from '../../lib/watcher-safety';
 import { withoutSkippedLengths } from '../../lib/spoke-length-skip';
+import { stampSince, parseSince, classify, createLinkReport, redirectedAway } from '../../lib/broken-links';
 
 export const maxDuration = 300; // Allow Vercel to run up to 5 minutes
 
@@ -353,6 +354,13 @@ export default async function handler(req, res) {
     const urlStats = {};
     let stoppedForTime = 0;
     const pageFailures = createFailureTracker();   // vendor pages that could not be read, with how many rules were not checked because of it
+    // broken vendor links (lib/broken-links.js): one line per broken page at the top of the email
+    const linkReport = createLinkReport();
+    const failedPages = {};      // url -> { what, since } for pages that could not be read this run
+    const redirectedTo = {};     // url -> final url, when the vendor redirected us to another page
+    const noMatchByUrl = {};     // url -> [{ rule, log }] rules that found 0 matches on a page that WAS read
+    const rulesPerUrl = {};
+    rules.forEach((r) => { if (r.vendor_url && !(Array.isArray(r.tags) && r.tags.includes('watcher-ignore'))) { const u = r.vendor_url.endsWith('.js') ? r.vendor_url : `${r.vendor_url}.js`; rulesPerUrl[u] = (rulesPerUrl[u] || 0) + 1; } });
     const surchargeProblems = new Map();   // e*thirteen surcharge page problems, reported once per run instead of once per wheel set
 
     for (const rule of rules) {
@@ -373,6 +381,7 @@ export default async function handler(req, res) {
         // Skip immediately if we already know this URL is dead (e.g. 404)
         if (urlCache[url] === 'FAILED') {
             pageFailures.skip(url);
+            if (failedPages[url]) linkReport.add({ url, vendor: rule.vendor_name, product: productOfTitle(rule.title), what: failedPages[url].what, since: failedPages[url].since });
             continue;
         }
 
@@ -383,9 +392,9 @@ export default async function handler(req, res) {
           await new Promise(r => setTimeout(r, gapMs(polite)));
           let vResponseText;
           try {
-            vResponseText = await fetchVendorText({ url, polite, randomUA });   // 10 s timeout; polite: honest agent, one try, no retry after 429/403
+            vResponseText = await fetchVendorText({ url, polite, randomUA, onInfo: (i) => { if (i && i.redirected && redirectedAway(url, i.finalUrl)) redirectedTo[url] = i.finalUrl; } });   // 10 s timeout; polite: honest agent, one try, no retry after 429/403
           } catch (fetchErr) {
-            const errLog = `Fetch failed for ${url}: ${fetchErr.message}${fetchErr.blocked ? ' (blocked: not retried)' : ''}`;
+            const errLog = stampSince(`Fetch failed for ${url}: ${fetchErr.message}${fetchErr.blocked ? ' (blocked: not retried)' : ''}`, rule.last_log, nowIso);
             console.error(`[SYNC ERROR] ${errLog}`);
             
             // Only write if the error log actually changed
@@ -400,6 +409,8 @@ export default async function handler(req, res) {
             // Mark as failed in cache so we don't retry and sleep for every rule that points to this dead URL
             urlCache[url] = 'FAILED';
             pageFailures.fail(url, fetchErr.message);
+            failedPages[url] = { what: classify(fetchErr.message), since: parseSince(errLog) };
+            linkReport.add({ url, vendor: rule.vendor_name, product: productOfTitle(rule.title), what: failedPages[url].what, since: failedPages[url].since });
             
             // Add a long delay if rate limited so we don't completely spam them
             await new Promise(r => setTimeout(r, 2000));
@@ -411,7 +422,7 @@ export default async function handler(req, res) {
             vData = JSON.parse(textObj);
             urlCache[url] = vData;
           } catch(e) {
-            const errLog = `JSON Parse failed: ${url}`;
+            const errLog = stampSince(`JSON Parse failed: ${url}`, rule.last_log, nowIso);
             console.error(`[SYNC ERROR] ${errLog}`);
             
             // Only write if the error log actually changed
@@ -426,6 +437,8 @@ export default async function handler(req, res) {
             // Mark as failed in cache
             urlCache[url] = 'FAILED';
             pageFailures.fail(url, 'The page did not return readable data');
+            failedPages[url] = { what: classify('did not return readable data'), since: parseSince(errLog) };
+            linkReport.add({ url, vendor: rule.vendor_name, product: productOfTitle(rule.title), what: failedPages[url].what, since: failedPages[url].since });
             continue; // Skip processing this rule so we don't accidentally mark it Out of Stock!
           }
         }
@@ -1096,7 +1109,8 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
 
         } else {
            const vendorOptions = vData.variants.slice(0, 2).map(v => v.public_title).join(', ');
-           const failLog = `FAILED: Found 0 matches for parsed options. Vendor uses: ${vendorOptions}`;
+           const failLog = stampSince(`FAILED: Found 0 matches for parsed options. Vendor uses: ${vendorOptions}`, rule.last_log, nowIso);
+           (noMatchByUrl[url] = noMatchByUrl[url] || []).push({ rule, since: parseSince(failLog) });
            
            if (rule.auto_update === true) {
              const variant = await getShopifyVariant(adminToken, rule.shopify_product_id, rule.shopify_variant_id);
@@ -1178,7 +1192,15 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
     }
 
     // vendor pages that could not be read: one line per page, with the number of rules that were not checked
-    pageFailures.lines().forEach(l => attention.push(l));
+    // (the old one-line-per-page alerts are replaced by the "Broken vendor links" section at the top of the email)
+    // a page that WAS read but where EVERY active rule on it found 0 matches is a broken link too (moved, renamed, product removed)
+    for (const [u, list] of Object.entries(noMatchByUrl)) {
+      if (list.length === rulesPerUrl[u] && !failedPages[u]) {
+        const what = redirectedTo[u] ? `redirected to ${redirectedTo[u]}` : classify('Found 0 matches');
+        list.forEach(({ rule, since }) => linkReport.add({ url: u, vendor: rule.vendor_name, product: productOfTitle(rule.title), what, since }));
+      }
+    }
+    const linkSection = linkReport.section(nowIso);
 
     // --- BULK TIMESTAMP UPDATE for all unchanged rules ---
     // This is the key performance optimization: instead of thousands of sequential
@@ -1200,7 +1222,7 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
     await supabase.from('sync_logs').delete().lt('created_at', thirtyDaysAgo);
 
-    const hasReport = updated.length > 0 || ownershipLines.length > 0 || attention.length > 0 || stockChanges.length > 0 || oosReminders.length > 0 || autoCreatedVariants.length > 0;
+    const hasReport = linkSection.count > 0 || updated.length > 0 || ownershipLines.length > 0 || attention.length > 0 || stockChanges.length > 0 || oosReminders.length > 0 || autoCreatedVariants.length > 0;
     if (hasReport) {
       const updatedHtml = updated.map(i => `<li style="color:green;">🚀 <b>UPDATED:</b> ${i.title}<br><small>${i.reason}</small></li>`).join('');
       const attentionHtml = attention.map(i => `<li style="color:red;">⚠️ <b>ALERT:</b> ${i.title}<br><small>${i.reason}</small></li>`).join('');
@@ -1226,8 +1248,8 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
       const totalAlerts = updated.length + attention.length + stockChanges.length + ownershipLines.length + autoCreatedVariants.length;
       await resend.emails.send({
         from: 'Watcher <system@loamlabsusa.com>', to: process.env.REPORT_EMAIL,
-        subject: `Vendor Watcher: ${totalAlerts} Updates${autoCreatedVariants.length > 0 ? ` (+${autoCreatedVariants.length} New Variants)` : ''}${oosReminders.length > 0 ? ` + ${oosReminders.length} OOS Reminders` : ''}`,
-        html: `<div style="font-family:sans-serif;"><h2>Shop Sync Report</h2><ul>${updatedHtml}${attentionHtml}</ul>${autoCreatedHtml}${stockHtml}${ownershipHtml}${oosHtml}</div>`
+        subject: `Vendor Watcher: ${totalAlerts} Updates${autoCreatedVariants.length > 0 ? ` (+${autoCreatedVariants.length} New Variants)` : ''}${oosReminders.length > 0 ? ` + ${oosReminders.length} OOS Reminders` : ''}${linkSection.count > 0 ? ` + ${linkSection.count} broken link${linkSection.count === 1 ? '' : 's'}` : ''}`,
+        html: `<div style="font-family:sans-serif;">${linkSection.html}<h2>Shop Sync Report</h2><ul>${updatedHtml}${attentionHtml}</ul>${autoCreatedHtml}${stockHtml}${ownershipHtml}${oosHtml}</div>`
       });
     }
 
