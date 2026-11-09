@@ -11,8 +11,8 @@ const result = (over = {}) => ({ changed: [], skipped: [], failed: [], emailLine
 const fakeLock = (taken = false) => { const log = []; return { log, async acquire() { log.push('acquire'); return !taken; }, async release() { log.push('release'); } }; };
 const LIVE = { live: '1', phrase: 'RUN BUILD GUARD LIVE' };
 
-test('the trigger is OFF for live: Watcher side starts as a dry run', () => {
-    assert.equal(GUARD_AFTER_WATCHER, 'dry');
+test('the Watcher-side trigger is LIVE (Jerry, Nov 8): the one word that is flipped', () => {
+    assert.equal(GUARD_AFTER_WATCHER, 'live');
 });
 
 test('live run: takes the lock, runs, sends the email with the trigger in the subject, releases the lock', async () => {

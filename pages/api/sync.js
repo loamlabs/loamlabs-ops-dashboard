@@ -1236,7 +1236,11 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
     await supabase.from('sync_logs').insert([{ status: logStatus, updated_count: updated.length, attention_count: attention.length, stock_changes_count: stockChanges.length, oos_reminders_count: oosReminders.length, message: logMessage }]);
 
     // the build guard, started right after the Watcher (dry run for now: plans only, writes nothing to the store; the result goes to sync_logs). Never changes this response.
-    await guardAfterWatcher({ env: process.env, supabase, startedAtMs: handlerStartedAt });
+    // the guard emails only when it changes something (same sender and recipient as the Watcher report)
+    const guardMail = process.env.REPORT_EMAIL ? async (subject, lines) => {
+      await resend.emails.send({ from: 'Watcher <system@loamlabsusa.com>', to: process.env.REPORT_EMAIL, subject, html: `<div style="font-family:sans-serif;"><h2>Build availability guard</h2><ul>${lines.map((l) => `<li>${String(l).replace(/</g, '&lt;')}</li>`).join('')}</ul></div>` });
+    } : null;
+    await guardAfterWatcher({ env: process.env, supabase, sendEmail: guardMail, startedAtMs: handlerStartedAt });
 
     res.status(200).json({ updated: updated.length, attention: attention.length, stock_changes: stockChanges.length });
   } catch (err) { 
