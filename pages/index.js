@@ -106,6 +106,8 @@ export default function OpsDashboard() {
   const [showDiscrepancyDropdown, setShowDiscrepancyDropdown] = useState(false);
   const [componentData, setComponentData] = useState({ hubs: [], rims: [], spokes: [], nipples: [] });
   const [componentsLoaded, setComponentsLoaded] = useState(false);
+  const [componentShas, setComponentShas] = useState({});          // version (sha) of each file as loaded; sent back on save so a stale tab cannot overwrite newer changes
+  const [componentLoadError, setComponentLoadError] = useState(null);   // set when a file could not be read: Save stays off, nothing is shown as empty
   const [componentTab, setComponentTab] = useState('rims');
   const [componentVendorFilter, setComponentVendorFilter] = useState('All');
   const [componentSearch, setComponentSearch] = useState('');
@@ -740,17 +742,19 @@ return { isValid: missing.length === 0, missingFields: missing };
           if (!auth) return;
           console.log(`[Lifecycle] Fetching components...`);
           const cb = Date.now();
+          setComponentLoadError(null);
+          const shasLoaded = {};
           const fetchTab = async (tab) => {
               const r = await fetch(`/api/components?tab=${tab}&cb=${cb}`, { headers: { 'x-dashboard-auth': auth } });
-              if (r.ok) {
-                  const d = await r.json();
-                  return d[tab];
-              }
-              return [];
+              const d = await r.json().catch(() => ({}));
+              if (!r.ok || !Array.isArray(d[tab])) throw new Error(d.error || `Could not load ${tab} (HTTP ${r.status}).`);
+              shasLoaded[tab] = d.shas && d.shas[tab];
+              return d[tab];
           };
 
           const [hubs, rims, spokes, nipples] = await Promise.all(['hubs', 'rims', 'spokes', 'nipples'].map(fetchTab));
           const data = { hubs, rims, spokes, nipples };
+          setComponentShas(shasLoaded);
           
           console.log(`[Lifecycle] Fetch SUCCESS. Received tabs: ${Object.keys(data).join(', ')}`);
           const hydrated = {};
@@ -786,7 +790,12 @@ return { isValid: missing.length === 0, missingFields: missing };
           const cleanData = unifyComponentKeys(hydrated);
           setComponentData(cleanData);
           setComponentsLoaded(true);
-      } catch (e) { console.error('Fetch Component Error: ', e); }
+      } catch (e) {
+          console.error('Fetch Component Error: ', e);
+          // never show a failed load as an empty library: keep Save off and say why
+          setComponentsLoaded(false);
+          setComponentLoadError(e.message || 'Could not load the component library.');
+      }
       setLoading(false);
   };
 
@@ -843,7 +852,7 @@ return { isValid: missing.length === 0, missingFields: missing };
     };
   }, [isAuthorized]);
 
-  const saveComponentChanges = React.useCallback(async (newArray, tabOverride = null) => {
+  const saveComponentChanges = React.useCallback(async (newArray, tabOverride = null, allowRemoveCount = 0) => {
     const tab = tabOverride || componentTab;
     if (!tab) {
         showNotification("Save Error: No category selected", "error");
@@ -869,15 +878,20 @@ return { isValid: missing.length === 0, missingFields: missing };
       
       return finalItem;
     });
+    if (componentLoadError || !componentShas[tab]) {
+        showNotification("Not saved: the library was not loaded cleanly. Reload the Component library first.", 'error');
+        return false;
+    }
     setComponentSaving(true);
     try {
       const auth = password || localStorage.getItem('loam_ops_auth');
       const res = await fetch('/api/components', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-dashboard-auth': auth },
-        body: JSON.stringify({ [tab]: sanitizedArray })
+        body: JSON.stringify({ [tab]: sanitizedArray, baseShas: { [tab]: componentShas[tab] }, allowRemove: allowRemoveCount ? { [tab]: allowRemoveCount } : {} })
       });
       if (res.ok) {
+        try { const done = await res.clone().json(); const w = done.written && done.written[tab]; if (w && w.sha) setComponentShas(prev => ({ ...prev, [tab]: w.sha })); } catch (e) { /* sha refreshed on next load */ }
         // Transition items: strip _isNew flag from CLEANED data
         const transitionedArray = cleanArray.map(item => {
            const { _isNew, ...rest } = item;
@@ -891,9 +905,13 @@ return { isValid: missing.length === 0, missingFields: missing };
         setComponentSaving(false);
         return true;
       } else {
-        const err = await res.json();
-        showNotification("Save Failed: " + (err.error || "Unknown error"), 'error');
+        const err = await res.json().catch(() => ({}));
         setComponentSaving(false);
+        if (err.code === 'SHRINK' && window.confirm(err.error + '\n\nRemove ' + err.removing + ' rows and save anyway?')) {
+          return saveComponentChanges(newArray, tab, err.removing);
+        }
+        showNotification((err.code === 'CONFLICT' ? 'Save refused: ' : 'Save Failed: ') + (err.error || 'Unknown error'), 'error');
+        if (err.code === 'CONFLICT') { setComponentsLoaded(false); }   // reload the library (staged edits in the grid are kept)
         return false;
       }
     } catch (e) { 
@@ -901,7 +919,7 @@ return { isValid: missing.length === 0, missingFields: missing };
       setComponentSaving(false);
       return false;
     }
-   }, [componentTab, password, showNotification]);
+   }, [componentTab, password, showNotification, componentShas, componentLoadError]);
 
    const fetchComponentHistory = React.useCallback(async () => {
      setLoadingHistory(true);
@@ -2758,7 +2776,7 @@ return { isValid: missing.length === 0, missingFields: missing };
         ) : activeTab === 'audit' ? (
           <ShopHealth {...{ HealthCard, rules }} />
         ) : activeTab === 'component_library' ? (
-          <ComponentLibrary {...{ fetchComponentHistory, loadingHistory, handleSyncSpecsFromShopify, loading, selectedComponents, componentTab, handleDiscoverVariantIds, isDiscoveringVariants, Zap, handleAuditShopifySync, isAuditing, handleAddNewRow, handleCreateNewComponent, Edit3, componentData, getComponentUniqueId, syncMismatches, setComponentTab, setComponentVendorFilter, setShowMissingOnly, setShowMismatchesOnly, uniqueVendors, componentVendorFilter, showMissingOnly, showMismatchesOnly, AlertTriangle, componentSearch, setComponentSearch, componentsLoaded, finalFilteredList, Database, ComponentLibraryGrid, setSelectedComponents, gridUnsavedChanges, handleGridEdit, handleGridPaste, componentColumnWidths, startResizing, handleDragStart, handleDragOver, handleDrop, formatColumnTitle, getComponentValidation, toggleComponentSelection, handleRemoveAddedRow, handleDeleteComponent, handleDuplicateComponent, DROPDOWN_OPTIONS, handleEditComponent, saveComponentChanges, focusedCell, setFocusedCell, selectedCells, setSelectedCells, handleClipboardCopy, handleBulkPaste, editingCell, setEditingCell, componentSaving, componentColumnOrder, isComponentDrawerOpen, editingComponent, setIsComponentDrawerOpen, isDuplicateMode, getComponentValue, setEditingComponent, productSyncId, setProductSyncId, isImportingProduct, handleImportProductByID, RefreshCw, MANDATORY_FIELDS, metafieldOptionsMap, spokePolish, isBulkEditDrawerOpen, setIsBulkEditDrawerOpen, bulkEditComponent, setBulkEditComponent, handleBulkEdit }} />
+          <ComponentLibrary {...{ componentLoadError, fetchComponentLibrary, fetchComponentHistory, loadingHistory, handleSyncSpecsFromShopify, loading, selectedComponents, componentTab, handleDiscoverVariantIds, isDiscoveringVariants, Zap, handleAuditShopifySync, isAuditing, handleAddNewRow, handleCreateNewComponent, Edit3, componentData, getComponentUniqueId, syncMismatches, setComponentTab, setComponentVendorFilter, setShowMissingOnly, setShowMismatchesOnly, uniqueVendors, componentVendorFilter, showMissingOnly, showMismatchesOnly, AlertTriangle, componentSearch, setComponentSearch, componentsLoaded, finalFilteredList, Database, ComponentLibraryGrid, setSelectedComponents, gridUnsavedChanges, handleGridEdit, handleGridPaste, componentColumnWidths, startResizing, handleDragStart, handleDragOver, handleDrop, formatColumnTitle, getComponentValidation, toggleComponentSelection, handleRemoveAddedRow, handleDeleteComponent, handleDuplicateComponent, DROPDOWN_OPTIONS, handleEditComponent, saveComponentChanges, focusedCell, setFocusedCell, selectedCells, setSelectedCells, handleClipboardCopy, handleBulkPaste, editingCell, setEditingCell, componentSaving, componentColumnOrder, isComponentDrawerOpen, editingComponent, setIsComponentDrawerOpen, isDuplicateMode, getComponentValue, setEditingComponent, productSyncId, setProductSyncId, isImportingProduct, handleImportProductByID, RefreshCw, MANDATORY_FIELDS, metafieldOptionsMap, spokePolish, isBulkEditDrawerOpen, setIsBulkEditDrawerOpen, bulkEditComponent, setBulkEditComponent, handleBulkEdit }} />
         ) : null}
 
         {((activeTab === 'product_lab' && (selectedLabProducts.length > 0 || selectedLabVariants.length > 0)) || (activeTab === 'vendors' && selectedRules.length > 0)) && (

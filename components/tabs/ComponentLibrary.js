@@ -2,7 +2,7 @@ import React from 'react';
 import { RefreshCcw, Search, Plus, Settings, X, ShieldAlert, ChevronDown, Info, ExternalLink, Loader2, AlertCircle, Clock, ShieldCheck, Layers, FileDown, Eye, CheckCircle2, Copy, Play, ArrowDownToLine, GitMerge, FileUp, Save, UploadCloud, FileEdit, HelpCircle } from 'lucide-react';
 
 export default function ComponentLibrary(props) {
-  const { fetchComponentHistory, loadingHistory, handleSyncSpecsFromShopify, loading, selectedComponents, componentTab, handleDiscoverVariantIds, isDiscoveringVariants, Zap, handleAuditShopifySync, isAuditing, handleAddNewRow, handleCreateNewComponent, Edit3, componentData, getComponentUniqueId, syncMismatches, setComponentTab, setComponentVendorFilter, setShowMissingOnly, setShowMismatchesOnly, uniqueVendors, componentVendorFilter, showMissingOnly, showMismatchesOnly, AlertTriangle, componentSearch, setComponentSearch, componentsLoaded, finalFilteredList, Database, ComponentLibraryGrid, setSelectedComponents, gridUnsavedChanges, handleGridEdit, handleGridPaste, componentColumnWidths, startResizing, handleDragStart, handleDragOver, handleDrop, formatColumnTitle, getComponentValidation, toggleComponentSelection, handleRemoveAddedRow, handleDeleteComponent, handleDuplicateComponent, DROPDOWN_OPTIONS, handleEditComponent, saveComponentChanges, focusedCell, setFocusedCell, selectedCells, setSelectedCells, handleClipboardCopy, handleBulkPaste, editingCell, setEditingCell, componentSaving, componentColumnOrder, isComponentDrawerOpen, editingComponent, setIsComponentDrawerOpen, isDuplicateMode, getComponentValue, setEditingComponent, productSyncId, setProductSyncId, isImportingProduct, handleImportProductByID, RefreshCw, MANDATORY_FIELDS, metafieldOptionsMap, spokePolish, isBulkEditDrawerOpen, setIsBulkEditDrawerOpen, bulkEditComponent, setBulkEditComponent, handleBulkEdit } = props;
+  const { componentLoadError, fetchComponentLibrary, fetchComponentHistory, loadingHistory, handleSyncSpecsFromShopify, loading, selectedComponents, componentTab, handleDiscoverVariantIds, isDiscoveringVariants, Zap, handleAuditShopifySync, isAuditing, handleAddNewRow, handleCreateNewComponent, Edit3, componentData, getComponentUniqueId, syncMismatches, setComponentTab, setComponentVendorFilter, setShowMissingOnly, setShowMismatchesOnly, uniqueVendors, componentVendorFilter, showMissingOnly, showMismatchesOnly, AlertTriangle, componentSearch, setComponentSearch, componentsLoaded, finalFilteredList, Database, ComponentLibraryGrid, setSelectedComponents, gridUnsavedChanges, handleGridEdit, handleGridPaste, componentColumnWidths, startResizing, handleDragStart, handleDragOver, handleDrop, formatColumnTitle, getComponentValidation, toggleComponentSelection, handleRemoveAddedRow, handleDeleteComponent, handleDuplicateComponent, DROPDOWN_OPTIONS, handleEditComponent, saveComponentChanges, focusedCell, setFocusedCell, selectedCells, setSelectedCells, handleClipboardCopy, handleBulkPaste, editingCell, setEditingCell, componentSaving, componentColumnOrder, isComponentDrawerOpen, editingComponent, setIsComponentDrawerOpen, isDuplicateMode, getComponentValue, setEditingComponent, productSyncId, setProductSyncId, isImportingProduct, handleImportProductByID, RefreshCw, MANDATORY_FIELDS, metafieldOptionsMap, spokePolish, isBulkEditDrawerOpen, setIsBulkEditDrawerOpen, bulkEditComponent, setBulkEditComponent, handleBulkEdit } = props;
 
   return (
            <>
@@ -124,7 +124,14 @@ export default function ComponentLibrary(props) {
                    )}
 
                    <div className="bg-white rounded-[2rem] border border-zinc-200 shadow-sm overflow-hidden">
-                      {!componentsLoaded ? (
+                      {componentLoadError ? (
+                         <div className="p-12 text-center">
+                            <AlertCircle className="text-red-500 mx-auto mb-4" size={40}/>
+                            <p className="text-sm font-black text-red-600 uppercase tracking-widest mb-2">Could not load the component library</p>
+                            <p className="text-xs font-bold text-zinc-500 max-w-xl mx-auto mb-6">{componentLoadError} Nothing is shown as empty and nothing can be saved until it loads. Your calculator data on GitHub is untouched.</p>
+                            <button onClick={() => fetchComponentLibrary()} className="bg-black text-white px-6 py-3 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-zinc-800">Try again</button>
+                         </div>
+                      ) : !componentsLoaded ? (
                          <div className="p-12 text-center">
                             <Loader2 className="animate-spin text-zinc-300 mx-auto mb-4" size={32}/>
                             <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Fetching JSON Data</p>
@@ -363,6 +370,8 @@ export default function ComponentLibrary(props) {
                                     <button 
                                        disabled={!allConfirmed || componentSaving}
                                        onClick={async () => {
+                                            const incomplete = getComponentValidation(editingComponent, componentTab);
+ if (!incomplete.isValid && !window.confirm('These fields are still empty: ' + incomplete.missingFields.slice(0, 8).join(', ') + (incomplete.missingFields.length > 8 ? ' ...' : '') + '\n\nSave this row anyway?')) return;
                                             const activeArray = [...(componentData[componentTab] || [])];
                                             const targetId = editingComponent._rid || getComponentUniqueId(editingComponent, editingComponent._editIdx);
                                             const existingIdx = editingComponent._rawIdx !== undefined ? editingComponent._rawIdx : activeArray.findIndex(r => (r._rid || getComponentUniqueId(r)) === targetId);
@@ -389,6 +398,8 @@ export default function ComponentLibrary(props) {
                                        <button 
                                           disabled={!allConfirmed || componentSaving}
                                           onClick={async () => {
+                                             const incomplete = getComponentValidation(editingComponent, componentTab);
+ if (!incomplete.isValid && !window.confirm('These fields are still empty: ' + incomplete.missingFields.slice(0, 8).join(', ') + (incomplete.missingFields.length > 8 ? ' ...' : '') + '\n\nSave this row anyway?')) return;
                                              const targetId = editingComponent._rid || getComponentUniqueId(editingComponent, editingComponent._editIdx);
                                              const activeArray = [...(componentData[componentTab] || [])];
                                              const existingIdx = editingComponent._rawIdx !== undefined ? editingComponent._rawIdx : activeArray.findIndex(r => (r._rid || getComponentUniqueId(r)) === targetId);
