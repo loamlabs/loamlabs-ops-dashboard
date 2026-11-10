@@ -12,7 +12,7 @@ import { createFailureTracker } from '../../lib/vendor-page-failures';
 import { guardAfterWatcher } from '../../lib/guard-trigger';
 import { fetchVendorText, isPoliteRule, gapMs } from '../../lib/watcher-fetch';
 import { matchColourHoles, readProject321 } from '../../lib/watcher-project321';
-import { createFlipLimiter, needsSecondRun, closeNeedsApproval, flipCapFor, confirmedTwice, timeBudgetExceeded, urlBreakerTripped, groupLines, productOfTitle, hasTag } from '../../lib/watcher-safety';
+import { createFlipLimiter, priceDecision, priceLines, PRICE_CAP, needsSecondRun, closeNeedsApproval, flipCapFor, confirmedTwice, timeBudgetExceeded, urlBreakerTripped, groupLines, productOfTitle, hasTag } from '../../lib/watcher-safety';
 import { withoutSkippedLengths } from '../../lib/spoke-length-skip';
 import { stampSince, parseSince, classify, createLinkReport, redirectedAway } from '../../lib/broken-links';
 
@@ -351,6 +351,8 @@ export default async function handler(req, res) {
     rules.forEach((r) => { if (r.vendor_url) vendorRuleCounts[r.vendor_name || 'unknown'] = (vendorRuleCounts[r.vendor_name || 'unknown'] || 0) + 1; });
     const flipLimiter = createFlipLimiter((vendor) => flipCapFor(vendorRuleCounts[vendor] || 0));
     const baselineItems = [], heldOnceItems = [], autoApprovedItems = [];
+    const priceLimiter = createFlipLimiter(PRICE_CAP);   // 'auto-approve-price': at most 40 price writes per vendor per run
+    const autoPriceItems = [], basePriceItems = [], waitPriceItems = [];
     const urlStats = {};
     let stoppedForTime = 0;
     const pageFailures = createFailureTracker();   // vendor pages that could not be read, with how many rules were not checked because of it
@@ -944,11 +946,19 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
           const autoApproveOos = hasTag(rule, 'auto-approve-oos');   // Jerry's tag: a close does not wait for approval (still logged, one line per product)
           const requiresReviewForStock = closeNeedsApproval({ needsStockUpdate, stockAction, rule });   // not for auto-approve-oos rows, not in baseline mode
 
+          // tag 'auto-approve-price' (lib/watcher-safety.js priceDecision): small, twice-confirmed price changes need no approval
+          let priceMode = needsPriceUpdate ? priceDecision({ rule, myPrice, goalPrice, vendorCents: Math.round(vendorPrice * 100) }) : 'ask';
+          if (priceMode === 'auto' && !priceLimiter.tryFlip(vendorKey)) priceMode = 'capped';
+          const priceNeedsReview = needsPriceUpdate && priceMode === 'ask';
+          const priceItem = { product: productOfTitle(rule.title), from: Number(myPrice), to: Number(goalPrice) };
+          if (needsPriceUpdate && priceMode === 'baseline') basePriceItems.push(priceItem);
+          if (needsPriceUpdate && priceMode === 'wait') waitPriceItems.push(priceItem);
+
           let reviewReason = rule.review_reason || null;
-          if ((needsPriceUpdate || requiresReviewForStock) && !forceApprove) {
+          if ((priceNeedsReview || requiresReviewForStock) && !forceApprove) {
               forceNeedsReview = true;
               let reasonStr = [];
-              if (needsPriceUpdate) {
+              if (priceNeedsReview) {
                   reasonStr.push(`Price Change: $${myPrice} -> $${goalPrice}`);
               }
               if (requiresReviewForStock) {
@@ -960,7 +970,7 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
               forceNeedsReview = false;
               reviewReason = null;
               console.log(`[!] Force Overriding and applying updates for ${rule.title}`);
-          } else if (decideReviewFlag({ needsPriceUpdate, requiresReviewForStock, forceApprove, flagged: forceNeedsReview }) === 'clear') {
+          } else if (decideReviewFlag({ needsPriceUpdate: priceNeedsReview, requiresReviewForStock, forceApprove, flagged: forceNeedsReview }) === 'clear') {
               // Nothing is waiting for approval any more (vendor price equals Shopify again), whether or not the vendor has it in stock.
               forceNeedsReview = false;
               reviewReason = null;
@@ -999,7 +1009,7 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
              }
           }
 
-          if (needsPriceUpdate && rule.auto_update === true && !forceNeedsReview) {
+          if (needsPriceUpdate && rule.auto_update === true && !forceNeedsReview && (priceMode === 'auto' || priceMode === 'ask')) {
              updatePayloadForPrice.price = goalPrice;
              const baseCompare = myCompare ? Number(myCompare) : 0;
              if (baseCompare > Number(goalPrice)) {
@@ -1025,7 +1035,7 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
                 method: 'PUT', headers: { 'X-Shopify-Access-Token': adminToken, 'Content-Type': 'application/json' },
                 body: JSON.stringify({ variant: updatePayloadForPrice })
              }).catch(e => console.error(e));
-             if (needsPriceUpdate && rule.auto_update === true && !forceNeedsReview) updated.push({ title: rule.title, reason: `Price Adjusted ($${myPrice} -> $${goalPrice})` });
+             if (needsPriceUpdate && rule.auto_update === true && !forceNeedsReview && (priceMode === 'auto' || priceMode === 'ask')) { if (priceMode === 'auto') autoPriceItems.push(priceItem); else updated.push({ title: rule.title, reason: `Price Adjusted ($${myPrice} -> $${goalPrice})` }); }
           }
 
           let effectivePolicy = variant.inventoryPolicy;
@@ -1184,6 +1194,10 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
     groupLines(heldOnceItems).forEach((l) => attention.push({ title: 'Waiting for a second run', reason: l }));
     groupLines(autoApprovedItems).forEach((l) => stockChanges.push({ title: l, action: '📦 Auto-approved' }));
     flipLimiter.lines().forEach((l) => attention.push({ title: 'Sync safety stop', reason: l }));
+    priceLines(basePriceItems, 'would be repriced').forEach((l) => attention.push({ title: 'Baseline prices (nothing written)', reason: l }));
+    priceLines(waitPriceItems, 'wait for a second run at the same vendor price').forEach((l) => attention.push({ title: 'Waiting for a second run (price)', reason: l }));
+    priceLines(autoPriceItems, 'repriced').forEach((l) => stockChanges.push({ title: l, action: '💲 Auto-approved price' }));
+    Object.entries(priceLimiter.held).forEach(([v, n]) => attention.push({ title: 'Sync safety stop (prices)', reason: `${v}: ${n} price change${n === 1 ? '' : 's'} NOT written this run (limit of ${PRICE_CAP} per vendor per run reached). They are picked up on the next run.` }));
     if (stoppedForTime > 0) attention.push({ title: 'Sync stopped for time', reason: `The run reached 270 s and stopped cleanly; ${stoppedForTime} rule${stoppedForTime === 1 ? '' : 's'} were not checked today.` });
 
     // e*thirteen surcharge problems: one line per distinct problem, not one per wheel set
