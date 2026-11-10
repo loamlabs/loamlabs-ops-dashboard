@@ -14,6 +14,7 @@ import { fetchVendorText, isPoliteRule, gapMs } from '../../lib/watcher-fetch';
 import { matchColourHoles, readProject321 } from '../../lib/watcher-project321';
 import { createFlipLimiter, priceDecision, priceLines, PRICE_CAP, needsSecondRun, closeNeedsApproval, flipCapFor, confirmedTwice, timeBudgetExceeded, urlBreakerTripped, groupLines, productOfTitle, hasTag } from '../../lib/watcher-safety';
 import { withoutSkippedLengths } from '../../lib/spoke-length-skip';
+import { spacingOf, driverStates, planFreehubList } from '../../lib/freehub-follow';
 import { stampSince, parseSince, classify, createLinkReport, redirectedAway } from '../../lib/broken-links';
 
 export const maxDuration = 300; // Allow Vercel to run up to 5 minutes
@@ -70,6 +71,30 @@ async function setVariantMetafields(adminToken, variantId, entries) {
   } catch (e) {
     return { ok: false, errors: [e.message] };
   }
+}
+
+// tag 'freehub-follow' (lib/freehub-follow.js): read the hub product's freehub list and our last observation, write them back
+async function readHubFreehub(adminToken, productId) {
+  const r = await fetch(`https://${process.env.SHOPIFY_SHOP_NAME}.myshopify.com/admin/api/2024-04/graphql.json`, {
+    method: 'POST', headers: { 'X-Shopify-Access-Token': adminToken, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query: `query($id: ID!) { product(id: $id) { title list: metafield(namespace: "custom", key: "freehub") { value } watch: metafield(namespace: "custom", key: "freehub_watch") { value } } }`, variables: { id: `gid://shopify/Product/${productId}` } })
+  });
+  const d = await r.json();
+  const p = d.data && d.data.product; if (!p) return null;
+  let list = null, watch = null;
+  try { list = p.list ? JSON.parse(p.list.value) : null; } catch (e) { list = null; }
+  try { watch = p.watch ? JSON.parse(p.watch.value) : null; } catch (e) { watch = null; }
+  return { title: p.title, list, watch };
+}
+async function writeHubMetafields(adminToken, productId, entries) {
+  try {
+    const r = await fetch(`https://${process.env.SHOPIFY_SHOP_NAME}.myshopify.com/admin/api/2024-04/graphql.json`, {
+      method: 'POST', headers: { 'X-Shopify-Access-Token': adminToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: `mutation($m: [MetafieldsSetInput!]!) { metafieldsSet(metafields: $m) { userErrors { message } } }`, variables: { m: entries.map((e) => ({ ownerId: `gid://shopify/Product/${productId}`, namespace: 'custom', key: e.key, type: e.type, value: e.value })) } })
+    });
+    const d = await r.json();
+    return !(d.errors && d.errors.length) && !((d.data && d.data.metafieldsSet && d.data.metafieldsSet.userErrors) || []).length;
+  } catch (e) { return false; }
 }
 
 let shopifyProductVariantsCache = {};
@@ -353,6 +378,7 @@ export default async function handler(req, res) {
     const baselineItems = [], heldOnceItems = [], autoApprovedItems = [];
     const priceLimiter = createFlipLimiter(PRICE_CAP);   // 'auto-approve-price': at most 40 price writes per vendor per run
     const autoPriceItems = [], basePriceItems = [], waitPriceItems = [];
+    const freehubJobs = new Map();   // productId -> { rule, variants } for rules tagged 'freehub-follow'
     const urlStats = {};
     let stoppedForTime = 0;
     const pageFailures = createFailureTracker();   // vendor pages that could not be read, with how many rules were not checked because of it
@@ -444,6 +470,8 @@ export default async function handler(req, res) {
             continue; // Skip processing this rule so we don't accidentally mark it Out of Stock!
           }
         }
+
+        if (hasTag(rule, 'freehub-follow') && vData && Array.isArray(vData.variants) && !freehubJobs.has(String(rule.shopify_product_id))) freehubJobs.set(String(rule.shopify_product_id), { rule, variants: vData.variants });
 
         let parsedOptions = rule.option_values || {};
         if (typeof parsedOptions === 'string') {
@@ -1193,6 +1221,32 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
     groupLines(baselineItems).forEach((l) => attention.push({ title: 'Baseline (nothing written)', reason: l }));
     groupLines(heldOnceItems).forEach((l) => attention.push({ title: 'Waiting for a second run', reason: l }));
     groupLines(autoApprovedItems).forEach((l) => stockChanges.push({ title: l, action: '📦 Auto-approved' }));
+    // freehub lists (tag 'freehub-follow'): one line per hub, at most 10 list changes per run; 'baseline' writes only our own observation, never the list
+    const freehubCap = createFlipLimiter(10);
+    for (const [fhProductId, job] of freehubJobs.entries()) {
+      try {
+        const cur = await readHubFreehub(adminToken, fhProductId);
+        const spacing = spacingOf(job.rule.title);
+        if (!cur || !Array.isArray(cur.list) || !spacing) { attention.push({ title: `Freehub list (${job.rule.title})`, reason: 'No freehub list or no 148/157 spacing in the title; nothing checked.' }); continue; }
+        const plan = planFreehubList({ list: cur.list, watch: cur.watch, states: driverStates(job.variants, spacing) });
+        const hubName = cur.title.replace(/^e\*thirteen /, '');
+        plan.notes.forEach((n) => attention.push({ title: `Freehub list: ${hubName}`, reason: n }));
+        const watchChanged = JSON.stringify(plan.newWatch) !== JSON.stringify(cur.watch);
+        const baseline = hasTag(job.rule, 'baseline');
+        const parts = [plan.removed.length ? `${plan.removed.join(', ')} removed from the freehub list (e*thirteen shows it out of stock)` : '', plan.added.length ? `${plan.added.join(', ')} added back (in stock again)` : ''].filter(Boolean).join('; ');
+        if (plan.changed && baseline) { attention.push({ title: 'Baseline (nothing written)', reason: `${hubName}: would change the freehub list: ${parts}` }); }
+        else if (plan.changed && !freehubCap.tryFlip('freehub')) { /* held: counted below */ }
+        else if (plan.changed) {
+          const ok = await writeHubMetafields(adminToken, fhProductId, [{ key: 'freehub', type: 'list.single_line_text_field', value: JSON.stringify(plan.newList) }, { key: 'freehub_watch', type: 'json', value: JSON.stringify(plan.newWatch) }]);
+          if (ok) stockChanges.push({ title: `${hubName}: ${parts}`, action: '🔧 Freehub list' });
+          else attention.push({ title: `Freehub list: ${hubName}`, reason: 'Could not write the freehub list to Shopify; nothing was changed.' });
+        } else if (watchChanged) {
+          await writeHubMetafields(adminToken, fhProductId, [{ key: 'freehub_watch', type: 'json', value: JSON.stringify(plan.newWatch) }]);
+        }
+      } catch (fe) { attention.push({ title: `Freehub list (${job.rule.title})`, reason: `Could not check: ${String(fe.message).slice(0, 100)}` }); }
+    }
+    Object.entries(freehubCap.held).forEach(([, n]) => attention.push({ title: 'Sync safety stop (freehub lists)', reason: `${n} freehub list change${n === 1 ? '' : 's'} NOT written this run (limit of 10 per run reached). They are picked up on the next run.` }));
+
     flipLimiter.lines().forEach((l) => attention.push({ title: 'Sync safety stop', reason: l }));
     priceLines(basePriceItems, 'would be repriced').forEach((l) => attention.push({ title: 'Baseline prices (nothing written)', reason: l }));
     priceLines(waitPriceItems, 'wait for a second run at the same vendor price').forEach((l) => attention.push({ title: 'Waiting for a second run (price)', reason: l }));
