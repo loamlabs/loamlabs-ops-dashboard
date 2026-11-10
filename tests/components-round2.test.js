@@ -110,3 +110,24 @@ test('excluded list: created when missing, add and remove, a no-op writes nothin
   const n = puts.length; r = await updateListFile({ ...c, message: 'm', mutate: (l) => l }); assert.equal(r.body.unchanged, true); assert.equal(puts.length, n);
   assert.deepEqual([...new Set(puts)], ['excluded']);
 });
+
+test("correcting a row's Shopify variant id is an EDIT (no delete confirmation, no archive), the row stays", async () => {
+  const live = [rim(1), rim(2, { shopify_variant_id: '9999', Title: 'Rim 2 SL' }), rim(3)];
+  const g = fakeRepo(live); const cur = await readFile({ ...C(g), name: 'rims' });
+  const fixed = live.map((r) => (r.Title === 'Rim 2 SL' ? { ...r, shopify_variant_id: '4242' } : r));
+  const res = await saveFiles({ ...C(g), changes: { rims: fixed }, baseShas: { rims: cur.sha } });
+  assert.equal(res.status, 200); assert.equal(res.body.written.rims.edited, 1); assert.equal(res.body.written.rims.removed, 0); assert.equal(g.current().length, 3);
+  assert.equal(g.current().find((r) => r.Title === 'Rim 2 SL').shopify_variant_id, '4242');
+});
+
+test("two rows that share one variant id: correcting the id of one of them, or renaming one, is an edit and not a delete", async () => {
+  const live = [rim(1), rim(2, { shopify_variant_id: "7777", "Option1 Value": "27.5\"" }), rim(3, { shopify_variant_id: "7777", "Option1 Value": "29\"", Title: "Rim 3" }), rim(4)];
+  const g = fakeRepo(live); const cur = await readFile({ ...C(g), name: "rims" });
+  const fixed = live.map((r) => (r.Title === "Rim 2" ? { ...r, shopify_variant_id: "8888" } : r));
+  const a = await saveFiles({ ...C(g), changes: { rims: fixed }, baseShas: { rims: cur.sha } });
+  assert.equal(a.status, 200); assert.deepEqual([a.body.written.rims.edited, a.body.written.rims.removed], [1, 0]);
+  const cur2 = await readFile({ ...C(g), name: "rims" });
+  const renamed = JSON.parse(g.sha ? JSON.stringify(g.current()) : "[]").map((r) => (r.Title === "Rim 4" ? { ...r, Title: "Rim 4 renamed" } : r));
+  const b = await saveFiles({ ...C(g), changes: { rims: renamed }, baseShas: { rims: cur2.sha } });
+  assert.equal(b.status, 200); assert.deepEqual([b.body.written.rims.edited, b.body.written.rims.removed], [1, 0]);
+});
