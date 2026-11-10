@@ -1,4 +1,5 @@
 import { FILES, readFile, saveFiles } from '../../lib/components-store';
+import { liveStatusLookup } from '../../lib/shopify-variant-status';
 
 export const config = { api: { bodyParser: { sizeLimit: '10mb' } } };
 
@@ -29,10 +30,12 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'POST') {
-        const { baseShas = {}, allowRemove = {} } = req.body || {};
+        const { baseShas = {}, allowRemove = {}, confirmDelete = false } = req.body || {};
         const changes = {}; FILES.forEach((f) => { if (req.body && Array.isArray(req.body[f])) changes[f] = req.body[f]; });
         try {
-            const result = await saveFiles({ repo, pat, changes, baseShas, allowRemove });
+            // Shopify is only READ here, to refuse deleting rows of retired/draft/missing products
+            let statusLookup = null; try { statusLookup = await liveStatusLookup(process.env); } catch (e) { statusLookup = null; }
+            const result = await saveFiles({ repo, pat, changes, baseShas, allowRemove, confirmDelete: confirmDelete === true, statusLookup });
             return res.status(result.status).json(result.body);
         } catch (e) {
             console.error(e);

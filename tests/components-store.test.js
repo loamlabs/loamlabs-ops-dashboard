@@ -13,13 +13,13 @@ function fakeGithub(files, opts = {}) {
   const fetchFn = async (url, init = {}) => {
     calls.push((init.method || 'GET') + ' ' + url.replace('https://api.github.com/repos/o/r', '').split('?')[0]);
     if (opts.down) return { ok: false, status: 503, json: async () => ({}), text: async () => '' };
-    const m = /contents\/component-data\/(\w+)\.json/.exec(url);
+    const m = /contents\/component-data\/([\w-]+)\.json/.exec(url);
     if (m && (init.method || 'GET') === 'GET') { const f = store[m[1]]; if (!f) return { ok: false, status: 404, json: async () => ({}), text: async () => '' }; return { ok: true, status: 200, json: async () => ({ sha: f.sha }) }; }
     const b = /git\/blobs\/(\w+)/.exec(url);
     if (b) { const f = Object.values(store).find((x) => x.sha === b[1]); if (!f) return { ok: false, status: 404, text: async () => '' }; return { ok: true, status: 200, text: async () => (opts.corrupt ? '<html>oops' : f.text) }; }
     if (m && init.method === 'PUT') {
       const body = JSON.parse(init.body); const f = store[m[1]];
-      if (!f || body.sha !== f.sha) return { ok: false, status: 409, json: async () => ({}) };
+      if (!f && !body.sha) { /* creating a new file */ } else if (!f || body.sha !== f.sha) return { ok: false, status: 409, json: async () => ({}) };
       const text = Buffer.from(body.content, 'base64').toString('utf8'); store[m[1]] = { text, sha: sha(text) }; commits.push({ file: m[1], message: body.message });
       return { ok: true, status: 200, json: async () => ({ content: { sha: store[m[1]].sha } }) };
     }
@@ -30,6 +30,8 @@ function fakeGithub(files, opts = {}) {
 const rim = (n, erd = 600, extra = {}) => ({ shopify_variant_id: String(1000 + n), Title: `Rim ${n}`, Vendor: 'Acme', 'Option1 Value': '29"', 'Option2 Value': '28h', 'Variant Metafield: custom.rim_erd [number_decimal]': erd, _rid: `rid_${n}`, ...extra });
 const rows = (n) => Array.from({ length: n }, (_, i) => rim(i + 1));
 const ctx = (g) => ({ fetchFn: g.fetchFn, repo: 'o/r', pat: 'x' });
+const allActive = async (ids) => Object.fromEntries(ids.map((i) => [i, 'ACTIVE']));
+const del = (g) => ({ ...ctx(g), confirmDelete: true, statusLookup: allActive });
 
 test('read: returns the rows and the version it read (content is read by that same version)', async () => {
   const g = fakeGithub({ rims: rows(3) });
@@ -75,12 +77,12 @@ test('save: the empty-list disaster is stopped (shrink guard), and an informed o
   const g = fakeGithub({ rims: rows(100) }); const cur = await readFile({ ...ctx(g), name: 'rims' });
   const wipe = await saveFiles({ ...ctx(g), changes: { rims: [] }, baseShas: { rims: cur.sha } });
   assert.equal(wipe.status, 422); assert.equal(wipe.body.code, 'SHRINK'); assert.equal(wipe.body.removing, 100); assert.equal(g.commits.length, 0);
-  const small = await saveFiles({ ...ctx(g), changes: { rims: rows(98) }, baseShas: { rims: cur.sha } });   // 2 removed: below the limit
+  const small = await saveFiles({ ...del(g), changes: { rims: rows(98) }, baseShas: { rims: cur.sha } });   // 2 removed: below the limit
   assert.equal(small.status, 200);
   const cur2 = await readFile({ ...ctx(g), name: 'rims' });
-  const ten = await saveFiles({ ...ctx(g), changes: { rims: rows(88) }, baseShas: { rims: cur2.sha } });      // 10 removed: needs confirmation
+  const ten = await saveFiles({ ...del(g), changes: { rims: rows(88) }, baseShas: { rims: cur2.sha } });      // 10 removed: needs confirmation
   assert.equal(ten.status, 422);
-  const okTen = await saveFiles({ ...ctx(g), changes: { rims: rows(88) }, baseShas: { rims: cur2.sha }, allowRemove: { rims: 10 } });
+  const okTen = await saveFiles({ ...del(g), changes: { rims: rows(88) }, baseShas: { rims: cur2.sha }, allowRemove: { rims: 10 } });
   assert.equal(okTen.status, 200); assert.match(g.commits.at(-1).message, /removed 10 \(/);
 });
 
@@ -135,4 +137,33 @@ test('a file that ALREADY has duplicate variant ids can still be saved (no-chang
   const worse = JSON.parse(g.store.rims.text).concat([rim(2, 600, { Title: 'Rim 2 third', 'Option1 Value': '26"' })]);
   const res = await saveFiles({ ...ctx(g), changes: { rims: worse }, baseShas: { rims: cur2.sha } });
   assert.equal(res.status, 422); assert.match(res.body.error, /variant id 1002/);
+});
+
+test("Jerry's rule: a row whose Shopify variant is draft, archived or missing can never be deleted (retire instead); nothing is written", async () => {
+  const g = fakeGithub({ rims: rows(10) }); const cur = await readFile({ ...ctx(g), name: 'rims' });
+  const lookup = async (ids) => Object.fromEntries(ids.map((i) => [i, i === '1003' ? 'DRAFT' : i === '1004' ? 'MISSING' : 'ACTIVE']));
+  const res = await saveFiles({ ...ctx(g), confirmDelete: true, statusLookup: lookup, changes: { rims: rows(10).filter((r, i) => i !== 2) }, baseShas: { rims: cur.sha } });
+  assert.equal(res.status, 422); assert.equal(res.body.code, 'RETIRE_INSTEAD'); assert.deepEqual(res.body.rows, ['Rim 3']); assert.equal(g.commits.length, 0);
+  const res2 = await saveFiles({ ...ctx(g), confirmDelete: true, statusLookup: lookup, changes: { rims: rows(10).filter((r, i) => i !== 3) }, baseShas: { rims: cur.sha } });
+  assert.equal(res2.body.code, 'RETIRE_INSTEAD');   // missing in Shopify counts the same as draft
+});
+
+test('delete needs the typed confirmation, checks Shopify, and archives a copy first', async () => {
+  const g = fakeGithub({ rims: rows(10) }); const cur = await readFile({ ...ctx(g), name: 'rims' });
+  const next = rows(10).filter((r, i) => i !== 5);
+  assert.equal((await saveFiles({ ...ctx(g), statusLookup: allActive, changes: { rims: next }, baseShas: { rims: cur.sha } })).body.code, 'CONFIRM_DELETE');
+  assert.equal((await saveFiles({ ...ctx(g), confirmDelete: true, changes: { rims: next }, baseShas: { rims: cur.sha } })).body.code, 'STATUS_UNKNOWN');     // cannot check -> no delete
+  const ok = await saveFiles({ ...del(g), changes: { rims: next }, baseShas: { rims: cur.sha }, now: () => '2026-11-10T00:00:00Z' });
+  assert.equal(ok.status, 200);
+  const archive = JSON.parse(g.store['deleted-archive'].text); assert.equal(archive.length, 1); assert.equal(archive[0].row.Title, 'Rim 6'); assert.equal(archive[0].file, 'rims'); assert.equal(archive[0].deletedAt, '2026-11-10T00:00:00Z');
+  assert.equal(JSON.parse(g.store.rims.text).length, 9);
+  assert.ok(g.commits[0].file === 'deleted-archive' && g.commits[1].file === 'rims');   // archive written BEFORE the rows are removed
+});
+
+test('Status column: active or retired only; a retired row is saved as is and stays in the file', async () => {
+  const g = fakeGithub({ rims: rows(5) }); const cur = await readFile({ ...ctx(g), name: 'rims' });
+  const bad = await saveFiles({ ...ctx(g), changes: { rims: rows(5).map((r, i) => (i === 0 ? { ...r, Status: 'gone' } : r)) }, baseShas: { rims: cur.sha } });
+  assert.match(bad.body.error, /Status must be active or retired/);
+  const ok = await saveFiles({ ...ctx(g), changes: { rims: rows(5).map((r, i) => (i === 0 ? { ...r, Status: 'retired' } : r)) }, baseShas: { rims: cur.sha } });
+  assert.equal(ok.status, 200); assert.equal(JSON.parse(g.store.rims.text)[0].Status, 'retired'); assert.equal(JSON.parse(g.store.rims.text).length, 5);
 });

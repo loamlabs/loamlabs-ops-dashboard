@@ -852,7 +852,7 @@ return { isValid: missing.length === 0, missingFields: missing };
     };
   }, [isAuthorized]);
 
-  const saveComponentChanges = React.useCallback(async (newArray, tabOverride = null, allowRemoveCount = 0) => {
+  const saveComponentChanges = React.useCallback(async (newArray, tabOverride = null, allowRemoveCount = 0, confirmDelete = false) => {
     const tab = tabOverride || componentTab;
     if (!tab) {
         showNotification("Save Error: No category selected", "error");
@@ -888,7 +888,7 @@ return { isValid: missing.length === 0, missingFields: missing };
       const res = await fetch('/api/components', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-dashboard-auth': auth },
-        body: JSON.stringify({ [tab]: sanitizedArray, baseShas: { [tab]: componentShas[tab] }, allowRemove: allowRemoveCount ? { [tab]: allowRemoveCount } : {} })
+        body: JSON.stringify({ [tab]: sanitizedArray, baseShas: { [tab]: componentShas[tab] }, allowRemove: allowRemoveCount ? { [tab]: allowRemoveCount } : {}, confirmDelete })
       });
       if (res.ok) {
         try { const done = await res.clone().json(); const w = done.written && done.written[tab]; if (w && w.sha) setComponentShas(prev => ({ ...prev, [tab]: w.sha })); } catch (e) { /* sha refreshed on next load */ }
@@ -907,9 +907,14 @@ return { isValid: missing.length === 0, missingFields: missing };
       } else {
         const err = await res.json().catch(() => ({}));
         setComponentSaving(false);
-        if (err.code === 'SHRINK' && window.confirm(err.error + '\n\nRemove ' + err.removing + ' rows and save anyway?')) {
-          return saveComponentChanges(newArray, tab, err.removing);
+        if (err.code === 'SHRINK' || err.code === 'CONFIRM_DELETE') {
+          // deleting is the last resort: show what goes, ask for the typed word; the server archives a copy and refuses rows of retired/draft/missing Shopify products
+          const typed = window.prompt(err.error + '\n\nA copy of every deleted row is kept in an archive file. Type DELETE to remove ' + err.removing + ' row(s):');
+          if (typed === 'DELETE') return saveComponentChanges(newArray, tab, err.removing, true);
+          showNotification('Nothing was deleted.', 'info');
+          return false;
         }
+        if (err.code === 'RETIRE_INSTEAD') { showNotification(err.error, 'error'); return false; }
         showNotification((err.code === 'CONFLICT' ? 'Save refused: ' : 'Save Failed: ') + (err.error || 'Unknown error'), 'error');
         if (err.code === 'CONFLICT') { setComponentsLoaded(false); }   // reload the library (staged edits in the grid are kept)
         return false;
