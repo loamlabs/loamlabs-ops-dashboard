@@ -1,8 +1,9 @@
 import React from 'react';
+import ComponentTools from '../ComponentTools';
 import { RefreshCcw, Search, Plus, Settings, X, ShieldAlert, ChevronDown, Info, ExternalLink, Loader2, AlertCircle, Clock, ShieldCheck, Layers, FileDown, Eye, CheckCircle2, Copy, Play, ArrowDownToLine, GitMerge, FileUp, Save, UploadCloud, FileEdit, HelpCircle } from 'lucide-react';
 
 export default function ComponentLibrary(props) {
-  const { componentLoadError, fetchComponentLibrary, fetchComponentHistory, loadingHistory, handleSyncSpecsFromShopify, loading, selectedComponents, componentTab, handleDiscoverVariantIds, isDiscoveringVariants, Zap, handleAuditShopifySync, isAuditing, handleAddNewRow, handleCreateNewComponent, Edit3, componentData, getComponentUniqueId, syncMismatches, setComponentTab, setComponentVendorFilter, setShowMissingOnly, setShowMismatchesOnly, uniqueVendors, componentVendorFilter, showMissingOnly, showMismatchesOnly, AlertTriangle, componentSearch, setComponentSearch, componentsLoaded, finalFilteredList, Database, ComponentLibraryGrid, setSelectedComponents, gridUnsavedChanges, handleGridEdit, handleGridPaste, componentColumnWidths, startResizing, handleDragStart, handleDragOver, handleDrop, formatColumnTitle, getComponentValidation, toggleComponentSelection, handleRemoveAddedRow, handleDeleteComponent, handleDuplicateComponent, DROPDOWN_OPTIONS, handleEditComponent, saveComponentChanges, focusedCell, setFocusedCell, selectedCells, setSelectedCells, handleClipboardCopy, handleBulkPaste, editingCell, setEditingCell, componentSaving, componentColumnOrder, isComponentDrawerOpen, editingComponent, setIsComponentDrawerOpen, isDuplicateMode, getComponentValue, setEditingComponent, productSyncId, setProductSyncId, isImportingProduct, handleImportProductByID, RefreshCw, MANDATORY_FIELDS, metafieldOptionsMap, spokePolish, isBulkEditDrawerOpen, setIsBulkEditDrawerOpen, bulkEditComponent, setBulkEditComponent, handleBulkEdit } = props;
+  const { showNotification, componentLoadError, fetchComponentLibrary, fetchComponentHistory, loadingHistory, handleSyncSpecsFromShopify, loading, selectedComponents, componentTab, handleDiscoverVariantIds, isDiscoveringVariants, Zap, handleAuditShopifySync, isAuditing, handleAddNewRow, handleCreateNewComponent, Edit3, componentData, getComponentUniqueId, syncMismatches, setComponentTab, setComponentVendorFilter, setShowMissingOnly, setShowMismatchesOnly, uniqueVendors, componentVendorFilter, showMissingOnly, showMismatchesOnly, AlertTriangle, componentSearch, setComponentSearch, componentsLoaded, finalFilteredList, Database, ComponentLibraryGrid, setSelectedComponents, gridUnsavedChanges, handleGridEdit, handleGridPaste, componentColumnWidths, startResizing, handleDragStart, handleDragOver, handleDrop, formatColumnTitle, getComponentValidation, toggleComponentSelection, handleRemoveAddedRow, handleDeleteComponent, handleDuplicateComponent, DROPDOWN_OPTIONS, handleEditComponent, saveComponentChanges, focusedCell, setFocusedCell, selectedCells, setSelectedCells, handleClipboardCopy, handleBulkPaste, editingCell, setEditingCell, componentSaving, componentColumnOrder, isComponentDrawerOpen, editingComponent, setIsComponentDrawerOpen, isDuplicateMode, getComponentValue, setEditingComponent, productSyncId, setProductSyncId, isImportingProduct, handleImportProductByID, RefreshCw, MANDATORY_FIELDS, metafieldOptionsMap, spokePolish, isBulkEditDrawerOpen, setIsBulkEditDrawerOpen, bulkEditComponent, setBulkEditComponent, handleBulkEdit } = props;
 
   return (
            <>
@@ -53,6 +54,8 @@ export default function ComponentLibrary(props) {
                         </button>
                     </div>
                 </div>
+
+                <ComponentTools componentTab={componentTab} notify={showNotification} onChanged={() => fetchComponentLibrary()} />
 
                 <div className="mb-10">
                    <div className="flex gap-4 mb-8 border-b-2 border-zinc-100 pb-2">
