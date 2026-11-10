@@ -543,6 +543,7 @@ const ComponentLibraryGrid = React.memo(({
                               onPaste={(e) => handleGridPaste(e, rowId, 'Name', biologicalCols)}
                             />
                         </div>
+                        {String(unsaved['Status'] !== undefined ? unsaved['Status'] : (row.Status || '')).toLowerCase() === 'retired' && (<span className="ml-2 mr-2 px-2 py-0.5 rounded-md bg-zinc-200 text-zinc-600 text-[8px] font-black uppercase tracking-widest whitespace-nowrap">Retired</span>)}
                         {!isValid && (
                           <div 
                             className="flex-shrink-0 ml-2 animate-pulse cursor-help" 

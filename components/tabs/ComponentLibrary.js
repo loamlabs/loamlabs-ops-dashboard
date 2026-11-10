@@ -1,9 +1,10 @@
 import React from 'react';
 import ComponentTools from '../ComponentTools';
+import { findRowIndex } from '../../lib/components-keys';
 import { RefreshCcw, Search, Plus, Settings, X, ShieldAlert, ChevronDown, Info, ExternalLink, Loader2, AlertCircle, Clock, ShieldCheck, Layers, FileDown, Eye, CheckCircle2, Copy, Play, ArrowDownToLine, GitMerge, FileUp, Save, UploadCloud, FileEdit, HelpCircle } from 'lucide-react';
 
 export default function ComponentLibrary(props) {
-  const { showNotification, componentLoadError, fetchComponentLibrary, fetchComponentHistory, loadingHistory, handleSyncSpecsFromShopify, loading, selectedComponents, componentTab, handleDiscoverVariantIds, isDiscoveringVariants, Zap, handleAuditShopifySync, isAuditing, handleAddNewRow, handleCreateNewComponent, Edit3, componentData, getComponentUniqueId, syncMismatches, setComponentTab, setComponentVendorFilter, setShowMissingOnly, setShowMismatchesOnly, uniqueVendors, componentVendorFilter, showMissingOnly, showMismatchesOnly, AlertTriangle, componentSearch, setComponentSearch, componentsLoaded, finalFilteredList, Database, ComponentLibraryGrid, setSelectedComponents, gridUnsavedChanges, handleGridEdit, handleGridPaste, componentColumnWidths, startResizing, handleDragStart, handleDragOver, handleDrop, formatColumnTitle, getComponentValidation, toggleComponentSelection, handleRemoveAddedRow, handleDeleteComponent, handleDuplicateComponent, DROPDOWN_OPTIONS, handleEditComponent, saveComponentChanges, focusedCell, setFocusedCell, selectedCells, setSelectedCells, handleClipboardCopy, handleBulkPaste, editingCell, setEditingCell, componentSaving, componentColumnOrder, isComponentDrawerOpen, editingComponent, setIsComponentDrawerOpen, isDuplicateMode, getComponentValue, setEditingComponent, productSyncId, setProductSyncId, isImportingProduct, handleImportProductByID, RefreshCw, MANDATORY_FIELDS, metafieldOptionsMap, spokePolish, isBulkEditDrawerOpen, setIsBulkEditDrawerOpen, bulkEditComponent, setBulkEditComponent, handleBulkEdit } = props;
+  const { componentStatusFilter, setComponentStatusFilter, unsavedCount, discardUnsaved, showNotification, componentLoadError, fetchComponentLibrary, fetchComponentHistory, loadingHistory, handleSyncSpecsFromShopify, loading, selectedComponents, componentTab, handleDiscoverVariantIds, isDiscoveringVariants, Zap, handleAuditShopifySync, isAuditing, handleAddNewRow, handleCreateNewComponent, Edit3, componentData, getComponentUniqueId, syncMismatches, setComponentTab, setComponentVendorFilter, setShowMissingOnly, setShowMismatchesOnly, uniqueVendors, componentVendorFilter, showMissingOnly, showMismatchesOnly, AlertTriangle, componentSearch, setComponentSearch, componentsLoaded, finalFilteredList, Database, ComponentLibraryGrid, setSelectedComponents, gridUnsavedChanges, handleGridEdit, handleGridPaste, componentColumnWidths, startResizing, handleDragStart, handleDragOver, handleDrop, formatColumnTitle, getComponentValidation, toggleComponentSelection, handleRemoveAddedRow, handleDeleteComponent, handleDuplicateComponent, DROPDOWN_OPTIONS, handleEditComponent, saveComponentChanges, focusedCell, setFocusedCell, selectedCells, setSelectedCells, handleClipboardCopy, handleBulkPaste, editingCell, setEditingCell, componentSaving, componentColumnOrder, isComponentDrawerOpen, editingComponent, setIsComponentDrawerOpen, isDuplicateMode, getComponentValue, setEditingComponent, productSyncId, setProductSyncId, isImportingProduct, handleImportProductByID, RefreshCw, MANDATORY_FIELDS, metafieldOptionsMap, spokePolish, isBulkEditDrawerOpen, setIsBulkEditDrawerOpen, bulkEditComponent, setBulkEditComponent, handleBulkEdit } = props;
 
   return (
            <>
@@ -55,6 +56,12 @@ export default function ComponentLibrary(props) {
                     </div>
                 </div>
 
+                {unsavedCount > 0 && (
+                   <div className="mb-6 p-4 rounded-2xl border-2 border-amber-300 bg-amber-50 flex items-center justify-between">
+                      <span className="text-xs font-black uppercase tracking-widest text-amber-700">You have {unsavedCount} unsaved change{unsavedCount === 1 ? '' : 's'} (kept in this browser, they survive a refresh)</span>
+                      <button onClick={discardUnsaved} className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest bg-white border border-amber-300 text-amber-700 hover:bg-amber-100">Discard</button>
+                   </div>
+                )}
                 <ComponentTools componentTab={componentTab} notify={showNotification} onChanged={() => fetchComponentLibrary()} />
 
                 <div className="mb-10">
@@ -103,6 +110,10 @@ export default function ComponentLibrary(props) {
 
                          <div className="pt-6 border-t border-zinc-100 flex items-center justify-between">
                             <div>
+                               <label className="block text-[10px] font-black uppercase text-zinc-400 tracking-[0.2em] italic mb-2">Status (label only, customers see all rows)</label>
+                               <div className="flex gap-2 mb-4">{['All', 'active', 'retired'].map(st => (
+                                  <button key={st} onClick={() => setComponentStatusFilter(st)} className={`px-3 py-1.5 rounded-xl border-2 text-[10px] font-black uppercase ${componentStatusFilter === st ? 'bg-black text-white border-black' : 'bg-white text-zinc-500 border-zinc-200'}`}>{st}</button>
+                               ))}</div>
                                <label className="block text-[10px] font-black uppercase text-zinc-400 tracking-[0.2em] italic mb-4">Data Integrity Filters</label>
                                <div className="flex items-center gap-2 p-1 bg-zinc-100/50 rounded-2xl border border-zinc-100 w-fit">
                                   <button onClick={() => { setShowMissingOnly(false); setShowMismatchesOnly(false); }} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${(!showMissingOnly && !showMismatchesOnly) ? "bg-white text-black shadow-sm" : "text-zinc-400 hover:text-zinc-600"}`}>All</button>
@@ -377,7 +388,7 @@ export default function ComponentLibrary(props) {
  if (!incomplete.isValid && !window.confirm('These fields are still empty: ' + incomplete.missingFields.slice(0, 8).join(', ') + (incomplete.missingFields.length > 8 ? ' ...' : '') + '\n\nSave this row anyway?')) return;
                                             const activeArray = [...(componentData[componentTab] || [])];
                                             const targetId = editingComponent._rid || getComponentUniqueId(editingComponent, editingComponent._editIdx);
-                                            const existingIdx = editingComponent._rawIdx !== undefined ? editingComponent._rawIdx : activeArray.findIndex(r => (r._rid || getComponentUniqueId(r)) === targetId);
+                                            const existingIdx = findRowIndex(activeArray, editingComponent);   // by row key, never by remembered position
                                             
                                             const { _rawIdx, ...cleanComp } = editingComponent;
                                             if (existingIdx >= 0 && !isDuplicateMode) {
@@ -405,7 +416,7 @@ export default function ComponentLibrary(props) {
  if (!incomplete.isValid && !window.confirm('These fields are still empty: ' + incomplete.missingFields.slice(0, 8).join(', ') + (incomplete.missingFields.length > 8 ? ' ...' : '') + '\n\nSave this row anyway?')) return;
                                              const targetId = editingComponent._rid || getComponentUniqueId(editingComponent, editingComponent._editIdx);
                                              const activeArray = [...(componentData[componentTab] || [])];
-                                             const existingIdx = editingComponent._rawIdx !== undefined ? editingComponent._rawIdx : activeArray.findIndex(r => (r._rid || getComponentUniqueId(r)) === targetId);
+                                             const existingIdx = findRowIndex(activeArray, editingComponent);   // by row key, never by remembered position
                                              
                                              const { _rawIdx, ...cleanComp } = editingComponent;
                                              if (existingIdx >= 0) {

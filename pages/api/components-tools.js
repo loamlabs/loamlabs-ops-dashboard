@@ -1,4 +1,4 @@
-import { FILES, readFile, saveFiles, historyWithDiff, restoreVersion } from '../../lib/components-store';
+import { FILES, readFile, saveFiles, historyWithDiff, restoreVersion, updateListFile } from '../../lib/components-store';
 import { rowsFromCsv, previewImport } from '../../lib/components-csv';
 import { liveStatusLookup } from '../../lib/shopify-variant-status';
 import { buildPushPlan, executePush, planUndo } from '../../lib/components-push';
@@ -52,6 +52,13 @@ export default async function handler(req, res) {
             if (p.problems.length || parsed.errors.length) return res.status(422).json({ error: 'The CSV has problems; nothing was added.', problems: p.problems, parseErrors: parsed.errors });
             if (!body.baseSha) return res.status(400).json({ error: 'Preview first, then add.' });
             const out = await saveFiles({ repo, pat, changes: { [tab]: f.data.concat(p.toAdd) }, baseShas: { [tab]: body.baseSha } });
+            return res.status(out.status).json(out.body);
+        }
+        if (action === 'excluded-save') {
+            // products that are intentionally NOT in the calculator (rim brake, road, Your Own Rim...): stored in component-data/excluded.json, which the customer API never reads
+            const add = (Array.isArray(body.add) ? body.add : []).filter((x) => x && x.id).map((x) => ({ id: String(x.id), title: String(x.title || ''), tab, reason: String(x.reason || 'not a calculator product').slice(0, 80) }));
+            const remove = new Set((Array.isArray(body.remove) ? body.remove : []).map(String));
+            const out = await updateListFile({ repo, pat, name: 'excluded', message: `Dashboard: excluded products (+${add.length}, -${remove.size})`, mutate: (list) => list.filter((e) => !(remove.has(String(e.id)) && (!e.tab || e.tab === tab))).concat(add.filter((a) => !list.some((e) => String(e.id) === a.id && (!e.tab || e.tab === tab)))) });
             return res.status(out.status).json(out.body);
         }
         if (action === 'restore') {

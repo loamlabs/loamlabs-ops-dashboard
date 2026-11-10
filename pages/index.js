@@ -6,6 +6,7 @@ import BtiSync from '../components/tabs/BtiSync';
 import ProductLab from '../components/tabs/ProductLab';
 import { RefreshCcw, RefreshCw, Search, Package, ShieldCheck, ShieldAlert, Plus, X, Info, Image as ImageIcon, Loader2, LogOut, ChevronUp, ChevronDown, ChevronRight, Trash2, AlertCircle, AlertTriangle, Zap, ZapOff, DollarSign, Tag, History, Activity, Beaker, Edit3, Edit, Settings, ExternalLink, BarChart, Database, CheckCircle, Layers, Clock, Copy } from 'lucide-react';
 import ComponentLibrary from '../components/tabs/ComponentLibrary';
+import { findLegacyKeys } from '../lib/components-keys';
 import Insights from '../components/tabs/Insights';
 import AdminModule from '../components/tabs/AdminModule';
 import ShopHealth from '../components/tabs/ShopHealth';
@@ -110,6 +111,7 @@ export default function OpsDashboard() {
   const [componentLoadError, setComponentLoadError] = useState(null);   // set when a file could not be read: Save stays off, nothing is shown as empty
   const [componentTab, setComponentTab] = useState('rims');
   const [componentVendorFilter, setComponentVendorFilter] = useState('All');
+  const [componentStatusFilter, setComponentStatusFilter] = useState('All');   // label only: All / active / retired
   const [componentSearch, setComponentSearch] = useState('');
   const [componentColumnOrder, setComponentColumnOrder] = useState({});
   const [selectedComponents, setSelectedComponents] = useState([]);
@@ -821,6 +823,27 @@ return { isValid: missing.length === 0, missingFields: missing };
     }
   }, [password, componentsLoaded, activeTab]);
 
+  // 2b. Staged (unsaved) library edits survive a refresh: restored once the library has loaded, saved to this browser on every change
+  const unsavedRestoredRef = React.useRef(false);
+  useEffect(() => {
+    if (!componentsLoaded || unsavedRestoredRef.current) return;
+    unsavedRestoredRef.current = true;
+    try {
+      const raw = localStorage.getItem('ll_lib_unsaved_v1');
+      if (raw) { const d = JSON.parse(raw); if (d.changes) setGridUnsavedChanges(d.changes); if (d.added) setGridAddedRows(prev => ({ ...prev, ...d.added })); }
+    } catch (e) { /* storage unavailable: nothing to restore */ }
+  }, [componentsLoaded]);
+  useEffect(() => {
+    if (!unsavedRestoredRef.current) return;
+    try { localStorage.setItem('ll_lib_unsaved_v1', JSON.stringify({ changes: gridUnsavedChanges, added: gridAddedRows })); } catch (e) { /* ignore */ }
+  }, [gridUnsavedChanges, gridAddedRows]);
+  const unsavedCount = React.useMemo(() => Object.values(gridUnsavedChanges || {}).reduce((n, tab) => n + Object.keys(tab || {}).length, 0) + Object.values(gridAddedRows || {}).reduce((n, rows) => n + (rows || []).length, 0), [gridUnsavedChanges, gridAddedRows]);
+  const discardUnsaved = () => {
+    if (!window.confirm('Discard all ' + unsavedCount + ' unsaved changes? This cannot be undone.')) return;
+    setGridUnsavedChanges({}); setGridAddedRows({ hubs: [], rims: [], spokes: [], nipples: [] });
+    try { localStorage.removeItem('ll_lib_unsaved_v1'); } catch (e) { /* ignore */ }
+  };
+
   // 3. Smart Tab-Aware Data Refresh (Pauses completely when tab is hidden/inactive)
   useEffect(() => {
     if (!isAuthorized) return;
@@ -868,13 +891,19 @@ return { isValid: missing.length === 0, missingFields: missing };
     ];
     
     const cleanArray = unifyComponentKeys(newArray);
+    // old field names used to be deleted silently on every save: list them and ask
+    let dropLegacy = true;
+    const legacyFound = findLegacyKeys(cleanArray);
+    if (Object.keys(legacyFound).length > 0) {
+      dropLegacy = window.confirm('Some rows still have old field names:\n' + Object.entries(legacyFound).map(([k, n]) => k + ' (' + n + ' rows)').join('\n') + '\n\nOK = remove these old fields while saving.\nCancel = keep them as they are.');
+    }
     const sanitizedArray = cleanArray.map(item => {
       const { tags, Tags, _rawIdx, _editIdx, ...rest } = item || {};
       if (!item) return null;
       
       // DEEP CLEAN: Remove legacy/deprecated keys
       const finalItem = { ...rest };
-      DEPRECATED_KEYS.forEach(k => delete finalItem[k]);
+      if (dropLegacy) DEPRECATED_KEYS.forEach(k => delete finalItem[k]);
       
       return finalItem;
     });
@@ -891,7 +920,7 @@ return { isValid: missing.length === 0, missingFields: missing };
         body: JSON.stringify({ [tab]: sanitizedArray, baseShas: { [tab]: componentShas[tab] }, allowRemove: allowRemoveCount ? { [tab]: allowRemoveCount } : {}, confirmDelete })
       });
       if (res.ok) {
-        try { const done = await res.clone().json(); const w = done.written && done.written[tab]; if (w && w.sha) setComponentShas(prev => ({ ...prev, [tab]: w.sha })); } catch (e) { /* sha refreshed on next load */ }
+        try { const done = await res.clone().json(); if (done.merged) { showNotification('Saved. Someone else had changed other rows meanwhile; their changes were combined with yours. Reloading the list.', 'success'); setTimeout(() => setComponentsLoaded(false), 50); } const w = done.written && done.written[tab]; if (w && w.sha) setComponentShas(prev => ({ ...prev, [tab]: w.sha })); } catch (e) { /* sha refreshed on next load */ }
         // Transition items: strip _isNew flag from CLEANED data
         const transitionedArray = cleanArray.map(item => {
            const { _isNew, ...rest } = item;
@@ -1852,6 +1881,15 @@ return { isValid: missing.length === 0, missingFields: missing };
           return v === componentVendorFilter;
       });
 
+    if (componentStatusFilter !== 'All') {
+      preFilteredList = preFilteredList.filter(item => {
+        const rid = item?._rid || getComponentUniqueId(item);
+        const unsaved = (gridUnsavedChanges[componentTab] || {})[rid] || {};
+        const st = String(unsaved.Status !== undefined ? unsaved.Status : (item.Status || 'active')).toLowerCase() || 'active';
+        return st === componentStatusFilter;
+      });
+    }
+
     if (showMissingOnly) {
       preFilteredList = preFilteredList.filter(item => !getComponentValidation(item, componentTab).isValid);
     }
@@ -1896,7 +1934,7 @@ return { isValid: missing.length === 0, missingFields: missing };
       const bN = (b.Title || b.Name || b.name || b.title || "Unknown").toLowerCase();
       return aN.localeCompare(bN);
     });
-  }, [componentData, componentTab, gridAddedRows, gridUnsavedChanges, componentVendorFilter, showMissingOnly, showMismatchesOnly, syncMismatches, getComponentValidation, getComponentUniqueId, componentSearch]);
+  }, [componentData, componentTab, gridAddedRows, gridUnsavedChanges, componentVendorFilter, showMissingOnly, showMismatchesOnly, syncMismatches, getComponentValidation, getComponentUniqueId, componentSearch, componentStatusFilter]);
 
   const handleCreateNewComponent = React.useCallback((tab) => {
     const activeList = componentData[tab] || [];
@@ -2781,7 +2819,7 @@ return { isValid: missing.length === 0, missingFields: missing };
         ) : activeTab === 'audit' ? (
           <ShopHealth {...{ HealthCard, rules }} />
         ) : activeTab === 'component_library' ? (
-          <ComponentLibrary {...{ showNotification, componentLoadError, fetchComponentLibrary, fetchComponentHistory, loadingHistory, handleSyncSpecsFromShopify, loading, selectedComponents, componentTab, handleDiscoverVariantIds, isDiscoveringVariants, Zap, handleAuditShopifySync, isAuditing, handleAddNewRow, handleCreateNewComponent, Edit3, componentData, getComponentUniqueId, syncMismatches, setComponentTab, setComponentVendorFilter, setShowMissingOnly, setShowMismatchesOnly, uniqueVendors, componentVendorFilter, showMissingOnly, showMismatchesOnly, AlertTriangle, componentSearch, setComponentSearch, componentsLoaded, finalFilteredList, Database, ComponentLibraryGrid, setSelectedComponents, gridUnsavedChanges, handleGridEdit, handleGridPaste, componentColumnWidths, startResizing, handleDragStart, handleDragOver, handleDrop, formatColumnTitle, getComponentValidation, toggleComponentSelection, handleRemoveAddedRow, handleDeleteComponent, handleDuplicateComponent, DROPDOWN_OPTIONS, handleEditComponent, saveComponentChanges, focusedCell, setFocusedCell, selectedCells, setSelectedCells, handleClipboardCopy, handleBulkPaste, editingCell, setEditingCell, componentSaving, componentColumnOrder, isComponentDrawerOpen, editingComponent, setIsComponentDrawerOpen, isDuplicateMode, getComponentValue, setEditingComponent, productSyncId, setProductSyncId, isImportingProduct, handleImportProductByID, RefreshCw, MANDATORY_FIELDS, metafieldOptionsMap, spokePolish, isBulkEditDrawerOpen, setIsBulkEditDrawerOpen, bulkEditComponent, setBulkEditComponent, handleBulkEdit }} />
+          <ComponentLibrary {...{ componentStatusFilter, setComponentStatusFilter, unsavedCount, discardUnsaved, showNotification, componentLoadError, fetchComponentLibrary, fetchComponentHistory, loadingHistory, handleSyncSpecsFromShopify, loading, selectedComponents, componentTab, handleDiscoverVariantIds, isDiscoveringVariants, Zap, handleAuditShopifySync, isAuditing, handleAddNewRow, handleCreateNewComponent, Edit3, componentData, getComponentUniqueId, syncMismatches, setComponentTab, setComponentVendorFilter, setShowMissingOnly, setShowMismatchesOnly, uniqueVendors, componentVendorFilter, showMissingOnly, showMismatchesOnly, AlertTriangle, componentSearch, setComponentSearch, componentsLoaded, finalFilteredList, Database, ComponentLibraryGrid, setSelectedComponents, gridUnsavedChanges, handleGridEdit, handleGridPaste, componentColumnWidths, startResizing, handleDragStart, handleDragOver, handleDrop, formatColumnTitle, getComponentValidation, toggleComponentSelection, handleRemoveAddedRow, handleDeleteComponent, handleDuplicateComponent, DROPDOWN_OPTIONS, handleEditComponent, saveComponentChanges, focusedCell, setFocusedCell, selectedCells, setSelectedCells, handleClipboardCopy, handleBulkPaste, editingCell, setEditingCell, componentSaving, componentColumnOrder, isComponentDrawerOpen, editingComponent, setIsComponentDrawerOpen, isDuplicateMode, getComponentValue, setEditingComponent, productSyncId, setProductSyncId, isImportingProduct, handleImportProductByID, RefreshCw, MANDATORY_FIELDS, metafieldOptionsMap, spokePolish, isBulkEditDrawerOpen, setIsBulkEditDrawerOpen, bulkEditComponent, setBulkEditComponent, handleBulkEdit }} />
         ) : null}
 
         {((activeTab === 'product_lab' && (selectedLabProducts.length > 0 || selectedLabVariants.length > 0)) || (activeTab === 'vendors' && selectedRules.length > 0)) && (

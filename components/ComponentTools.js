@@ -24,6 +24,7 @@ export default function ComponentTools({ componentTab, onChanged, notify }) {
   const [pushPlan, setPushPlan] = useState(null);
   const [pushConfirm, setPushConfirm] = useState('');
   const [pushAction, setPushAction] = useState('push-preview');
+  const [ticked, setTicked] = useState({});   // products ticked as 'intentionally not in the calculator'
   const say = (m, t = 'info') => (notify ? notify(m, t) : console.log(m));
 
   const call = async (url, opts = {}) => { const r = await fetch(url, { headers: authHeader(), ...opts }); const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`); return d; };
@@ -51,6 +52,10 @@ export default function ComponentTools({ componentTab, onChanged, notify }) {
     await call('/api/components', { method: 'POST', body: JSON.stringify({ [componentTab]: rows, baseShas: { [componentTab]: cur.shas[componentTab] } }) });
     say('Marked as Retired.', 'success'); onChanged && onChanged(); loadReport();
   });
+  const saveExcluded = (add, remove) => run(async () => {
+    await call('/api/components-tools', { method: 'POST', body: JSON.stringify({ action: 'excluded-save', tab: componentTab, add, remove }) });
+    say('Exclusion list saved.', 'success'); setTicked({}); loadReport();
+  });
   const pushPreview = (action = 'push-preview') => run(async () => { setPushAction(action); setPushConfirm(''); setPushPlan(await call('/api/components-tools', { method: 'POST', body: JSON.stringify({ action, tab: componentTab, variantId: pushVid.trim() }) })); });
   const pushNow = (undo) => run(async () => { const r = await call('/api/components-tools', { method: 'POST', body: JSON.stringify({ action: undo ? 'push-undo' : 'push', tab: componentTab, variantId: pushVid.trim(), confirm: pushConfirm }) }); say(`${undo ? 'Undone' : 'Pushed'}: ${r.logged.changes.map((c) => `${c.label} ${c.old} -> ${c.new}`).join(', ')}`, 'success'); setPushPlan(null); });
   const download = (fmt) => { window.location.href = `/api/components-tools?action=export&tab=${componentTab}&format=${fmt}&auth=${encodeURIComponent(localStorage.getItem('loam_ops_auth') || '')}`; };
@@ -72,7 +77,12 @@ export default function ComponentTools({ componentTab, onChanged, notify }) {
           <List title="Rows with no ERD" items={v.missingErd} render={(x) => `${x.vendor} ${x.title}`} />
           <List title="ERD far from similar rims (check)" items={v.outliers} render={(x) => `${x.title} ${x.size} ERD ${x.erd} (typical ${x.sizeMedian})`} />
           <List title="Duplicate Shopify variant ids" items={v.duplicateVariantIds} render={(x) => `${x.variantId}: ${x.titles.join(' / ')}`} />
-          <List title="Active Shopify products with no calculator row" items={c.missingRows} render={(x) => `${x.title} (${x.variants} variants)`} />
+          <div className="mb-4">
+            <div className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-1">Active Shopify products with no calculator row ({c.missingRows.length}). Tick the ones that are intentionally not in the calculator (rim brake, road, Your Own Rim...)</div>
+            {c.missingRows.length === 0 ? <div className="text-xs text-zinc-400 italic">none</div> : <ul className="text-xs text-zinc-700 max-h-48 overflow-auto">{c.missingRows.map((x) => (<li key={x.id}><label><input type="checkbox" checked={!!ticked[x.id]} onChange={(e) => setTicked({ ...ticked, [x.id]: e.target.checked })} /> {x.title} ({x.variants} variants)</label></li>))}</ul>}
+            {Object.values(ticked).some(Boolean) && <button className={btn} disabled={busy} onClick={() => saveExcluded(c.missingRows.filter((x) => ticked[x.id]).map((x) => ({ id: x.id, title: x.title })), [])}>Save {Object.values(ticked).filter(Boolean).length} as intentionally excluded</button>}
+          </div>
+          <List title="Intentionally excluded (stored in excluded.json, never shown to customers)" items={c.excluded} render={(x) => (<span>{x.title} <button className="underline text-[10px]" onClick={() => saveExcluded([], [x.id])}>include again</button></span>)} />
           <List title="Rows whose Shopify product is draft or archived (stay in the library)" items={c.onDraft} render={(x) => `${x.title} [${x.shopify}] ${x.status === 'retired' ? '(retired)' : ''}`} />
           <List title="Rows whose variant is missing in Shopify (stay in the library)" items={c.missingInShopify} render={(x) => x.title} />
           <List title="Library and Shopify disagree (ERD / weight)" items={report.drift} render={(x) => `${x.title}: ${x.field} library ${x.library}, Shopify ${x.shopify}`} />
