@@ -131,3 +131,11 @@ test("two rows that share one variant id: correcting the id of one of them, or r
   const b = await saveFiles({ ...C(g), changes: { rims: renamed }, baseShas: { rims: cur2.sha } });
   assert.equal(b.status, 200); assert.deepEqual([b.body.written.rims.edited, b.body.written.rims.removed], [1, 0]);
 });
+
+test("an unlinked row that only gets its size and holes filled in is an edit (not a delete), a different row with the same title is still a new row", async () => {
+  const live = [rim(1), { Title: "DUKE X", Vendor: "DUKE", "Option1 Value": "", "Option2 Value": "", "Variant Metafield: custom.rim_erd [number_decimal]": 570 }];
+  const g = fakeRepo(live); const cur = await readFile({ ...C(g), name: "rims" });
+  const filled = live.map((r) => (r.Title === "DUKE X" ? { ...r, "Option1 Value": "700c", "Option2 Value": "24h" } : r));
+  const res = await saveFiles({ ...C(g), changes: { rims: filled }, baseShas: { rims: cur.sha } });
+  assert.equal(res.status, 200); assert.deepEqual([res.body.written.rims.edited, res.body.written.rims.removed, res.body.written.rims.added], [1, 0, 0]);
+});
