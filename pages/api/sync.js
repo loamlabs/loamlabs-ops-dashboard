@@ -6,6 +6,7 @@ import { isLiveVariant, breakerTripped } from '../../lib/breaker';
 import { groupOosReminders } from '../../lib/oos-summary';
 import { SURCHARGE_URL, findSurchargeCents } from '../../lib/ethirteen-surcharge';
 import { pickRearVariant } from '../../lib/ethirteen-wheel';
+import { familyConflict } from '../../lib/ethirteen-rim';
 import { decideOwner, isOneOwnerVendor } from '../../lib/ownership';
 import { decideReviewFlag } from '../../lib/review-flag';
 import { createFailureTracker } from '../../lib/vendor-page-failures';
@@ -769,11 +770,7 @@ export default async function handler(req, res) {
                   }
                   const spokeCount = parsedOptions["Spoke Count"] ? parsedOptions["Spoke Count"].toLowerCase() : null;
                   if (spokeCount && !vTitle.includes(normalizeSpokeCount(spokeCount))) return false;
-                  const ruleTokens = ruleTitle.split(' ');
-                  const vTokens = vTitle.replace(/[^a-z0-9\s]/g, ' ').split(/\s+/);
-                  if (ruleTokens.includes('dh') && !vTokens.includes('dh') && (vTokens.includes('en') || vTokens.includes('gr'))) return false;
-                  if (ruleTokens.includes('en') && !vTokens.includes('en') && (vTokens.includes('dh') || vTokens.includes('gr'))) return false;
-                  if (ruleTokens.includes('gr') && !vTokens.includes('gr') && (vTokens.includes('dh') || vTokens.includes('en'))) return false;
+                  if (familyConflict(ruleTitle, vTitle)) return false;   // DH / EN / GR families stay apart (lib/ethirteen-rim.js)
                }
                if (isHub) {
                   const isFrontRule = ruleTitleLower.includes('front');
