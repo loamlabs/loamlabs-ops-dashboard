@@ -14,7 +14,7 @@ import { createFailureTracker } from '../../lib/vendor-page-failures';
 import { guardAfterWatcher } from '../../lib/guard-trigger';
 import { fetchVendorText, isPoliteRule, gapMs } from '../../lib/watcher-fetch';
 import { matchColourHoles, readProject321 } from '../../lib/watcher-project321';
-import { createFlipLimiter, priceDecision, priceLines, PRICE_CAP, needsSecondRun, closeNeedsApproval, flipCapFor, confirmedTwice, timeBudgetExceeded, urlBreakerTripped, groupLines, productOfTitle, hasTag } from '../../lib/watcher-safety';
+import { createFlipLimiter, isStockOnly, priceDecision, priceLines, PRICE_CAP, needsSecondRun, closeNeedsApproval, flipCapFor, confirmedTwice, timeBudgetExceeded, urlBreakerTripped, groupLines, productOfTitle, hasTag } from '../../lib/watcher-safety';
 import { withoutSkippedLengths } from '../../lib/spoke-length-skip';
 import { spacingOf, driverStates, planFreehubList } from '../../lib/freehub-follow';
 import { stampSince, parseSince, classify, createLinkReport, redirectedAway } from '../../lib/broken-links';
@@ -948,7 +948,7 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
           const myPrice = parseFloat(variant.price).toFixed(2);
           const myCompare = variant.compareAtPrice ? parseFloat(variant.compareAtPrice).toFixed(2) : null;
           const isDiff = Number(goalPrice) !== Number(myPrice);
-          const ignorePriceUpdate = String(rule.shopify_product_id) === '10180231921971' || String(rule.shopify_product_id) === '10191716548915' || rule.tags?.includes('spokes') || rule.title.toLowerCase().includes('nipples');
+          const ignorePriceUpdate = String(rule.shopify_product_id) === '10180231921971' || String(rule.shopify_product_id) === '10191716548915' || rule.tags?.includes('spokes') || rule.title.toLowerCase().includes('nipples') || isStockOnly(rule);   // tag 'stock-only': the Watcher never touches this rule's price
           const needsPriceUpdate = !ignorePriceUpdate && (isDiff || (myCompare && Number(myCompare) < Number(goalPrice))) && (winner.available || currentBtiFlag !== true || ownership.managed);
 
           let needsStockUpdate = false;

@@ -36,3 +36,10 @@ test('Black does not match the Bosch "Black Only" variants; Intergalactic matche
   assert.equal(valveMatches('Black / 12.5-24mm / x', {}), false);
   assert.equal(valveMatches('', { Color: 'Black', Length: '16-24mm' }), false);
 });
+
+test("tag 'stock-only' is recognised (price is left alone for those rules)", () => {
+  const { isStockOnly } = require('../lib/watcher-safety');
+  assert.equal(isStockOnly({ tags: ['auto-approve-oos', 'stock-only'] }), true);
+  assert.equal(isStockOnly({ tags: ['auto-approve-oos', 'auto-approve-price'] }), false);
+  assert.equal(isStockOnly({}), false);
+});
