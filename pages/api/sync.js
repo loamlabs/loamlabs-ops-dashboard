@@ -7,6 +7,7 @@ import { groupOosReminders } from '../../lib/oos-summary';
 import { SURCHARGE_URL, findSurchargeCents } from '../../lib/ethirteen-surcharge';
 import { pickRearVariant } from '../../lib/ethirteen-wheel';
 import { familyConflict } from '../../lib/ethirteen-rim';
+import { valveMatches } from '../../lib/ethirteen-valve';
 import { decideOwner, isOneOwnerVendor } from '../../lib/ownership';
 import { decideReviewFlag } from '../../lib/review-flag';
 import { createFailureTracker } from '../../lib/vendor-page-failures';
@@ -759,6 +760,7 @@ export default async function handler(req, res) {
               }
               return true;
             } else if (rule.vendor_name === 'e*thirteen') {
+               if (ruleTitleLower.includes('valve')) return valveMatches(v.public_title, parsedOptions);   // Quick Fill valves: colour + length (lib/ethirteen-valve.js)
                if (isRim) {
                   let expectedSize = parsedOptions["Size"] ? parsedOptions["Size"].toLowerCase() : null;
                   if (expectedSize) {
