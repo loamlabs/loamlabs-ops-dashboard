@@ -7,6 +7,7 @@ import ProductLab from '../components/tabs/ProductLab';
 import { RefreshCcw, RefreshCw, Search, Package, ShieldCheck, ShieldAlert, Plus, X, Info, Image as ImageIcon, Loader2, LogOut, ChevronUp, ChevronDown, ChevronRight, Trash2, AlertCircle, AlertTriangle, Zap, ZapOff, DollarSign, Tag, History, Activity, Beaker, Edit3, Edit, Settings, ExternalLink, BarChart, Database, CheckCircle, Layers, Clock, Copy } from 'lucide-react';
 import ComponentLibrary from '../components/tabs/ComponentLibrary';
 import { findLegacyKeys } from '../lib/components-keys';
+import { hydrateRows, rowIdOf } from '../lib/component-rows';
 import Insights from '../components/tabs/Insights';
 import AdminModule from '../components/tabs/AdminModule';
 import ShopHealth from '../components/tabs/ShopHealth';
@@ -416,20 +417,7 @@ export default function OpsDashboard() {
     return final;
   }, []);
 
-  const getComponentUniqueId = React.useCallback((item, index) => {
-    if (!item) return `empty_${index || 'unknown'}`;
-    // Priority 1: Use the permanent stable _rid
-    if (item?._rid) return item?._rid;
-    // Priority 2: Use native database IDs
-    const baseId = item.id || item.shopify_product_id || item.ID || item['Product ID'] || item['Variant ID'];
-    if (baseId) return String(baseId);
-    // Priority 3: Use row index only as a last resort during initial render (this should be rare after hydration)
-    const name = (item.Title || item.Name || item.name || item.title || "Unknown").trim();
-
-    const vendor = (item.Vendor || item.vendor || item.Brand || item.brand || "Unknown").trim();
-    const cleanName = `${vendor}_${name}`.toLowerCase().replace(/[^a-z0-9]/g, '');
-    return `${cleanName}_${item._rawIdx !== undefined ? item._rawIdx : index}`;
-  }, []);
+  const getComponentUniqueId = React.useCallback((item, index) => rowIdOf(item, index), []);
 
   const getCleanShopifyId = React.useCallback((val) => {
     if (!val) return '';
@@ -761,31 +749,7 @@ return { isValid: missing.length === 0, missingFields: missing };
           console.log(`[Lifecycle] Fetch SUCCESS. Received tabs: ${Object.keys(data).join(', ')}`);
           const hydrated = {};
           Object.keys(data).forEach(tab => {
-              const rawList = data[tab] || [];
-              const seenRids = new Set();
-              const hydratedList = rawList.map((item, idx) => {
-                   const baseId = item.id || item.ID || item.shopify_product_id || item['Product ID'];
-                   const title = item.Title || item.title || item.Name || item.name || "NoTitle";
-                   const vendor = item.Vendor || item.vendor || item.Brand || item.brand || "NoVendor";
-                   const specKeys = Object.keys(item).filter(k => !['_rid', '_rawIdx', '_editIdx', '_isNew', 'id', 'ID', 'shopify_product_id', 'Product ID', 'Variant ID'].includes(k)).sort();
-                   const specs = specKeys.map(k => `${k}:${item[k]}`).join('|');
-                   const hash = `${title}_${vendor}_${specs}`.toLowerCase().replace(/[^a-z0-9]/g, '');
-                   
-                   let rid = item?._rid;
-                   // If RID is numeric (looks like a Shopify ID), prioritize the internal hash for separation
-                   if (!rid || /^\d+$/.test(String(rid))) {
-                      rid = `rid_${hash}`;
-                   }
-
-                   if (seenRids.has(rid)) {
-                      rid = `${rid}_${idx}`;
-                   }
-                   seenRids.add(rid);
-
-                   return { ...item, shopify_product_id: baseId, _rid: rid, _rawIdx: idx };
-               });
-              
-              hydrated[tab] = hydratedList;
+              hydrated[tab] = hydrateRows(data[tab] || []);
           });
           
           // JANITOR PASS: Unify ghost columns and standardise keys
@@ -926,7 +890,8 @@ return { isValid: missing.length === 0, missingFields: missing };
            const { _isNew, ...rest } = item;
            return rest;
         });
-        setComponentData(prev => ({ ...prev, [tab]: transitionedArray })); 
+        setComponentData(prev => ({ ...prev, [tab]: hydrateRows(transitionedArray) })); 
+        setFocusedCell(null); setSelectedCells([]); setEditingCell(null);
         setIsComponentDrawerOpen(false);
         setEditingComponent(null);
         setConfirmedFields([]);

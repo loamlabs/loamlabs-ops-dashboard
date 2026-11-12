@@ -127,6 +127,11 @@ const ComponentLibraryGrid = React.memo(({
    const [startWidth, setStartWidth] = useState(0);
    const [pivotCell, setPivotCell] = useState(null);
    const scrollRef = useRef(null);
+
+   // a shift-click anchor that points at a row that is gone (after a save or a new filter) must not linger
+   useEffect(() => {
+     if (pivotCell && !finalFilteredList.some(r => r && (r._rid || getComponentUniqueId(r)) === pivotCell.rowId)) setPivotCell(null);
+   }, [finalFilteredList, pivotCell, getComponentUniqueId]);
    const tableRef = useRef(null);
  
    // --- AUTO-SCROLL LOGIC ---
