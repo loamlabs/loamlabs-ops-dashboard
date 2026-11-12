@@ -14,6 +14,7 @@ import { createFailureTracker } from '../../lib/vendor-page-failures';
 import { guardAfterWatcher } from '../../lib/guard-trigger';
 import { fetchVendorText, isPoliteRule, gapMs } from '../../lib/watcher-fetch';
 import { matchColourHoles, readProject321 } from '../../lib/watcher-project321';
+import { isPhilWood, matchPhilWood } from '../../lib/watcher-philwood';
 import { createFlipLimiter, isStockOnly, priceDecision, priceLines, PRICE_CAP, needsSecondRun, closeNeedsApproval, flipCapFor, confirmedTwice, timeBudgetExceeded, urlBreakerTripped, groupLines, productOfTitle, hasTag } from '../../lib/watcher-safety';
 import { withoutSkippedLengths } from '../../lib/spoke-length-skip';
 import { spacingOf, driverStates, planFreehubList } from '../../lib/freehub-follow';
@@ -566,6 +567,7 @@ export default async function handler(req, res) {
         let winner = null;
         let p321Read = null;
         const isP321 = String(rule.vendor_name || '').trim().toLowerCase() === 'project321';
+        const isPW = isPhilWood(rule.vendor_name);   // Phil Wood hubs: hole count + color, Standard bearing (lib/watcher-philwood.js)
         let vStatus = 'No specific match logic applied';
         const ruleTitle = normalize(rule.title);
         const ruleTitleLower = ruleTitle.toLowerCase();
@@ -694,7 +696,7 @@ export default async function handler(req, res) {
                     };
                 }
         } else {
-          let candidates = isP321 ? matchColourHoles(vData.variants, parsedOptions) : vData.variants.filter(v => {
+          let candidates = isP321 ? matchColourHoles(vData.variants, parsedOptions) : isPW ? matchPhilWood(vData.variants, parsedOptions) : vData.variants.filter(v => {
             const vTitle = normalize(v.public_title).toLowerCase();
             if (rule.vendor_name === 'Berd') {
               let reqTokens = [];
