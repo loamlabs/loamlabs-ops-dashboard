@@ -18,6 +18,8 @@ import { isPhilWood, matchPhilWood } from '../../lib/watcher-philwood';
 import { createFlipLimiter, isStockOnly, priceDecision, priceLines, PRICE_CAP, needsSecondRun, closeNeedsApproval, flipCapFor, confirmedTwice, timeBudgetExceeded, urlBreakerTripped, groupLines, productOfTitle, hasTag } from '../../lib/watcher-safety';
 import { withoutSkippedLengths } from '../../lib/spoke-length-skip';
 import { spacingOf, driverStates, planFreehubList } from '../../lib/freehub-follow';
+import { resolveFreehubLists, planFreehubWrites } from '../../lib/freehub-lists';
+import { readHubFreehubLists, applyFreehubWrites } from '../../lib/freehub-io';
 import { stampSince, parseSince, classify, createLinkReport, redirectedAway } from '../../lib/broken-links';
 
 export const maxDuration = 300; // Allow Vercel to run up to 5 minutes
@@ -76,29 +78,14 @@ async function setVariantMetafields(adminToken, variantId, entries) {
   }
 }
 
-// tag 'freehub-follow' (lib/freehub-follow.js): read the hub product's freehub list and our last observation, write them back
-async function readHubFreehub(adminToken, productId) {
+// tag 'freehub-follow' (lib/freehub-follow.js): the hub's freehub list lives on the PRODUCT and, while Jerry moves it, on the VARIANTS (same name and format).
+// Reading and writing both is in lib/freehub-io.js and lib/freehub-lists.js; this is only the GraphQL caller they use.
+const hubGql = (adminToken) => async (query, variables) => {
   const r = await fetch(`https://${process.env.SHOPIFY_SHOP_NAME}.myshopify.com/admin/api/2024-04/graphql.json`, {
-    method: 'POST', headers: { 'X-Shopify-Access-Token': adminToken, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query: `query($id: ID!) { product(id: $id) { title list: metafield(namespace: "custom", key: "freehub") { value } watch: metafield(namespace: "custom", key: "freehub_watch") { value } } }`, variables: { id: `gid://shopify/Product/${productId}` } })
+    method: 'POST', headers: { 'X-Shopify-Access-Token': adminToken, 'Content-Type': 'application/json' }, body: JSON.stringify({ query, variables })
   });
-  const d = await r.json();
-  const p = d.data && d.data.product; if (!p) return null;
-  let list = null, watch = null;
-  try { list = p.list ? JSON.parse(p.list.value) : null; } catch (e) { list = null; }
-  try { watch = p.watch ? JSON.parse(p.watch.value) : null; } catch (e) { watch = null; }
-  return { title: p.title, list, watch };
-}
-async function writeHubMetafields(adminToken, productId, entries) {
-  try {
-    const r = await fetch(`https://${process.env.SHOPIFY_SHOP_NAME}.myshopify.com/admin/api/2024-04/graphql.json`, {
-      method: 'POST', headers: { 'X-Shopify-Access-Token': adminToken, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query: `mutation($m: [MetafieldsSetInput!]!) { metafieldsSet(metafields: $m) { userErrors { message } } }`, variables: { m: entries.map((e) => ({ ownerId: `gid://shopify/Product/${productId}`, namespace: 'custom', key: e.key, type: e.type, value: e.value })) } })
-    });
-    const d = await r.json();
-    return !(d.errors && d.errors.length) && !((d.data && d.data.metafieldsSet && d.data.metafieldsSet.userErrors) || []).length;
-  } catch (e) { return false; }
-}
+  return r.json();
+};
 
 let shopifyProductVariantsCache = {};
 
@@ -1226,23 +1213,32 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
     const freehubCap = createFlipLimiter(10);
     for (const [fhProductId, job] of freehubJobs.entries()) {
       try {
-        const cur = await readHubFreehub(adminToken, fhProductId);
+        const gqlFh = hubGql(adminToken);
+        const read = await readHubFreehubLists(gqlFh, fhProductId);
         const spacing = spacingOf(job.rule.title);
-        if (!cur || !Array.isArray(cur.list) || !spacing) { attention.push({ title: `Freehub list (${job.rule.title})`, reason: 'No freehub list or no 148/157 spacing in the title; nothing checked.' }); continue; }
+        let watch = null; try { watch = read && read.watchRaw ? JSON.parse(read.watchRaw) : null; } catch (e) { watch = null; }
+        const hub = read ? resolveFreehubLists({ productRaw: read.productRaw, variants: read.variants }) : null;
+        if (!read || !hub || hub.status === 'none' || !spacing) { attention.push({ title: `Freehub list (${job.rule.title})`, reason: 'No freehub list or no 148/157 spacing in the title; nothing checked.' }); continue; }
+        const hubName = read.title.replace(/^e\*thirteen /, '');
+        if (hub.status !== 'ok') {   // the product list and the variant lists disagree (or cannot be read): never guess, change nothing, say so
+          console.warn(`[FREEHUB] ${hubName}: skipped, ${hub.reason}`);
+          attention.push({ title: `Freehub list: ${hubName}`, reason: `Skipped: ${hub.reason}. Nothing was changed; please look at the freehub lists of this hub.` });
+          continue;
+        }
+        const cur = { title: read.title, list: hub.list, watch };
         const plan = planFreehubList({ list: cur.list, watch: cur.watch, states: driverStates(job.variants, spacing) });
-        const hubName = cur.title.replace(/^e\*thirteen /, '');
         plan.notes.forEach((n) => attention.push({ title: `Freehub list: ${hubName}`, reason: n }));
-        const watchChanged = JSON.stringify(plan.newWatch) !== JSON.stringify(cur.watch);
         const baseline = hasTag(job.rule, 'baseline');
         const parts = [plan.removed.length ? `${plan.removed.join(', ')} removed from the freehub list (e*thirteen shows it out of stock)` : '', plan.added.length ? `${plan.added.join(', ')} added back (in stock again)` : ''].filter(Boolean).join('; ');
+        const writes = planFreehubWrites({ hub, newList: plan.newList, newWatch: plan.newWatch, curWatch: cur.watch, listChanged: plan.changed });
         if (plan.changed && baseline) { attention.push({ title: 'Baseline (nothing written)', reason: `${hubName}: would change the freehub list: ${parts}` }); }
         else if (plan.changed && !freehubCap.tryFlip('freehub')) { /* held: counted below */ }
-        else if (plan.changed) {
-          const ok = await writeHubMetafields(adminToken, fhProductId, [{ key: 'freehub', type: 'list.single_line_text_field', value: JSON.stringify(plan.newList) }, { key: 'freehub_watch', type: 'json', value: JSON.stringify(plan.newWatch) }]);
-          if (ok) stockChanges.push({ title: `${hubName}: ${parts}`, action: '🔧 Freehub list' });
-          else attention.push({ title: `Freehub list: ${hubName}`, reason: 'Could not write the freehub list to Shopify; nothing was changed.' });
-        } else if (watchChanged) {
-          await writeHubMetafields(adminToken, fhProductId, [{ key: 'freehub_watch', type: 'json', value: JSON.stringify(plan.newWatch) }]);
+        else if (writes.writesAnything) {
+          const res = await applyFreehubWrites(gqlFh, fhProductId, hub, writes);
+          if (plan.changed) {
+            if (res.ok) stockChanges.push({ title: `${hubName}: ${parts}`, action: '🔧 Freehub list' });
+            else attention.push({ title: `Freehub list: ${hubName}`, reason: `Could not write the freehub list to Shopify (${res.stage}); ${res.rolledBack ? res.rolledBack + ' variant list(s) were put back; ' : ''}nothing is left half changed. It is tried again on the next run.` });
+          }
         }
       } catch (fe) { attention.push({ title: `Freehub list (${job.rule.title})`, reason: `Could not check: ${String(fe.message).slice(0, 100)}` }); }
     }
