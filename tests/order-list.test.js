@@ -110,3 +110,20 @@ test('copy buttons: whole list copies orderList.text, Thomas box copies orderByE
   const card = read('components/tabs/OrderListCard.js');
   assert.match(card, /<CopyBtn text=\{ol\.text\} label="Copy as text" \/>/); assert.match(card, /<CopyBtn text=\{ol\.emailText\} label="Copy" \/>/); assert.match(card, /navigator\.clipboard\.writeText\(text\)/);
 });
+
+test('rim and hub lines: the I9 code and "customer supplied" show once, whether Backend 1\'s text already has them or not', () => {
+  const sheet = F.systemSheet(); const S = sheet.orderList.sections;
+  S.rims.wheels = [
+    { position: 'front', text: 'Made Up TRIAD Carbon Rim - 29", 28h  (I9 code TR303)', customerSupplied: false, i9Code: 'TR303' },   // text already has the code
+    { position: 'rear', text: 'Made Up TRIAD Carbon Rim - 27.5", 32h', customerSupplied: false, i9Code: 'TR305' },                    // text has no code
+    { position: 'front', text: 'Made Up Rim (customer supplied)', customerSupplied: true, i9Code: '' },                                  // already says customer supplied
+    { position: 'rear', text: 'Made Up Rim', customerSupplied: true, i9Code: 'TR9.1' },                                               // neither
+  ];
+  S.hubs.wheels = [{ position: 'front', text: 'Made Up Hub (customer supplied)', customerSupplied: true }, { position: 'rear', text: 'Made Up Hub', customerSupplied: true }, { position: 'rear', text: 'Made Up Hub 2', customerSupplied: false }];
+  const ol = view.buildView(sheet).orderList; const shown = ol.rims.wheels.map((w) => w.display);
+  assert.deepEqual(shown, ['Made Up TRIAD Carbon Rim - 29", 28h  (I9 code TR303)', 'Made Up TRIAD Carbon Rim - 27.5", 32h (I9 code TR305)', 'Made Up Rim (customer supplied)', 'Made Up Rim (I9 code TR9.1) (customer supplied)']);
+  for (const s of shown) { assert.ok((s.match(/I9 code/g) || []).length <= 1, s); assert.ok((s.match(/customer supplied/g) || []).length <= 1, s); }
+  assert.deepEqual(ol.hubs.wheels.map((w) => w.display), ['Made Up Hub (customer supplied)', 'Made Up Hub (customer supplied)', 'Made Up Hub 2']);
+  assert.equal(ol.text, F.systemSheet().orderList.text, 'Copy as text is the unchanged orderList.text');
+  const card = read('components/tabs/OrderListCard.js'); assert.match(card, /\{w\.positionLabel\}: \{w\.display\}/); assert.ok(!/I9 code '/.test(card), 'the card adds no code of its own');
+});

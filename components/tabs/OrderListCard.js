@@ -92,11 +92,11 @@ export default function OrderListCard({ ol, label }) {
 
         <div className="os-keep">
           <h4 className="font-black uppercase text-xs mb-1">{ol.hubs.title}</h4>
-          <ul className="list-disc ml-5">{ol.hubs.wheels.map((w) => <li key={w.position}>{w.positionLabel}: {w.text}{w.customerSupplied ? ' (customer supplied)' : ''}</li>)}</ul>
+          <ul className="list-disc ml-5">{ol.hubs.wheels.map((w) => <li key={w.position}>{w.positionLabel}: {w.display}</li>)}</ul>
         </div>
         <div className="os-keep">
           <h4 className="font-black uppercase text-xs mb-1">{ol.rims.title}</h4>
-          <ul className="list-disc ml-5">{ol.rims.wheels.map((w) => <li key={w.position}>{w.positionLabel}: {w.text}{w.i9Code ? ' (I9 code ' + w.i9Code + ')' : ''}{w.customerSupplied ? ' (customer supplied)' : ''}</li>)}</ul>
+          <ul className="list-disc ml-5">{ol.rims.wheels.map((w) => <li key={w.position}>{w.positionLabel}: {w.display}</li>)}</ul>
         </div>
       </div>
       {ol.snapshotDate ? <p className="mt-3 text-xs text-zinc-500">I9 dealer list snapshot: {ol.snapshotDate}</p> : null}
