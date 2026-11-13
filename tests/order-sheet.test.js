@@ -209,3 +209,75 @@ test('the tab loads each picture with fetch + the auth header and shows it from 
   assert.ok(!/<img[^>]*src=\{?['"`]\/api/.test(s), 'no plain <img src="/api/...">');
   assert.ok(/@media print/.test(s) && /size: letter/.test(s));
 });
+
+// ================= display fixes A to D (Nov 13) =================
+// a Standard order without Studio data, as Backend 1 sends #1377: lengths and source, no per-spoke list, no pictures, no side counts, no ratio, no high/low split
+const std = (pos, rot, drv) => ({
+  position: pos, label: pos === 'front' ? 'Front' : 'Rear', hubModel: null, hubTitle: pos === 'front' ? 'DT Swiss 240 SP Front Hub - Centerlock - 12x100mm' : 'DT Swiss 240 EXP SP Rear Hub - Centerlock - 12x142mm',
+  rimTitle: pos === 'front' ? 'Reserve 40 GR 700c Carbon Rim - 700c' : 'Reserve 44 GR 700c Carbon Rim - 700c', highSide: null, lowSide: null,
+  sides: { rotor: { lengthMm: rot, counts: [] }, drive: { lengthMm: drv, counts: [] } },
+  lengths: { status: 'calculated', text: `Spoke lengths: Left ${rot} mm, Right ${drv} mm`, sourceText: 'Source: spoke calculator (rim, hub and spoke data from the store)' },
+  spokes: [], lists: {}, images: [], warnings: ['Hub policy override applied. Using 2-cross.'],
+});
+const standardSheet = () => sheet({ kind: 'standard', studio: false, orderNumber: '1377', orderName: '#1377', wheels: [std('front', 280, 282), std('rear', 276, 274)], i9OrderList: undefined, warnings: ['Hub policy override applied. Using 2-cross.'] });
+
+test('A: an order without Studio data hides the empty per-spoke table, the empty side lists and the empty picture area, and says so once, in one plain line', () => {
+  const v = view.buildView(standardSheet());
+  assert.equal(v.noStudioAll, true); assert.ok(v.wheels.every((w) => w.hasDetail === false));
+  assert.equal(v.noStudioLine, 'No per-spoke list or pictures for this order: it was not built with the colour tool.');
+  assert.match(v.wheels[0].lengthsText, /Left 280 mm, Right 282 mm/); assert.match(v.wheels[0].sourceText, /spoke calculator/); assert.deepEqual(v.wheels[0].warnings, ['Hub policy override applied. Using 2-cross.']);
+  const text = view.sheetToText(standardSheet());
+  assert.equal(text.split(view.NO_STUDIO_LINE).length - 1, 1, 'the plain line appears once'); assert.ok(!/Spoke\s+Side\s+Color/.test(text)); assert.match(text, /Spoke lengths: Left 280 mm, Right 282 mm/);
+  const src = fs.readFileSync(path.join(ROOT, 'components/tabs/OrderSheet.js'), 'utf8');
+  assert.ok(/\{w\.hasDetail \? <div className="os-images/.test(src) && /\{w\.hasDetail \? <div className="grid md:grid-cols-2 gap-6 mt-6"/.test(src)); assert.ok(/data-testid="no-studio"/.test(src) && /view\.noStudioAll/.test(src));
+});
+test('A: a System wheel keeps its pictures, table and lists; a mixed order shows the plain line only for the wheel without detail', () => {
+  const w1 = view.buildView(sheet()).wheels; assert.ok(w1.every((w) => w.hasDetail === true)); assert.equal(view.buildView(sheet()).noStudioAll, false);
+  const mixed = view.buildView(sheet({ wheels: [rearWheel, std('front', 280, 282)] })); assert.equal(mixed.noStudioAll, false); assert.deepEqual(mixed.wheels.map((w) => w.hasDetail), [true, false]);
+  const t = view.sheetToText(sheet({ wheels: [rearWheel, std('front', 280, 282)] })); assert.equal(t.split(view.NO_STUDIO_LINE).length - 1, 1); assert.match(t, /Spoke\s+Side\s+Color/);
+});
+test('B: no high/low split means no High-tension / Low-tension rows and no "n/a"; the real "n/a (unequal sides)" stays only for truly unequal sides (Solix 24h 16/8)', () => {
+  const key = (w, k) => w.facts.find(([n]) => n === k);
+  for (const w of view.buildView(standardSheet()).wheels) { assert.equal(key(w, 'High-tension side'), undefined); assert.equal(key(w, 'Low-tension side'), undefined); assert.ok(!w.facts.some(([, v]) => /n\/a/.test(v))); }
+  const equalNoSplit = { ...oneColorFront, highSide: null, lowSide: null };
+  const e = view.buildView(sheet({ wheels: [equalNoSplit] })).wheels[0]; assert.equal(key(e, 'High-tension side'), undefined); assert.ok(!e.facts.some(([, v]) => /n\/a/.test(v)));
+  const s = view.buildView(sheet({ wheels: [solix24] })).wheels[0]; assert.deepEqual(key(s, 'High-tension side'), ['High-tension side', 'n/a (unequal sides)']); assert.deepEqual(key(s, 'Low-tension side'), ['Low-tension side', 'n/a (unequal sides)']);
+  const sys = view.buildView(sheet()).wheels.find((w) => w.position === 'rear'); assert.deepEqual(key(sys, 'High-tension side'), ['High-tension side', 'Drive']); assert.deepEqual(key(sys, 'Low-tension side'), ['Low-tension side', 'Rotor']);
+});
+test('C: a side line never prints an empty count; the count comes from Backend 1, or is derived only for a 1:1 wheel (total / 2), otherwise left out', () => {
+  const sides = (w) => view.buildView(sheet({ wheels: [w] })).wheels[0].sides;
+  const stdSides = sides(std('front', 280, 282)); assert.deepEqual(stdSides.map(view.sideText), ['Rotor side: 280 mm', 'Drive side: 282 mm']);
+  const noCount = { ...oneColorFront, sides: { drive: { lengthMm: 307, counts: [{ color: 'Black', n: 14 }] }, rotor: { lengthMm: 305, counts: [{ color: 'Black', n: 14 }] } } };
+  assert.deepEqual(sides(noCount).map((s) => s.count), [14, 14]); assert.match(view.sideText(sides(noCount)[0]), /^Rotor side \(high tension\): 14 spokes, 305 mm, 14 Black$/);
+  assert.deepEqual(sides(oneColorFront).map((s) => s.count), [14, 14]);
+  const twoToOne = { ...solix24, sides: { drive: { lengthMm: 296, counts: [] }, rotor: { lengthMm: 300, counts: [] } } }; assert.deepEqual(sides(twoToOne).map((s) => s.count), [null, null]);
+  const odd = { ...noCount, total: 27 }; assert.deepEqual(sides(odd).map((s) => s.count), [null, null]);
+  const noRatio = { ...noCount, ratio: undefined }; assert.deepEqual(sides(noRatio).map((s) => s.count), [null, null]);
+  const noTotal = { ...noCount, total: undefined }; assert.deepEqual(sides(noTotal).map((s) => s.count), [null, null]);
+  for (const w of [std('front', 280, 282), noCount, oneColorFront, twoToOne, solix24, odd, rearWheel]) for (const s of sides(w)) assert.ok(!/undefined|NaN|null|: spokes|^\s*spokes/.test(view.sideText(s)), view.sideText(s));
+  assert.match(view.sheetToText(standardSheet()), /Rotor side: 280 mm\nDrive side: 282 mm/);
+});
+test('D: print rules make the pictures 3.4 inches, two per row on letter paper, inside @media print only (screen layout unchanged)', () => {
+  const src = fs.readFileSync(path.join(ROOT, 'components/tabs/OrderSheet.js'), 'utf8');
+  const css = src.slice(src.indexOf('<style>{`') + 9, src.indexOf('`}</style>'));
+  const printStart = css.indexOf('@media print'); assert.ok(printStart >= 0); const outside = css.slice(0, printStart) + css.slice(css.lastIndexOf('}') + 1);
+  assert.ok(!/3\.4in|os-images|os-top/.test(outside), 'nothing about the pictures outside the print block');
+  const p = css.slice(printStart);
+  assert.match(p, /size: letter/); assert.match(p, /\.os-top \{ display: block !important; \}/); assert.match(p, /\.os-images \{ display: grid !important; grid-template-columns: 3\.4in 3\.4in;/);
+  assert.match(p, /\.os-images figure \{ width: 3\.4in !important; \}/); assert.match(p, /\.os-images img \{ width: 3\.4in !important; max-width: none !important; height: auto !important; \}/);
+  assert.ok(2 * 3.4 + 0.15 <= 7.5, 'two pictures and the gap fit the 7.5 inch printable width of letter paper with 0.5 inch margins');
+  assert.ok(/os-top/.test(src) && /className="os-images/.test(src), 'the classes are on the elements');
+});
+test('no customer field: the display fixes keep the whitelist (a customer value in a Standard sheet still never shows)', () => {
+  const s = standardSheet(); s.customer = { email: CUSTOMER.email }; s.shipping_address = { address1: CUSTOMER.street }; s.wheels[0].customer_note = CUSTOMER.name; s.buyerEmail = CUSTOMER.email;
+  const text = JSON.stringify(view.buildView(s)) + view.sheetToText(s); for (const v of Object.values(CUSTOMER)) assert.ok(!text.includes(v), 'leaked: ' + v);
+  assert.ok(view.findForbiddenKeys(s).length > 0);
+});
+
+test('real data: the #1377 sheet as the live service sent it (null counts, no ratio, no split, no spokes): all four fixes show', () => {
+  const real = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'order-sheet-1377.json'), 'utf8'));
+  const v = view.buildView(real); assert.equal(v.noStudioAll, true);
+  for (const w of v.wheels) { assert.equal(w.hasDetail, false); assert.ok(!w.facts.some(([k]) => /tension/.test(k))); assert.ok(w.sides.every((s) => s.count === null)); assert.ok(w.sides.map(view.sideText).every((t) => /^(Rotor|Drive) side: \d+ mm$/.test(t))); }
+  const t = view.sheetToText(real); assert.match(t, /Rotor side: 280 mm/); assert.match(t, /Drive side: 274 mm/); assert.equal(t.split(view.NO_STUDIO_LINE).length - 1, 1); assert.ok(!/undefined|null|n\/a/.test(t));
+  assert.deepEqual(view.findForbiddenKeys(real), []);
+});
