@@ -11,6 +11,7 @@ import { hydrateRows, rowIdOf } from '../lib/component-rows';
 import Insights from '../components/tabs/Insights';
 import AdminModule from '../components/tabs/AdminModule';
 import ShopHealth from '../components/tabs/ShopHealth';
+import OrderSheet from '../components/tabs/OrderSheet';
 
 const COMPONENT_SUGGESTIONS = {};
 
@@ -2746,6 +2747,7 @@ return { isValid: missing.length === 0, missingFields: missing };
           )}
           <SidebarLink icon={<BarChart size={18}/>} label="Insights & Analytics" active={activeTab === 'insights'} onClick={() => { setActiveTab('insights'); fetchAbandonedBuilds(); }} />
           <SidebarLink icon={<ShieldCheck size={18}/>} label="Shop Health" active={activeTab === 'audit'} onClick={() => setActiveTab('audit')} />
+          <SidebarLink icon={<Layers size={18}/>} label="Order Sheet" active={activeTab === 'order_sheet'} onClick={() => setActiveTab('order_sheet')} />
           <SidebarLink 
              icon={<Database size={18}/>} 
              label="Component Library" 
@@ -2783,6 +2785,8 @@ return { isValid: missing.length === 0, missingFields: missing };
           <AdminModule {...{ setAdminTab, adminTab, metafieldRegistry, setMetafieldRegistry, removeMetafield, addNewMetafield, visibleVendorNames, vendorLogos, ImageIcon, handleLogoUpdate, savingLogo }} />
         ) : activeTab === 'audit' ? (
           <ShopHealth {...{ HealthCard, rules }} />
+        ) : activeTab === 'order_sheet' ? (
+          <OrderSheet getAuth={() => password || localStorage.getItem('loam_ops_auth')} />
         ) : activeTab === 'component_library' ? (
           <ComponentLibrary {...{ componentStatusFilter, setComponentStatusFilter, unsavedCount, discardUnsaved, showNotification, componentLoadError, fetchComponentLibrary, fetchComponentHistory, loadingHistory, handleSyncSpecsFromShopify, loading, selectedComponents, componentTab, handleDiscoverVariantIds, isDiscoveringVariants, Zap, handleAuditShopifySync, isAuditing, handleAddNewRow, handleCreateNewComponent, Edit3, componentData, getComponentUniqueId, syncMismatches, setComponentTab, setComponentVendorFilter, setShowMissingOnly, setShowMismatchesOnly, uniqueVendors, componentVendorFilter, showMissingOnly, showMismatchesOnly, AlertTriangle, componentSearch, setComponentSearch, componentsLoaded, finalFilteredList, Database, ComponentLibraryGrid, setSelectedComponents, gridUnsavedChanges, handleGridEdit, handleGridPaste, componentColumnWidths, startResizing, handleDragStart, handleDragOver, handleDrop, formatColumnTitle, getComponentValidation, toggleComponentSelection, handleRemoveAddedRow, handleDeleteComponent, handleDuplicateComponent, DROPDOWN_OPTIONS, handleEditComponent, saveComponentChanges, focusedCell, setFocusedCell, selectedCells, setSelectedCells, handleClipboardCopy, handleBulkPaste, editingCell, setEditingCell, componentSaving, componentColumnOrder, isComponentDrawerOpen, editingComponent, setIsComponentDrawerOpen, isDuplicateMode, getComponentValue, setEditingComponent, productSyncId, setProductSyncId, isImportingProduct, handleImportProductByID, RefreshCw, MANDATORY_FIELDS, metafieldOptionsMap, spokePolish, isBulkEditDrawerOpen, setIsBulkEditDrawerOpen, bulkEditComponent, setBulkEditComponent, handleBulkEdit }} />
         ) : null}
