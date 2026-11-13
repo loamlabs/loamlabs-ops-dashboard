@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, Loader2, AlertTriangle, Copy, Printer, ExternalLink } from 'lucide-react';
-import { normalizeOrderNumber, messageFor, buildView, sheetToText, imagePath, sideText, splitForPrint } from '../../lib/order-sheet-view';
+import { normalizeOrderNumber, messageFor, buildView, buildOrderList, sheetToText, imagePath, sideText, splitForPrint, dateEst } from '../../lib/order-sheet-view';
+import OrderListCard from './OrderListCard';
 
 // Order sheet tab: type an order NUMBER, see the wheel pictures, the lengths, the per-spoke list and (System orders) the I9 order list. Read only.
 // Data: /api/order-sheet and /api/order-sheet-image (dashboard routes that call Backend 1 with the shared secret on the server). No customer data is shown.
@@ -11,6 +12,8 @@ export default function OrderSheet({ getAuth }) {
   const [sheet, setSheet] = useState(null);
   const [images, setImages] = useState({});          // key -> { url } | { error } | { loading: true }
   const [copied, setCopied] = useState(false);
+  const [listStatus, setListStatus] = useState('');   // the answer's orderListStatus
+  const [fresh, setFresh] = useState(null);           // null | { loading } | { error } | { status, note, list, label }
   const runRef = useRef(0);
   const urlsRef = useRef([]);
 
@@ -44,18 +47,29 @@ export default function OrderSheet({ getAuth }) {
     if (e) e.preventDefault();
     const n = normalizeOrderNumber(input);
     if (!n) { setError(messageFor(400, { error: 'BAD_ORDER_NUMBER' })); setSheet(null); return; }
-    const run = ++runRef.current; clearUrls(); setImages({}); setError(''); setSheet(null); setLoading(true);
+    const run = ++runRef.current; clearUrls(); setImages({}); setError(''); setSheet(null); setFresh(null); setListStatus(''); setLoading(true);
     try {
       const res = await fetch(`/api/order-sheet?order=${n}`, { headers: authHeaders() });
       let body = null; try { body = await res.json(); } catch (err) { body = null; }
       if (runRef.current !== run) return;
       if (!res.ok || !body || !body.ok) { setError((body && body.message) || messageFor(res.status, body)); setLoading(false); return; }
-      setSheet(body.sheet); setLoading(false);
+      setSheet(body.sheet); setListStatus(typeof body.orderListStatus === 'string' ? body.orderListStatus : ''); setLoading(false);
       loadImages(n, buildView(body.sheet), run);
     } catch (err) { if (runRef.current === run) { setError(messageFor(502, { error: 'UNREACHABLE' })); setLoading(false); } }
   };
 
-  const view = sheet ? buildView(sheet) : null;
+  const view = sheet ? buildView(sheet, listStatus) : null;
+  // an old saved sheet has no order list: ask again with fresh=1 and keep ONLY the orderList part, labelled as recalculated
+  const showFresh = async () => {
+    const n = normalizeOrderNumber(input); const run = runRef.current; if (!n) return; setFresh({ loading: true });
+    try {
+      const res = await fetch(`/api/order-sheet?order=${n}&fresh=1`, { headers: authHeaders() }); let body = null; try { body = await res.json(); } catch (err) { body = null; }
+      if (runRef.current !== run) return;
+      if (!res.ok || !body || !body.ok) { setFresh({ error: (body && body.message) || messageFor(res.status, body) }); return; }
+      const st = typeof body.orderListStatus === 'string' ? body.orderListStatus : (body.sheet && body.sheet.orderList ? 'present' : 'error'); const at = body.sheet && body.sheet.calculation && body.sheet.calculation.at;
+      setFresh({ status: st, note: String((body.sheet && body.sheet.orderListNote) || ''), list: st === 'present' ? buildOrderList(body.sheet.orderList) : null, label: 'Recalculated on ' + (dateEst(at) || 'today') + ', may differ from what was sent' });
+    } catch (err) { if (runRef.current === run) setFresh({ error: messageFor(502, { error: 'UNREACHABLE' }) }); }
+  };
   const copy = async () => { try { await navigator.clipboard.writeText(sheetToText(sheet)); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch (e) { setError('Could not copy. Select the text and copy it by hand.'); } };
   const toneClass = view && view.header.calcTone === 'amber' ? 'bg-amber-50 border-amber-300 text-amber-900' : 'bg-zinc-100 border-zinc-300 text-zinc-800';
 
@@ -88,6 +102,8 @@ export default function OrderSheet({ getAuth }) {
           .os-spoke-print table { width: 100%; font-size: 9pt; border-collapse: collapse; }
           .os-spoke-print td, .os-spoke-print th { padding-top: 0.5pt; padding-bottom: 0.5pt; }
           .os-lists { margin-top: 0.1in; }
+          .os-print-only { display: block !important; }
+          .os-ol table { font-size: 9pt; }
         }
       `}</style>
       <h1 className="text-4xl font-black tracking-tight text-zinc-900 uppercase italic mb-2 no-print">Order Sheet</h1>
@@ -181,7 +197,23 @@ export default function OrderSheet({ getAuth }) {
             </section>
           ))}
 
-          {view.i9 ? (
+          {view.orderListStatus === 'present' && view.orderList ? <OrderListCard ol={view.orderList} /> : null}
+          {view.orderListStatus === 'error' ? <section className="os-sec os-keep rounded-3xl border border-red-300 bg-red-50 p-6 text-sm" data-testid="order-list-error"><h3 className="font-black uppercase text-sm mb-1">I9 order list</h3><p className="font-bold text-red-800">{view.orderListNote || 'The I9 order list could not be built for this order.'}</p></section> : null}
+          {view.orderListStatus === 'not-applicable' ? <p className="os-sec text-xs text-zinc-500 no-print" data-testid="order-list-na">Standard builds have no I9 order list.</p> : null}
+          {view.orderListStatus === 'not-saved' ? (
+            <section className="os-sec os-keep rounded-3xl border border-zinc-200 bg-white p-6 text-sm" data-testid="order-list-not-saved">
+              <h3 className="font-black uppercase text-sm mb-1">I9 order list</h3>
+              <p className="font-bold">Not saved with this sheet.</p>
+              {!fresh ? <button type="button" onClick={showFresh} className="no-print mt-2 px-4 py-2 rounded-xl border border-zinc-300 bg-white font-bold text-xs uppercase tracking-widest">Show recalculated list</button> : null}
+              {fresh && fresh.loading ? <p className="mt-2 text-zinc-500 flex items-center gap-2"><Loader2 size={14} className="animate-spin" />Recalculating...</p> : null}
+              {fresh && fresh.error ? <p role="alert" className="mt-2 font-bold text-red-800">{fresh.error}</p> : null}
+              {fresh && fresh.status && fresh.status !== 'present' ? <p className="mt-2 font-bold text-red-800">{fresh.note || 'The I9 order list could not be built for this order.'}</p> : null}
+              {view.wheels.length ? <div className="mt-3 text-xs text-zinc-600"><strong>Saved lengths:</strong> {view.wheels.map((w) => w.title + ': ' + (w.lengthsText || 'no length text')).join(' | ')}</div> : null}
+            </section>
+          ) : null}
+          {view.orderListStatus === 'not-saved' && fresh && fresh.list ? <OrderListCard ol={fresh.list} label={fresh.label} /> : null}
+
+          {view.orderListStatus === 'legacy' && view.i9 ? (
             <section className="os-sec bg-white rounded-3xl border border-zinc-200 p-6 text-sm">
               <h3 className="os-heading text-xl font-black italic uppercase mb-3">I9 order list</h3>
               <pre className="whitespace-pre-wrap font-mono text-xs bg-zinc-50 border border-zinc-200 rounded-2xl p-4">{view.i9.text}</pre>
