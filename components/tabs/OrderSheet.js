@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, Loader2, AlertTriangle, Copy, Printer, ExternalLink } from 'lucide-react';
-import { normalizeOrderNumber, messageFor, buildView, sheetToText, imagePath, sideText } from '../../lib/order-sheet-view';
+import { normalizeOrderNumber, messageFor, buildView, sheetToText, imagePath, sideText, splitForPrint } from '../../lib/order-sheet-view';
 
 // Order sheet tab: type an order NUMBER, see the wheel pictures, the lengths, the per-spoke list and (System orders) the I9 order list. Read only.
 // Data: /api/order-sheet and /api/order-sheet-image (dashboard routes that call Backend 1 with the shared secret on the server). No customer data is shown.
@@ -67,12 +67,27 @@ export default function OrderSheet({ getAuth }) {
           aside, .no-print { display: none !important; }
           main { margin-left: 0 !important; padding: 0 !important; overflow: visible !important; }
           body, .order-sheet-root { background: #fff !important; }
-          .os-wheel { break-inside: avoid; page-break-inside: avoid; }
+          .os-keep, .os-images figure { break-inside: avoid; page-break-inside: avoid; }
+          .os-heading { break-after: avoid; page-break-after: avoid; }
+          thead { display: table-header-group; }
+          tr { break-inside: avoid; page-break-inside: avoid; }
+          .os-wheel { border: 0 !important; border-radius: 0 !important; padding: 0 !important; }
+          .order-sheet-root { animation: none !important; transform: none !important; opacity: 1 !important; }
+          .os-sec { margin-top: 0.12in !important; }
+          .os-head { margin-top: 0 !important; }
+          .os-head { border: 0 !important; padding: 0 !important; }
+          .os-top td { padding-top: 1pt !important; padding-bottom: 1pt !important; }
           .os-top { display: block !important; }
-          .os-images { display: grid !important; grid-template-columns: 3.4in 3.4in; gap: 0.15in; margin-top: 0.15in; }
-          .os-images figure { width: 3.4in !important; }
+          .os-images { display: block !important; margin-top: 0.15in; overflow: hidden; }
+          .os-images figure { display: block !important; float: left; width: 3.4in !important; margin: 0 0.15in 0.1in 0 !important; font-size: 10pt; }
           .os-images img { width: 3.4in !important; max-width: none !important; height: auto !important; }
           .os-spoke-table { font-size: 9pt; }
+          .os-spoke-grid { display: block !important; margin-top: 0.15in !important; }
+          .os-spoke-screen { display: none !important; }
+          .os-spoke-print { display: grid !important; grid-template-columns: 1fr 1fr; column-gap: 0.3in; }
+          .os-spoke-print table { width: 100%; font-size: 9pt; border-collapse: collapse; }
+          .os-spoke-print td, .os-spoke-print th { padding-top: 0.5pt; padding-bottom: 0.5pt; }
+          .os-lists { margin-top: 0.1in; }
         }
       `}</style>
       <h1 className="text-4xl font-black tracking-tight text-zinc-900 uppercase italic mb-2 no-print">Order Sheet</h1>
@@ -97,7 +112,7 @@ export default function OrderSheet({ getAuth }) {
 
       {view ? (
         <div className="space-y-8">
-          <section className="bg-white rounded-3xl border border-zinc-200 p-6">
+          <section className="os-keep os-head os-sec bg-white rounded-3xl border border-zinc-200 p-6">
             <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1 mb-3">
               <h2 className="text-2xl font-black italic uppercase">{view.header.orderName}</h2>
               <span className="text-zinc-500 text-sm font-bold">{view.header.kind}</span>
@@ -112,26 +127,26 @@ export default function OrderSheet({ getAuth }) {
           {view.noStudioAll ? <p data-testid="no-studio" className="text-sm text-zinc-600 font-bold">{view.noStudioLine}</p> : null}
 
           {view.warnings.length || view.orderChecks.length ? (
-            <section className="rounded-3xl border border-amber-300 bg-amber-50 p-6">
+            <section className="os-keep os-sec rounded-3xl border border-amber-300 bg-amber-50 p-6">
               <h3 className="font-black uppercase text-sm mb-2">Warnings and order checks</h3>
               <ul className="list-disc ml-5 text-sm space-y-1">{view.orderChecks.map((c, i) => <li key={'c' + i}><strong>Check:</strong> {c}</li>)}{view.warnings.map((w, i) => <li key={'w' + i}>{w}</li>)}</ul>
             </section>
           ) : null}
 
           {view.supplied ? (
-            <section className="rounded-3xl border border-blue-300 bg-blue-50 p-6 text-sm">
+            <section className="os-keep os-sec rounded-3xl border border-blue-300 bg-blue-50 p-6 text-sm">
               <h3 className="font-black uppercase text-sm mb-2">Customer-supplied parts</h3>
               <p className="font-bold">{view.supplied.text}</p>{view.supplied.reminder ? <p className="mt-1">{view.supplied.reminder}</p> : null}
             </section>
           ) : null}
 
           {view.wheels.map((w) => (
-            <section key={w.position} className="os-wheel bg-white rounded-3xl border border-zinc-200 p-6" data-wheel={w.position}>
-              <h3 className="text-xl font-black italic uppercase mb-4">{w.title} wheel</h3>
+            <section key={w.position} className="os-wheel os-sec bg-white rounded-3xl border border-zinc-200 p-6" data-wheel={w.position}>
+              <h3 className="os-heading text-xl font-black italic uppercase mb-4">{w.title} wheel</h3>
               <div className={w.hasDetail ? 'os-top grid md:grid-cols-2 gap-6' : 'os-top'}>
                 <div>
                   <table className="text-sm w-full"><tbody>{w.facts.map(([k, v]) => <tr key={k}><td className="pr-4 py-1 text-zinc-500 font-bold align-top whitespace-nowrap">{k}</td><td className="py-1 font-medium">{v}</td></tr>)}</tbody></table>
-                  <div className={`mt-4 p-3 rounded-2xl border text-sm font-bold ${w.notCalculated ? 'bg-red-50 border-red-300 text-red-800' : 'bg-zinc-50 border-zinc-200'}`}>
+                  <div className={`os-keep mt-4 p-3 rounded-2xl border text-sm font-bold ${w.notCalculated ? 'bg-red-50 border-red-300 text-red-800' : 'bg-zinc-50 border-zinc-200'}`}>
                     {w.lengthsText || 'No length text'}
                     {w.sides.length ? <div className="mt-2 font-medium space-y-0.5">{w.sides.map((s) => <div key={s.side}>{sideText(s)}</div>)}</div> : null}
                     {w.lengthsCaveat ? <div className="mt-2 font-medium text-amber-800">{w.lengthsCaveat}</div> : null}
@@ -150,22 +165,25 @@ export default function OrderSheet({ getAuth }) {
                 </div> : null}
               </div>
               {!w.hasDetail && !view.noStudioAll ? <p data-testid="no-studio" className="mt-4 text-sm text-zinc-500">{view.noStudioLine}</p> : null}
-              {w.hasDetail ? <div className="grid md:grid-cols-2 gap-6 mt-6">
+              {w.hasDetail ? <div className="os-spoke-grid grid md:grid-cols-2 gap-6 mt-6">
                 <div>
-                  <h4 className="font-black uppercase text-xs mb-2">Per-spoke list ({w.spokes.length})</h4>
-                  <table className="os-spoke-table text-sm w-full border-collapse"><thead><tr className="text-left text-zinc-500 border-b"><th className="py-1 pr-3">Spoke</th><th className="pr-3">Side</th><th>Color</th></tr></thead>
-                    <tbody>{w.spokes.map((sp) => <tr key={sp.text + sp.side} className="border-b border-zinc-100"><td className="py-0.5 pr-3 font-bold">{sp.text}</td><td className="pr-3">{sp.sideLabel}{sp.high ? ' (high)' : ''}</td><td>{sp.color}</td></tr>)}</tbody></table>
+                  <h4 className="os-heading font-black uppercase text-xs mb-2">Per-spoke list ({w.spokes.length})</h4>
+                  <div className="os-spoke-screen"><table className="os-spoke-table text-sm w-full border-collapse"><thead><tr className="text-left text-zinc-500 border-b"><th className="py-1 pr-3">Spoke</th><th className="pr-3">Side</th><th>Color</th></tr></thead>
+                    <tbody>{w.spokes.map((sp) => <tr key={sp.text + sp.side} className="border-b border-zinc-100"><td className="py-0.5 pr-3 font-bold">{sp.text}</td><td className="pr-3">{sp.sideLabel}{sp.high ? ' (high)' : ''}</td><td>{sp.color}</td></tr>)}</tbody></table></div>
+                  <div className="hidden os-spoke-print">{splitForPrint(w.spokes).map((half, hi) => (
+                    <table key={hi}><thead><tr className="text-left text-zinc-500 border-b"><th className="pr-3">Spoke</th><th className="pr-3">Side</th><th>Color</th></tr></thead>
+                      <tbody>{half.map((sp) => <tr key={sp.text + sp.side} className="border-b border-zinc-100"><td className="pr-3 font-bold">{sp.text}</td><td className="pr-3">{sp.sideLabel}{sp.high ? ' (high)' : ''}</td><td>{sp.color}</td></tr>)}</tbody></table>))}</div>
                 </div>
-                <div className="text-sm space-y-4">
-                  {w.lists.map((l) => <div key={l.side}><h4 className="font-black uppercase text-xs mb-1">{l.label}</h4><p>{l.items.map((i) => `${i.text} ${i.color}`).join(', ')}</p></div>)}
+                <div className="os-lists text-sm space-y-4">
+                  {w.lists.map((l) => <div key={l.side} className="os-keep"><h4 className="font-black uppercase text-xs mb-1">{l.label}</h4><p>{l.items.map((i) => `${i.text} ${i.color}`).join(', ')}</p></div>)}
                 </div>
               </div> : null}
             </section>
           ))}
 
           {view.i9 ? (
-            <section className="bg-white rounded-3xl border border-zinc-200 p-6 text-sm">
-              <h3 className="text-xl font-black italic uppercase mb-3">I9 order list</h3>
+            <section className="os-sec bg-white rounded-3xl border border-zinc-200 p-6 text-sm">
+              <h3 className="os-heading text-xl font-black italic uppercase mb-3">I9 order list</h3>
               <pre className="whitespace-pre-wrap font-mono text-xs bg-zinc-50 border border-zinc-200 rounded-2xl p-4">{view.i9.text}</pre>
               {view.i9.linkUrl ? <p className="mt-3 no-print"><a href={view.i9.linkUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 font-black underline"><ExternalLink size={14} />Open I9 cart link</a> <span className="text-zinc-500">({view.i9.linkAdds}) - opens in your own browser, nothing is added automatically</span></p> : null}
               {view.i9.thomasText ? <p className="mt-3"><strong>Text for the dealer desk:</strong> {view.i9.thomasText}</p> : null}

@@ -229,7 +229,7 @@ test('A: an order without Studio data hides the empty per-spoke table, the empty
   const text = view.sheetToText(standardSheet());
   assert.equal(text.split(view.NO_STUDIO_LINE).length - 1, 1, 'the plain line appears once'); assert.ok(!/Spoke\s+Side\s+Color/.test(text)); assert.match(text, /Spoke lengths: Left 280 mm, Right 282 mm/);
   const src = fs.readFileSync(path.join(ROOT, 'components/tabs/OrderSheet.js'), 'utf8');
-  assert.ok(/\{w\.hasDetail \? <div className="os-images/.test(src) && /\{w\.hasDetail \? <div className="grid md:grid-cols-2 gap-6 mt-6"/.test(src)); assert.ok(/data-testid="no-studio"/.test(src) && /view\.noStudioAll/.test(src));
+  assert.ok(/\{w\.hasDetail \? <div className="os-images/.test(src) && /\{w\.hasDetail \? <div className="os-spoke-grid grid md:grid-cols-2 gap-6 mt-6"/.test(src)); assert.ok(/data-testid="no-studio"/.test(src) && /view\.noStudioAll/.test(src));
 });
 test('A: a System wheel keeps its pictures, table and lists; a mixed order shows the plain line only for the wheel without detail', () => {
   const w1 = view.buildView(sheet()).wheels; assert.ok(w1.every((w) => w.hasDetail === true)); assert.equal(view.buildView(sheet()).noStudioAll, false);
@@ -257,16 +257,36 @@ test('C: a side line never prints an empty count; the count comes from Backend 1
   for (const w of [std('front', 280, 282), noCount, oneColorFront, twoToOne, solix24, odd, rearWheel]) for (const s of sides(w)) assert.ok(!/undefined|NaN|null|: spokes|^\s*spokes/.test(view.sideText(s)), view.sideText(s));
   assert.match(view.sheetToText(standardSheet()), /Rotor side: 280 mm\nDrive side: 282 mm/);
 });
+const printCss = () => { const src = fs.readFileSync(path.join(ROOT, 'components/tabs/OrderSheet.js'), 'utf8'); const css = src.slice(src.indexOf('<style>{`') + 9, src.indexOf('`}</style>')); const i = css.indexOf('@media print'); return { src, css, i, outside: css.slice(0, i) + css.slice(css.lastIndexOf('}') + 1), p: css.slice(i) }; };
 test('D: print rules make the pictures 3.4 inches, two per row on letter paper, inside @media print only (screen layout unchanged)', () => {
-  const src = fs.readFileSync(path.join(ROOT, 'components/tabs/OrderSheet.js'), 'utf8');
-  const css = src.slice(src.indexOf('<style>{`') + 9, src.indexOf('`}</style>'));
-  const printStart = css.indexOf('@media print'); assert.ok(printStart >= 0); const outside = css.slice(0, printStart) + css.slice(css.lastIndexOf('}') + 1);
-  assert.ok(!/3\.4in|os-images|os-top/.test(outside), 'nothing about the pictures outside the print block');
-  const p = css.slice(printStart);
-  assert.match(p, /size: letter/); assert.match(p, /\.os-top \{ display: block !important; \}/); assert.match(p, /\.os-images \{ display: grid !important; grid-template-columns: 3\.4in 3\.4in;/);
-  assert.match(p, /\.os-images figure \{ width: 3\.4in !important; \}/); assert.match(p, /\.os-images img \{ width: 3\.4in !important; max-width: none !important; height: auto !important; \}/);
+  const { src, i, outside, p } = printCss(); assert.ok(i >= 0);
+  assert.ok(!/3.4in|os-images|os-top|os-spoke|os-sec|os-head|os-wheel|thead|table-header-group/.test(outside), 'nothing about print layout outside the print block');
+  assert.match(p, /size: letter/); assert.match(p, /.os-top { display: block !important; }/);
+  assert.match(p, /.os-images figure { display: block !important; float: left; width: 3.4in !important;/); assert.match(p, /.os-images img { width: 3.4in !important; max-width: none !important; height: auto !important; }/);
   assert.ok(2 * 3.4 + 0.15 <= 7.5, 'two pictures and the gap fit the 7.5 inch printable width of letter paper with 0.5 inch margins');
   assert.ok(/os-top/.test(src) && /className="os-images/.test(src), 'the classes are on the elements');
+});
+test('print layout: no keep-together on the wheel card or the picture block; small blocks stay whole; header row repeats; rows never split', () => {
+  const { p } = printCss();
+  const avoid = [...p.matchAll(/([^{}]+)\{([^}]*(?:break-inside|page-break-inside)\s*:\s*avoid[^}]*)\}/g)].flatMap((m) => m[1].split(',').map((x) => x.trim()));
+  assert.deepEqual(avoid.sort(), ['.os-images figure', '.os-keep', 'tr'].sort());
+  for (const bad of ['.os-wheel', '.os-top', '.os-images', '.os-spoke-grid', '.os-lists', 'section']) assert.ok(!avoid.includes(bad), bad + ' must be allowed to break across pages');
+  assert.match(p, /.os-heading { break-after: avoid; page-break-after: avoid; }/); assert.match(p, /thead { display: table-header-group; }/);
+  assert.match(p, /.os-spoke-screen { display: none !important; }/); assert.match(p, /.os-spoke-print { display: grid !important; grid-template-columns: 1fr 1fr;/);
+  const src = printCss().src;
+  for (const [what, re] of [['lengths box', /os-keep mt-4 p-3 rounded-2xl border/], ['header card', /os-keep os-head os-sec/], ['per-side list', /className="os-keep"><h4/], ['wheel heading', /os-heading text-xl/], ['spoke heading', /os-heading font-black uppercase text-xs/]]) assert.ok(re.test(src), what + ' keeps its class');
+  assert.ok(!/os-wheel[^"]*os-keep/.test(src), 'the wheel card itself is not os-keep');
+});
+test('print layout: the on-screen table is untouched and the two-column printed table is hidden on screen', () => {
+  const { src, outside } = printCss();
+  assert.match(src, /<div className="os-spoke-screen"><table className="os-spoke-table text-sm w-full border-collapse">/);
+  assert.match(src, /<div className="hidden os-spoke-print">/); assert.ok(!/os-spoke-print/.test(outside));
+  assert.match(src, /className="os-spoke-grid grid md:grid-cols-2 gap-6 mt-6"/);
+});
+test('print layout: splitForPrint halves the spokes in order, first half gets the odd one, nothing lost or repeated', () => {
+  assert.deepEqual(view.splitForPrint([]), []); assert.deepEqual(view.splitForPrint(null), []);
+  assert.deepEqual(view.splitForPrint([1]), [[1], []]); assert.deepEqual(view.splitForPrint([1, 2, 3]), [[1, 2], [3]]);
+  for (const n of [28, 32]) { const a = Array.from({ length: n }, (_, k) => k + 1), [x, y] = view.splitForPrint(a); assert.equal(x.length, n / 2); assert.deepEqual([...x, ...y], a); }
 });
 test('no customer field: the display fixes keep the whitelist (a customer value in a Standard sheet still never shows)', () => {
   const s = standardSheet(); s.customer = { email: CUSTOMER.email }; s.shipping_address = { address1: CUSTOMER.street }; s.wheels[0].customer_note = CUSTOMER.name; s.buyerEmail = CUSTOMER.email;
