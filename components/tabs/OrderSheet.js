@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, Loader2, AlertTriangle, Copy, Printer, ExternalLink } from 'lucide-react';
-import { normalizeOrderNumber, messageFor, buildView, sheetToText, imagePath } from '../../lib/order-sheet-view';
+import { normalizeOrderNumber, messageFor, buildView, sheetToText, imagePath, sideText } from '../../lib/order-sheet-view';
 
 // Order sheet tab: type an order NUMBER, see the wheel pictures, the lengths, the per-spoke list and (System orders) the I9 order list. Read only.
 // Data: /api/order-sheet and /api/order-sheet-image (dashboard routes that call Backend 1 with the shared secret on the server). No customer data is shown.
@@ -68,8 +68,10 @@ export default function OrderSheet({ getAuth }) {
           main { margin-left: 0 !important; padding: 0 !important; overflow: visible !important; }
           body, .order-sheet-root { background: #fff !important; }
           .os-wheel { break-inside: avoid; page-break-inside: avoid; }
-          .os-images { display: grid !important; grid-template-columns: 1fr 1fr; gap: 0.15in; }
-          .os-images img { width: 100% !important; max-width: 3.4in; }
+          .os-top { display: block !important; }
+          .os-images { display: grid !important; grid-template-columns: 3.4in 3.4in; gap: 0.15in; margin-top: 0.15in; }
+          .os-images figure { width: 3.4in !important; }
+          .os-images img { width: 3.4in !important; max-width: none !important; height: auto !important; }
           .os-spoke-table { font-size: 9pt; }
         }
       `}</style>
@@ -107,6 +109,8 @@ export default function OrderSheet({ getAuth }) {
             <p className="text-xs text-zinc-500 mt-3"><strong>Spoke numbering:</strong> {view.header.numberingLabel}{view.header.numberingRule ? ` - ${view.header.numberingRule}` : ''}</p>
           </section>
 
+          {view.noStudioAll ? <p data-testid="no-studio" className="text-sm text-zinc-600 font-bold">{view.noStudioLine}</p> : null}
+
           {view.warnings.length || view.orderChecks.length ? (
             <section className="rounded-3xl border border-amber-300 bg-amber-50 p-6">
               <h3 className="font-black uppercase text-sm mb-2">Warnings and order checks</h3>
@@ -124,28 +128,29 @@ export default function OrderSheet({ getAuth }) {
           {view.wheels.map((w) => (
             <section key={w.position} className="os-wheel bg-white rounded-3xl border border-zinc-200 p-6" data-wheel={w.position}>
               <h3 className="text-xl font-black italic uppercase mb-4">{w.title} wheel</h3>
-              <div className="grid md:grid-cols-2 gap-6">
+              <div className={w.hasDetail ? 'os-top grid md:grid-cols-2 gap-6' : 'os-top'}>
                 <div>
                   <table className="text-sm w-full"><tbody>{w.facts.map(([k, v]) => <tr key={k}><td className="pr-4 py-1 text-zinc-500 font-bold align-top whitespace-nowrap">{k}</td><td className="py-1 font-medium">{v}</td></tr>)}</tbody></table>
                   <div className={`mt-4 p-3 rounded-2xl border text-sm font-bold ${w.notCalculated ? 'bg-red-50 border-red-300 text-red-800' : 'bg-zinc-50 border-zinc-200'}`}>
                     {w.lengthsText || 'No length text'}
-                    {w.sides.length ? <div className="mt-2 font-medium space-y-0.5">{w.sides.map((s) => <div key={s.side}>{s.label} side{s.high ? ' (high tension)' : s.low ? ' (low tension)' : ''}: {s.count} spokes{s.lengthMm ? `, ${s.lengthMm} mm` : ''}{s.colors ? `, ${s.colors}` : ''}</div>)}</div> : null}
+                    {w.sides.length ? <div className="mt-2 font-medium space-y-0.5">{w.sides.map((s) => <div key={s.side}>{sideText(s)}</div>)}</div> : null}
                     {w.lengthsCaveat ? <div className="mt-2 font-medium text-amber-800">{w.lengthsCaveat}</div> : null}
                     {w.sourceText ? <div className="mt-2 text-xs font-medium text-zinc-500">{w.sourceText}</div> : null}
                   </div>
                   {w.supplied ? <p className="mt-3 text-sm text-blue-800 font-bold">{w.supplied}</p> : null}
                   {w.warnings.length ? <ul className="mt-3 list-disc ml-5 text-sm text-amber-800">{w.warnings.map((x, i) => <li key={i}>{x}</li>)}</ul> : null}
                 </div>
-                <div className="os-images flex flex-wrap gap-4">
+                {w.hasDetail ? <div className="os-images flex flex-wrap gap-4">
                   {w.images.length === 0 ? <p className="text-sm text-zinc-400">No pictures for this wheel.</p> : null}
                   {w.images.map((im) => { const st = images[`${im.wheel}|${im.view}`] || {}; return (
                     <figure key={im.view} className="w-56" data-image={`${im.wheel}-${im.view}`}>
                       {st.url ? <img src={st.url} alt={im.caption} className="w-56 border border-zinc-200 rounded-xl" /> : <div className="w-56 h-56 border border-dashed border-zinc-300 rounded-xl flex items-center justify-center text-xs text-center p-3 text-zinc-500">{st.error ? st.error : (st.loading ? 'Loading picture...' : 'Waiting...')}</div>}
                       <figcaption className="text-xs text-zinc-500 mt-1">{im.caption}</figcaption>
                     </figure>); })}
-                </div>
+                </div> : null}
               </div>
-              <div className="grid md:grid-cols-2 gap-6 mt-6">
+              {!w.hasDetail && !view.noStudioAll ? <p data-testid="no-studio" className="mt-4 text-sm text-zinc-500">{view.noStudioLine}</p> : null}
+              {w.hasDetail ? <div className="grid md:grid-cols-2 gap-6 mt-6">
                 <div>
                   <h4 className="font-black uppercase text-xs mb-2">Per-spoke list ({w.spokes.length})</h4>
                   <table className="os-spoke-table text-sm w-full border-collapse"><thead><tr className="text-left text-zinc-500 border-b"><th className="py-1 pr-3">Spoke</th><th className="pr-3">Side</th><th>Color</th></tr></thead>
@@ -154,7 +159,7 @@ export default function OrderSheet({ getAuth }) {
                 <div className="text-sm space-y-4">
                   {w.lists.map((l) => <div key={l.side}><h4 className="font-black uppercase text-xs mb-1">{l.label}</h4><p>{l.items.map((i) => `${i.text} ${i.color}`).join(', ')}</p></div>)}
                 </div>
-              </div>
+              </div> : null}
             </section>
           ))}
 
