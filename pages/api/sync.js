@@ -3,7 +3,7 @@ import { Resend } from 'resend';
 import fs from 'fs';
 import { mergeBtiNumber } from '../../lib/bti-number';
 import { isLiveVariant, breakerTripped } from '../../lib/breaker';
-import { groupOosReminders } from '../../lib/oos-summary';
+import { groupOosReminders, reminderDue, oosLine, oosSubject, oosHeader } from '../../lib/oos-summary';
 import { SURCHARGE_URL, findSurchargeCents } from '../../lib/ethirteen-surcharge';
 import { pickRearVariant } from '../../lib/ethirteen-wheel';
 import { familyConflict } from '../../lib/ethirteen-rim';
@@ -1089,7 +1089,7 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
           if (rule.oos_reminder_enabled !== false && newOutOfStockSince) {
             const daysSinceOOS = Math.floor((new Date() - new Date(newOutOfStockSince)) / (1000 * 60 * 60 * 24));
             const reminderInterval = rule.oos_reminder_days || 20;
-            if (daysSinceOOS > 0 && daysSinceOOS % reminderInterval === 0) oosReminders.push({ title: rule.title, days: daysSinceOOS });
+            if (reminderDue(daysSinceOOS, reminderInterval)) oosReminders.push({ title: rule.title, days: daysSinceOOS });
           }
 
           let newLog = `Synced (${winner.available ? 'In Stock' : 'OOS'}). Link: https://loamlabsusa.com/products/${productHandle}`;
@@ -1304,16 +1304,16 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
           (ownershipLines.length > 10 ? `<li>…and ${ownershipLines.length - 10} more</li>` : '') + '</ul>';
       }
       let oosHtml = '';
+      const oosGroups = groupOosReminders(oosReminders, 10);
       if (oosReminders.length > 0) {
-        const oosGroups = groupOosReminders(oosReminders, 10);
-        oosHtml = `<h3 style="margin-top:20px;">⏰ Items Still Out of Stock (${oosGroups.totalItems} items in ${oosGroups.totalProducts} products)</h3><ul>` +
-          oosGroups.lines.map(g => `<li><b>${g.product}</b> — ${g.count} item${g.count === 1 ? '' : 's'} out, longest <b>${g.maxDays} days</b></li>`).join('') +
+        oosHtml = `<h3 style="margin-top:20px;">⏰ ${oosHeader(oosGroups)}</h3><ul>` +
+          oosGroups.lines.map(oosLine).join('') +
           (oosGroups.more > 0 ? `<li>…and ${oosGroups.more} more product${oosGroups.more === 1 ? '' : 's'}</li>` : '') + '</ul>';
       }
       const totalAlerts = updated.length + attention.length + stockChanges.length + ownershipLines.length + autoCreatedVariants.length;
       await resend.emails.send({
         from: 'Watcher <system@loamlabsusa.com>', to: process.env.REPORT_EMAIL,
-        subject: `Vendor Watcher: ${totalAlerts} Updates${autoCreatedVariants.length > 0 ? ` (+${autoCreatedVariants.length} New Variants)` : ''}${oosReminders.length > 0 ? ` + ${oosReminders.length} OOS Reminders` : ''}${linkSection.count > 0 ? ` + ${linkSection.count} broken link${linkSection.count === 1 ? '' : 's'}` : ''}`,
+        subject: `Vendor Watcher: ${totalAlerts} Updates${autoCreatedVariants.length > 0 ? ` (+${autoCreatedVariants.length} New Variants)` : ''}${oosSubject(oosGroups)}${linkSection.count > 0 ? ` + ${linkSection.count} broken link${linkSection.count === 1 ? '' : 's'}` : ''}`,
         html: `<div style="font-family:sans-serif;">${linkSection.html}<h2>Shop Sync Report</h2><ul>${updatedHtml}${attentionHtml}</ul>${autoCreatedHtml}${stockHtml}${ownershipHtml}${oosHtml}</div>`
       });
     }
