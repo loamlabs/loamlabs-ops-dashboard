@@ -178,7 +178,6 @@ export default function OpsDashboard() {
     { key: 'acc_rim_width_max', label: 'Accessory Compatible Rim Width MAX (mm)', categories: ['ACCESSORY'], target: 'variant', type: 'number_integer' },
     { key: 'hub_sp_offset_spoke_hole_left', label: 'Variant Metafield: custom.hub_sp_offset_spoke_hole_left [number_decimal]', categories: ['HUB'], target: 'variant', type: 'number_decimal' },
     { key: 'hub_sp_offset_spoke_hole_right', label: 'Variant Metafield: custom.hub_sp_offset_spoke_hole_right [number_decimal]', categories: ['HUB'], target: 'variant', type: 'number_decimal' },
-    { key: 'product_weight_g', label: 'Metafield: custom.weight_g [number_decimal]', categories: ['RIM', 'HUB', 'SPOKE', 'NIPPLE', 'VALVESTEM', 'ACCESSORY'], target: 'product', type: 'number_decimal' },
     { key: 'integrated_hub_name', label: 'Integrated Hub Name', categories: ['HUB'], target: 'product', type: 'single_line_text_field' },
     { key: 'spoke_hub_interface', label: 'Spoke Hub Interface', categories: ['HUB'], target: 'product', type: 'single_line_text_field' },
     { key: 'model', label: 'Model', categories: ['RIM', 'HUB', 'NIPPLE', 'VALVESTEM', 'ACCESSORY'], target: 'product', type: 'single_line_text_field' },

@@ -48,7 +48,7 @@ export default async function handler(req, res) {
             const f = await readFile({ repo, pat, name: tab }); if (!f.ok) return res.status(502).json({ error: f.error });
             const parsed = rowsFromCsv(body.csv); if (!parsed.rows.length) return res.status(400).json({ error: 'No rows found in the CSV.', errors: parsed.errors });
             const p = previewImport(tab, f.data, parsed.rows);
-            if (action === 'import-preview') return res.status(200).json({ format: parsed.format, parseErrors: parsed.errors, sha: f.sha, ...p, toAdd: p.toAdd.map((r) => ({ title: r.Title, variantId: r.shopify_variant_id, size: r['Option1 Value'], holes: r['Option2 Value'], erd: r['Variant Metafield: custom.rim_erd [number_decimal]'] })) });
+            if (action === 'import-preview') return res.status(200).json({ format: parsed.format, parseErrors: parsed.errors, notes: parsed.notes || [], sha: f.sha, ...p, toAdd: p.toAdd.map((r) => ({ title: r.Title, variantId: r.shopify_variant_id, size: r['Option1 Value'], holes: r['Option2 Value'], erd: r['Variant Metafield: custom.rim_erd [number_decimal]'] })) });
             if (p.problems.length || parsed.errors.length) return res.status(422).json({ error: 'The CSV has problems; nothing was added.', problems: p.problems, parseErrors: parsed.errors });
             if (!body.baseSha) return res.status(400).json({ error: 'Preview first, then add.' });
             const out = await saveFiles({ repo, pat, changes: { [tab]: f.data.concat(p.toAdd) }, baseShas: { [tab]: body.baseSha } });
