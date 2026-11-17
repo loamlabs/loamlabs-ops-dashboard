@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { parsePortalCsv, parseMapCsv, splitParts, plan, formatReport, inSaleWindow } = require('./spank-portal');
+const { parsePortalCsv, parseMapCsv, splitParts, plan, formatReport, inSaleWindow } = require('../lib/spank-portal');
 
 const SENT = ['DEALER_71.99', 'DEALER_187.49', 'DEALER_0.01'];   // distinct sentinels in the dealer_price column
 const HEAD = 'product_handle,portal_category,part_number,portal_item_name,size_spec,color,msrp,mpn,ean,dealer_price,qty_available,status_text,portal_url';
@@ -26,7 +26,7 @@ test('the module only looks up the five named columns (no dealer, cost, ean, mpn
   const src = fs.readFileSync(path.join(__dirname, '..', 'lib', 'spank-portal.js'), 'utf8');
   const code = src.split('\n').filter((l) => !l.trim().startsWith('//')).join('\n');
   assert.ok(!/indexOf\('(dealer|cost|ean|mpn|portal_url)/i.test(code));
-  assert.deepEqual(require('./spank-portal').USED_COLUMNS, ['part_number', 'msrp', 'qty_available', 'portal_item_name', 'status_text']);
+  assert.deepEqual(require('../lib/spank-portal').USED_COLUMNS, ['part_number', 'msrp', 'qty_available', 'portal_item_name', 'status_text']);
 });
 
 test('price: above MSRP is lowered to MSRP, below MSRP is raised outside the sale window, compare-at is cleared', () => {
