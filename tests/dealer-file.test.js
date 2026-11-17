@@ -159,5 +159,7 @@ test('matcher: the reference field is a setting (SKU or a metafield); the flip c
 test('both modules are pure: no network, no disk, no secrets, no Supabase or Shopify, and nothing in pages/ or the Watcher uses them yet', () => {
   for (const f of ['lib/dealer-file.js', 'lib/dealer-file-match.js']) { const s = fs.readFileSync(path.join(__dirname, '..', f), 'utf8'); assert.ok(!/\bfetch\(|axios|supabase|shopify|process\.env|require\('(fs|http|https|net)'\)/i.test(s.replace(/\/\/.*$/gm, '')), f); }
   const users = []; (function walk(d) { for (const e of fs.readdirSync(d, { withFileTypes: true })) { if (['node_modules', '.next', '.git', 'tests'].includes(e.name)) continue; const p = path.join(d, e.name); if (e.isDirectory()) walk(p); else if (/\.(js|mjs)$/.test(e.name) && /dealer-file/.test(fs.readFileSync(p, 'utf8')) && !/dealer-file(-match)?\.js$/.test(e.name)) users.push(path.relative(path.join(__dirname, '..'), p)); } })(path.join(__dirname, '..'));
-  assert.deepEqual(users, [], 'nothing live imports the dealer file modules yet');
+  // the only importers are the hand-run FSA command and its planner (lib/fsa-file.js, lib/fsa-file-cli.js); no page, API route or Watcher code uses them
+  const allowed = ['lib/fsa-file.js', 'lib/fsa-file-cli.js'];
+  assert.deepEqual(users.map((u) => String(u).split(path.sep).join('/')).filter((u) => !allowed.includes(u)), [], 'nothing live imports the dealer file modules yet');
 });
