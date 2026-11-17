@@ -3,6 +3,7 @@ const { shopifyApi, LATEST_API_VERSION } = require('@shopify/shopify-api');
 require('@shopify/shopify-api/adapters/node');
 const { Resend } = require('resend');
 const { Redis } = require('@upstash/redis');
+const { weightMissing } = require('../../lib/weight-rule');
 
 // --- SHARED CONFIGURATION ---
 const {
@@ -67,7 +68,7 @@ async function sendAbandonedBuildReport() {
 // --- Task 2: Data Audit Logic ---
 async function runDataAudit() {
     console.log("Running Task: Data Audit...");
-    const PAGINATED_PRODUCTS_QUERY = `query($cursor: String) { products(first: 250, after: $cursor, query: "tag:'component:rim' OR tag:'component:hub' OR tag:'component:spoke'") { edges { node { id title status tags onlineStoreUrl productType vendor variants(first: 250) { edges { node { id title metafields(first: 10, namespace: "custom") { edges { node { key value } } } } } } metafields(first: 20, namespace: "custom") { edges { node { key value } } } } } pageInfo { hasNextPage endCursor } } }`;
+    const PAGINATED_PRODUCTS_QUERY = `query($cursor: String) { products(first: 250, after: $cursor, query: "tag:'component:rim' OR tag:'component:hub' OR tag:'component:spoke'") { edges { node { id title status tags onlineStoreUrl productType vendor variants(first: 250) { edges { node { id title metafields(first: 10, namespace: "custom") { edges { node { key value } } } } } } spokeBase: metafield(namespace: "custom", key: "spoke_base_weight_g") { value } metafields(first: 20, namespace: "custom") { edges { node { key value } } } } } pageInfo { hasNextPage endCursor } } }`;
     const client = new shopify.clients.Graphql({ session: getSession() });
     let allProducts = [], hasNextPage = true, cursor = null;
     do {
@@ -83,13 +84,9 @@ async function runDataAudit() {
         if (!isPublished) { errors.unpublished.push(`- **${product.title}**: Status is \`${product.status}\``); continue; }
         const productMetafields = Object.fromEntries(product.metafields.edges.map(e => [e.node.key, e.node.value]));
         const productErrors = [];
-        const hasProductWeight = !!productMetafields.weight_g;
-        let allVariantsHaveWeight = product.variants.edges.length > 0;
-        for (const { node: variant } of product.variants.edges) {
-            const variantMetafields = Object.fromEntries(variant.metafields.edges.map(e => [e.node.key, e.node.value]));
-            if (!variantMetafields.weight_g) { allVariantsHaveWeight = false; break; }
-        }
-        if (!hasProductWeight && !allVariantsHaveWeight) productErrors.push("Missing: `weight_g` at either Product or Variant level.");
+        // weight: product weight, OR every variant has one, OR (spokes) the base weight custom.spoke_base_weight_g (lib/weight-rule.js)
+        const variantWeights = product.variants.edges.map(({ node: variant }) => (Object.fromEntries(variant.metafields.edges.map(e => [e.node.key, e.node.value])).weight_g));
+        if (weightMissing({ tags: product.tags, productWeight: productMetafields.weight_g, spokeBase: product.spokeBase && product.spokeBase.value, variantWeights })) productErrors.push("Missing: `weight_g` at either Product or Variant level.");
         if (product.tags.includes('component:rim')) {
             const requiredRimMetafields = ['rim_washer_policy', 'rim_spoke_hole_offset', 'rim_target_tension_kgf'];
             requiredRimMetafields.forEach(key => { if (!productMetafields[key]) productErrors.push(`Missing Product Metafield: \`${key}\``); });
