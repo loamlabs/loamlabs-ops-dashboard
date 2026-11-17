@@ -64,3 +64,53 @@ test('the command is offline and never writes the library in place: only the out
   assert.match(src, /hubs_rekeyed_PLACEHOLDERS\.json/); assert.match(src, /--out is inside the repository/); assert.ok(!/fetch\(|require\('https?'\)|shopify|api\.github/i.test(src.split('\n').filter((l) => !l.trim().startsWith('//')).join('\n')));
   assert.ok(!/writeFileSync\(lib\b/.test(src));
 });
+
+// ---- every vendor: the generic sheet format (master_apply.mjs), folded products, unmatched rows, coverage
+const { redirectIndex, hubCoverage, otherFileLinks, formatCoverage } = require('../lib/hub-rekey-coverage');
+const GP = 'model_id,master_title,new_handle,product_id_to_grow,old_handle_of_grown_product,handles_to_retire_and_redirect,redirect_to,product_ids_to_DRAFT_after_overlap,kept_variants,new_variants,total_variants\n"M1","Acme Rear Hub","acme-rear-hub","100","acme-old","acme-r142 acme-r150 acme-old (grown product, handle changes)","/products/acme-rear-hub","200 300","1","1","2"\n';
+const GVH = 'model_id,master_title,new_handle,master_product_id,variant_status,master_variant_id_if_kept,folded_from_product_id,old_variant_id_that_dies,options (name: value),spoke_count,color,hub_spacing,hub_flange_diameter_left,hub_flange_offset_left,weight_g,wheel_spec_hub_spacing,wheel_spec_riding_style';
+const GV = [GVH, '"M1","Acme Rear Hub","acme-rear-hub","100","KEEP","1001","","","","32h","Black","12x148mm (Boost)","58","37","315","12x148mm (Boost)","[""mtb""]"', '"M1","Acme Rear Hub","acme-rear-hub","100","NEW","","200","2001","","32h","Black","12x142mm","58","34","309","12x142mm","[""mtb""]"'].join('\n') + '\n';
+const grow = () => loadMasters(GP, GV);
+const LIB2 = () => [row({ shopify_variant_id: 9, shopify_product_id: 5, Title: 'Other Hub', Vendor: 'Other', ProductURL: 'https://loamlabsusa.com/products/other-hub' }), row({ shopify_product_id: '100', shopify_variant_id: '1001' }),
+  row({ shopify_product_id: '200', shopify_variant_id: '2001', Title: 'Acme Rear Hub - 12x142', ProductURL: 'https://loamlabsusa.com/products/acme-r142' }),
+  row({ shopify_product_id: '200', shopify_variant_id: '2002', Title: 'Acme Rear Hub - 12x142', 'Option1 Value': '28h', ProductURL: 'https://loamlabsusa.com/products/acme-r142' }),   // a folded product's variant that the sheet does not carry
+  row({ shopify_product_id: '300', shopify_variant_id: '3001', Title: 'Acme Rear Hub - 12x150', ProductURL: 'https://loamlabsusa.com/products/acme-r150' }),
+  row({ shopify_product_id: null, shopify_variant_id: null, Title: 'Acme old no id', ProductURL: 'https://loamlabsusa.com/products/acme-old' }),
+  row({ shopify_product_id: '100', shopify_variant_id: '1999', Title: 'Acme grown, variant not in sheet' })];
+test('generic sheets are read: kept id, the id that dies, folded products, folded handles apart from the grown product\'s old handle', () => {
+  const [m] = grow(); assert.equal(m.productId, '100'); assert.deepEqual(m.oldProductIds, ['200', '300']); assert.deepEqual(m.foldedProductIds.sort(), ['200', '300']);
+  assert.deepEqual(m.foldedHandles.sort(), ['acme-r142', 'acme-r150']); assert.deepEqual(m.grownOldHandles, ['acme-old']);
+  assert.equal(m.variants[0].existingId, '1001'); assert.equal(m.variants[1].status, 'NEW'); assert.deepEqual(m.variants[1].replacesIds, ['2001']); assert.equal(m.variants[1].spacing, '12x142mm'); assert.equal(m.variants[1].sheet.weight_g, 309);
+});
+test('ids keep the type the file uses (text stays text, numbers stay numbers); new rows copy the base row\'s type', () => {
+  const r = rekey({ rows: LIB2(), masters: grow() }); const kept = r.rows.find((x) => String(x.shopify_variant_id) === '1001'); assert.equal(typeof kept.shopify_product_id, 'string'); assert.equal(kept.shopify_product_id, '100');
+  assert.equal(r.log.updated.length, 1); assert.deepEqual(Object.keys(r.log.updated[0].after).sort(), ['ProductURL', 'Title', 'hub_spacing', 'riding_style']);   // the id type did not register as a change
+  const created = r.rows.find((x) => String(x.shopify_variant_id).startsWith('PLACEHOLDER')); assert.equal(typeof created.shopify_product_id, 'string');
+});
+test('every row of a folded product is handled: a dying variant is retired with the new row named, any other row of a folded product (by id or URL) is retired as "no master variant"; the row on the grown product that no sheet line matches is only listed', () => {
+  const r = rekey({ rows: LIB2(), masters: grow() }); const by = (id) => r.log.retired.find((x) => x.variantId === String(id));
+  assert.match(by(2001).reason, /dies/); assert.match(by(2001).replacedBy, /12x142mm \| 32h/);
+  assert.match(by(2002).reason, /no master variant/); assert.match(by(3001).reason, /no master variant/);
+  assert.equal(r.rows.find((x) => String(x.shopify_variant_id) === '3001').Status, 'retired'); assert.equal(r.checks.rowsDeleted, 0); assert.deepEqual(r.checks.variantIdsLost, []); assert.equal(r.checks.ok, true);
+  assert.deepEqual(r.log.unmatched.map((u) => u.variantId).sort(), ['', '1999']); assert.equal(r.rows.find((x) => String(x.shopify_variant_id) === '1999').Status, undefined);   // nothing changed for the unmatched
+  assert.ok(!r.log.unmatched.some((u) => /PLACEHOLDER/.test(u.variantId)), 'the rows the tool created are not reported as unmatched');
+});
+test('a dying id without a library row is counted, not a warning; placeholder ids are different for every vendor run', () => {
+  const r = rekey({ rows: LIB2().filter((x) => String(x.shopify_variant_id) !== '2001'), masters: grow(), placeholderPrefix: 'acme' }); assert.deepEqual(r.log.dyingWithoutRow, [{ master: 'Acme Rear Hub', variantId: '2001' }]); assert.ok(!r.log.warnings.some((w) => /loses its id/.test(w)));
+  const a = rekey({ rows: LIB2(), masters: grow(), placeholderPrefix: 'acme' }).rows.find((x) => /^PLACEHOLDER/.test(String(x.shopify_variant_id))).shopify_variant_id; const b = rekey({ rows: LIB2(), masters: grow(), placeholderPrefix: 'zed' }).rows.find((x) => /^PLACEHOLDER/.test(String(x.shopify_variant_id))).shopify_variant_id; assert.notEqual(a, b); assert.match(a, /^PLACEHOLDER-acme-/);
+});
+test('coverage: every library row linked to a folded, grown or redirect_map product gets an outcome; a row whose master is not in any sheet is "NOT HANDLED" and named; other library files that mention a retiring product are listed', () => {
+  const lib = LIB2().concat([row({ shopify_product_id: '777', shopify_variant_id: '7001', Title: 'Held hub', ProductURL: 'https://loamlabsusa.com/products/held-hub' })]); const masters = grow(); const r = rekey({ rows: lib, masters });
+  const redirect = redirectIndex([{ from: '/products/acme-r142', to: '/products/acme-rear-hub' }, { from: '/products/held-hub', to: '/products/held-master' }], [{ redirect_from_handle: 'held-hub', model_id: 'M9', status_in_plan: 'hold' }]);
+  const cov = hubCoverage({ rowsBefore: lib, vendors: [{ name: 'acme', masters, logs: [r.log] }], redirect });
+  const out = (id) => cov.linked.find((l) => l.variantId === String(id)).how;
+  assert.match(out(1001), /moved in place/); assert.match(out(2001), /replaced by a new master row/); assert.match(out(2002), /retired \(no master variant/); assert.match(out(1999), /UNMATCHED/); assert.match(out(7001), /NOT HANDLED/);
+  assert.ok(cov.linked.every((l) => l.how)); assert.ok(!cov.linked.some((l) => l.vendor === 'Other' && l.variantId === '9'));
+  assert.ok(cov.notHandled.some((l) => l.variantId === '7001' && /M9/.test(l.detail)));
+  const other = otherFileLinks({ rims: [{ Title: 'Some rim', note: 'https://loamlabsusa.com/products/acme-r142' }, { Title: 'clean', note: 'x' }], nipples: [{ Title: 'n', id: '2001' }] }, [{ masters }], redirect);
+  assert.deepEqual(other.map((x) => x.file + ':' + x.title), ['rims:Some rim', 'nipples:n']); assert.match(formatCoverage(cov, other, 'x'), /NOT HANDLED/);
+});
+test('the multi-vendor command is offline, refuses an output folder inside the repo, never writes the library in place, and writes the coverage report', () => {
+  const src = fs.readFileSync(path.join(__dirname, '..', 'lib', 'hub-rekey-all-cli.js'), 'utf8');
+  assert.match(src, /--out is inside the repository/); assert.match(src, /hubs_rekeyed_PLACEHOLDERS\.json/); assert.match(src, /COVERAGE\.txt/); assert.ok(!/fetch\(|require\('https?'\)|api\.github/i.test(src.split('\n').filter((l) => !l.trim().startsWith('//')).join('\n'))); assert.ok(!/writeFileSync\(lib\b/.test(src));
+});
