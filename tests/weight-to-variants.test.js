@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { componentType, planCopy, planClear, formatCopy, undoCopy, undoClear } = require('../lib/weight-to-variants');
+const { componentType, planCopy, planClear, planClearSpokeOld, formatCopy, formatClear, undoCopy, undoClear } = require('../lib/weight-to-variants');
 
 const P = (over) => ({ id: 'gid://shopify/Product/1', handle: 'hub-a', title: 'Hub A', vendor: 'Acme', type: 'hub', productWeight: '315', variants: [{ id: 'v1', title: '32h / Black', weight: null }, { id: 'v2', title: '32h / Blue', weight: null }], ...over });
 const row = (pl, h) => pl.rows.find((r) => r.handle === h);
@@ -64,4 +64,31 @@ test('the command: dry run by default, undo file written before the first write,
   assert.ok(src.indexOf('fs.writeFileSync(undoFile') < src.indexOf('metafieldsDelete(metafields'));
   assert.ok(!/metafieldDefinitionDelete/.test(src));
   assert.match(src, /flag\('clear-product'\)/); assert.match(src, /read back/);
+});
+
+// ---- step 3: the OLD spoke product weight_g, cleared only where spoke_base_weight_g exists and is equal
+const SP = (over) => P({ handle: 'sapim-a', type: 'spoke', vendor: 'Sapim', productWeight: '5.95', spokeBase: '5.95', variants: [{ id: 'v1', title: '260', weight: null }, { id: 'v2', title: '262', weight: null }], ...over });
+test('spoke step 3: clear only when spoke_base_weight_g exists and equals the old weight_g (text 5.95 and 5.950 are equal); every other case is held with a reason', () => {
+  const pl = planClearSpokeOld([SP(), SP({ handle: 'eq', spokeBase: '5.950' }), SP({ handle: 'nobase', spokeBase: null }), SP({ handle: 'blank', spokeBase: '' }), SP({ handle: 'bad', spokeBase: 'abc' }), SP({ handle: 'diff', spokeBase: '6.1' }), SP({ handle: 'noold', productWeight: null }), SP({ handle: 'badold', productWeight: '0' })]);
+  assert.deepEqual(['sapim-a', 'eq', 'nobase', 'blank', 'bad', 'diff', 'noold', 'badold'].map((h) => row(pl, h).status), ['clear', 'clear', 'held_no_base', 'held_no_base', 'held_no_base', 'held_differs', 'no_product_weight', 'invalid_weight']);
+  assert.equal(pl.toChange, 2); for (const r of pl.rows) assert.ok(r.reason);
+  assert.match(row(pl, 'diff').reason, /Jerry decides/);
+});
+test('spoke step 3 looks at spoke products only (a hub with a product weight is out of scope, not listed); the earlier steps still hold spokes', () => {
+  const pl = planClearSpokeOld([SP(), P({ handle: 'hub-a', spokeBase: '315' }), P({ handle: 'rim-a', type: 'rim' })]);
+  assert.equal(pl.scoped, 1); assert.equal(pl.rows.length, 1); assert.equal(row(planClear([SP()]), 'sapim-a').status, 'held_type'); assert.equal(row(planCopy([SP()]), 'sapim-a').status, 'held_type');
+  assert.equal(planClearSpokeOld([SP(), P({ handle: 'x', type: 'rim' })], { types: ['rim'] }).scoped, 1);   // a --type rim cannot widen the scope
+});
+test('spoke step 3: --vendor and --handle still narrow, more than 40 needs --force, undo puts the OLD value back and keeps the base untouched', () => {
+  const ps = [SP(), SP({ handle: 'b', vendor: 'Berd' })];
+  assert.equal(planClearSpokeOld(ps, { vendors: ['berd'] }).scoped, 1); assert.equal(planClearSpokeOld(ps, { handles: ['sapim-a'] }).scoped, 1);
+  assert.ok(planClearSpokeOld(Array.from({ length: 41 }, (_, i) => SP({ handle: 'h' + i, id: 'p' + i }))).refuse[0].includes('--force'));
+  const u = undoClear(planClearSpokeOld([SP()]), 'now'); assert.deepEqual(u.products, [{ productId: 'gid://shopify/Product/1', handle: 'sapim-a', value: '5.95' }]); assert.match(u.note, /custom\.weight_g/);
+});
+test('spoke step 3 report header and columns say old weight and base; the command has the mode, forces type spoke, reads the base, checks it is still there after the write, and never combines with --clear-product', () => {
+  const t = formatClear(planClearSpokeOld([SP(), SP({ handle: 'diff', spokeBase: '6.1' })]), 'x'); assert.match(t, /STEP 3 \(clear the OLD spoke product weight_g/); assert.match(t, /\| base 5\.95 \|/); assert.match(t, /would clear 1 products/);
+  const src = fs.readFileSync(path.join(__dirname, '..', 'lib', 'weight-to-variants-cli.js'), 'utf8');
+  assert.match(src, /flag\('clear-spoke-old'\)/); assert.match(src, /types: spokeOld \? \['spoke'\]/); assert.match(src, /spoke_base_weight_g/); assert.match(src, /use --clear-product or --clear-spoke-old, not both/);
+  assert.match(src, /the new base weight must still be there/); assert.ok(src.indexOf('fs.writeFileSync(undoFile') < src.indexOf('metafieldsDelete(metafields'));
+  assert.ok(!/metafieldDefinitionDelete/.test(src));
 });
