@@ -114,3 +114,11 @@ test('the multi-vendor command is offline, refuses an output folder inside the r
   const src = fs.readFileSync(path.join(__dirname, '..', 'lib', 'hub-rekey-all-cli.js'), 'utf8');
   assert.match(src, /--out is inside the repository/); assert.match(src, /hubs_rekeyed_PLACEHOLDERS\.json/); assert.match(src, /COVERAGE\.txt/); assert.ok(!/fetch\(|require\('https?'\)|api\.github/i.test(src.split('\n').filter((l) => !l.trim().startsWith('//')).join('\n'))); assert.ok(!/writeFileSync\(lib\b/.test(src));
 });
+
+test('real run (noPlaceholders): a new row whose real variant id is not known yet is NOT created and is listed; rows with a real id are created; no placeholder ever appears', () => {
+  const ids = loadNewIds('master_title,hub_spacing,spoke_count,color,variant_id\nAcme Rear Hub,12x142mm,32h,Black,3001\n');
+  const r = rekey({ rows: LIB(), masters: masters(), newIds: ids, spacings: SP, noPlaceholders: true });
+  assert.equal(r.checks.placeholders, 0); assert.ok(!r.rows.some((x) => String(x.shopify_variant_id).startsWith('PLACEHOLDER')));
+  assert.deepEqual(r.log.created.map((c) => c.variantId), ['3001']); assert.deepEqual(r.log.notCreated.map((n) => n.label), ['Acme Rear Hub | 12x157mm (SuperBoost) | 32h']);
+  assert.ok(r.log.warnings.some((w) => /no real variant id yet/.test(w))); assert.equal(r.checks.ok, true); assert.equal(r.checks.rowsDeleted, 0);
+});
