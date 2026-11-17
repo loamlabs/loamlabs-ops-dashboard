@@ -122,3 +122,17 @@ test('real run (noPlaceholders): a new row whose real variant id is not known ye
   assert.deepEqual(r.log.created.map((c) => c.variantId), ['3001']); assert.deepEqual(r.log.notCreated.map((n) => n.label), ['Acme Rear Hub | 12x157mm (SuperBoost) | 32h']);
   assert.ok(r.log.warnings.some((w) => /no real variant id yet/.test(w))); assert.equal(r.checks.ok, true); assert.equal(r.checks.rowsDeleted, 0);
 });
+
+test('id-less rows: a row with no variant id on the master\'s URL gets the id of the ONE kept variant that fits (spoke count and the spacing token of the title); it is then updated in place like any kept row', () => {
+  const idless = row({ shopify_product_id: null, shopify_variant_id: null, Title: 'Acme Rear Hub - 12x148 Boost' });
+  const r = rekey({ rows: [row({ shopify_variant_id: 9, shopify_product_id: 5, Title: 'Other Hub', Vendor: 'Other', ProductURL: 'https://loamlabsusa.com/products/other-hub' }), idless], masters: grow() });
+  assert.equal(r.log.idAssigned.length, 1); assert.equal(r.log.idAssigned[0].variantId, '1001'); const got = r.rows.find((x) => String(x.shopify_variant_id) === '1001'); assert.ok(got); assert.equal(got.Title, 'Acme Rear Hub'); assert.equal(got.hub_spacing, '12x148mm (Boost)'); assert.equal(String(got.shopify_product_id), '100');
+  assert.equal(r.log.updated.length, 1); assert.equal(r.rows.length, 2 + r.log.created.length); assert.equal(r.checks.ok, true);
+});
+test('id-less rows are NOT matched when the combo already has a linked row, when the spacing token fits no combo, or when the row is not on the master\'s URL (they stay unmatched, nothing changed)', () => {
+  const linked = row({ shopify_product_id: '100', shopify_variant_id: '1001' }); const dup = row({ shopify_product_id: null, shopify_variant_id: null, Title: 'Acme Rear Hub - 12x148 Boost' });
+  assert.equal(rekey({ rows: [linked, dup], masters: grow() }).log.idAssigned.length, 0);
+  const wrongSpacing = row({ shopify_product_id: null, shopify_variant_id: null, Title: 'Acme Rear Hub - 12x999 Boost' }); assert.equal(rekey({ rows: [wrongSpacing], masters: grow() }).log.idAssigned.length, 0);
+  const elsewhere = row({ shopify_product_id: null, shopify_variant_id: null, Title: 'Acme Rear Hub - 12x148 Boost', ProductURL: 'https://loamlabsusa.com/products/something-else' }); assert.equal(rekey({ rows: [elsewhere], masters: grow() }).log.idAssigned.length, 0);
+  const wrongHoles = row({ shopify_product_id: null, shopify_variant_id: null, Title: 'Acme Rear Hub - 12x148 Boost', 'Option1 Value': '36h' }); assert.equal(rekey({ rows: [wrongHoles], masters: grow() }).log.idAssigned.length, 0);
+});
