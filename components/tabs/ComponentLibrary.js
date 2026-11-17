@@ -307,10 +307,11 @@ export default function ComponentLibrary(props) {
                                       // CONDITIONAL WEIGHT LOGIC: Only mandatory if BOTH weight fields are empty
                                       let isMandatory = isMandatoryRaw;
                                       if (key.toLowerCase().includes('weight_g')) {
+                                         // weight is variant-only: the variant column is mandatory until it has a value; the retired product column never is
                                          const hasVariantWeight = !!editingComponent['Variant Metafield: custom.weight_g [number_decimal]'];
-                                         const hasProductWeight = !!editingComponent['Metafield: custom.weight_g [number_decimal]'];
-                                         if (hasVariantWeight || hasProductWeight) isMandatory = false;
+                                         isMandatory = key === 'Metafield: custom.weight_g [number_decimal]' ? false : (isMandatoryRaw && !hasVariantWeight);
                                       }
+                                      if (key === 'Metafield: custom.weight_g [number_decimal]' && !editingComponent[key]) return null;   // retired product-level column: hidden once empty
 
                                       // DYNAMIC OPTIONS: For Rims, pull Option1 Value choices from Shopify metafield validation
                                       let options = DROPDOWN_OPTIONS[key] || DROPDOWN_OPTIONS[formatColumnTitle(key)] || DROPDOWN_OPTIONS[key.toLowerCase()];
@@ -347,6 +348,8 @@ export default function ComponentLibrary(props) {
                                                   <input 
                                                      type="text" 
                                                      list={`list-${key.replace(/\s+/g, '-')}`}
+                                                     disabled={key === 'Metafield: custom.weight_g [number_decimal]'}
+                                                     title={key === 'Metafield: custom.weight_g [number_decimal]' ? 'Weights are stored on the variant now; this product-level value is being retired and is no longer edited here' : undefined}
                                                      value={(editingComponent[key] === 0 || editingComponent[key] === '0') ? '0' : (editingComponent[key] || '')}
                                                      onChange={(e) => {
                                                         let val = e.target.value;
@@ -541,9 +544,9 @@ export default function ComponentLibrary(props) {
                                        let isMandatory = isMandatoryRaw;
                                        if (key.toLowerCase().includes('weight_g')) {
                                           const hasVariantWeight = !!bulkEditComponent['Variant Metafield: custom.weight_g [number_decimal]'];
-                                          const hasProductWeight = !!bulkEditComponent['Metafield: custom.weight_g [number_decimal]'];
-                                          if (hasVariantWeight || hasProductWeight) isMandatory = false;
+                                          isMandatory = key === 'Metafield: custom.weight_g [number_decimal]' ? false : (isMandatoryRaw && !hasVariantWeight);
                                        }
+                                       if (key === 'Metafield: custom.weight_g [number_decimal]') return null;   // retired product-level column: never edited in bulk
 
                                        // DYNAMIC OPTIONS: For Rims, pull Option1 Value choices from Shopify metafield validation
                                        let options = DROPDOWN_OPTIONS[key] || DROPDOWN_OPTIONS[formatColumnTitle(key)] || DROPDOWN_OPTIONS[key.toLowerCase()];

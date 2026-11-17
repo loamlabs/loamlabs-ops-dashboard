@@ -95,8 +95,8 @@ export default async function handler(req, res) {
 
     // Product Level
     sourceProduct.metafields.edges.forEach(({ node }) => {
-      // Skip internal shopify ones if any
-      if (node.namespace !== 'shopify') {
+      // Skip internal shopify ones if any. The product-level weight_g is retired (weights live on the variants): never copy it to the new product.
+      if (node.namespace !== 'shopify' && !(node.namespace === 'custom' && node.key === 'weight_g')) {
         metafieldsToSet.push({
           ownerId: newProduct.id,
           namespace: node.namespace,
