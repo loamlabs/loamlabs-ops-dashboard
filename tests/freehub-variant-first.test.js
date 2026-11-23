@@ -59,7 +59,7 @@ const planWith = async (mut) => {
     const store = makeStore(world), db = makeDb();
     return planBuild({ store, db, recipe: world.recipe(), overrides: {} });
 };
-const fhOf = (plan) => ({ options: plan.freehub.options, source: plan.freehub.source, list: JSON.parse(plan.product.metafields.find((m) => m.key === 'freehub').value), map: JSON.parse(plan.product.metafields.find((m) => m.key === 'freehub_variant_map').value) });
+const fhOf = (plan) => ({ options: plan.freehub.options, source: plan.freehub.source, list: JSON.parse(plan.variant.metafields.find((m) => m.key === 'freehub').value), map: JSON.parse(plan.variant.metafields.find((m) => m.key === 'freehub_variant_map').value) });
 
 test('signature build: product only (today): the product list and map are copied, source says product', async () => {
     const plan = await planWith();
