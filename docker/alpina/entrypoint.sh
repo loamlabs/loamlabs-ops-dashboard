@@ -6,7 +6,7 @@
 #     calls the scheduled command, which skips itself until 3 days have passed since the last run.
 # The Hoss readings come from the 8 pages saved by hand into docker/alpina/data/pages (see docs/ALPINA_NAS_SETUP.md).
 # Command files (create an empty or one-line text file with this exact name in the NAS folder docker/alpina/data/commands):
-#   selftest.txt   read-now.txt   approve.txt (one number inside)   apply-now.txt   undo.txt (the undo file name inside)   pause.txt   resume.txt   status.txt
+#   selftest.txt   read-now.txt   approve.txt (one number inside)   apply-now.txt   undo.txt (the undo file name inside)   pause.txt   resume.txt   status.txt   show-token.txt
 # Every answer is written to /data/results/<command>_<time>.txt and copied to /data/LAST_RESULT.txt. The job log is /data/job.log.
 # Test hooks (not used on the NAS): DATA_DIR, APP_DIR, SKIP_INSTALL=1, ONESHOT=1 (process the command files once and exit), FAKE_NOW_EPOCH.
 set -u
@@ -51,9 +51,10 @@ run_cmd() {
       approve)    if ! [[ "$arg" =~ ^[0-9]{1,4}$ ]]; then echo "NOT RUN. approve.txt must contain only the number of changes from the baseline report (digits only)."; elif login_ready; then (cd "$APP" && node lib/alpina-hoss-cli.js $(src_args) --force --apply --approve-baseline --limit "$arg" --out "$REP" --state "$STATE" 2>&1); else echo "NOT RUN. Not typed yet:$MISSING"; fi ;;
       apply-now)  if login_ready; then (cd "$APP" && node lib/alpina-hoss-cli.js $(src_args) --force --apply --out "$REP" --state "$STATE" 2>&1); else echo "NOT RUN. Not typed yet:$MISSING"; fi ;;
       undo)       if [[ "$arg" =~ ^alpina_undo_[0-9-]+\.json$ ]] && [ -f "$REP/$arg" ]; then (cd "$APP" && node lib/alpina-hoss-undo.js "$REP/$arg" 2>&1); else echo "NOT RUN. undo.txt must contain the file name exactly, like alpina_undo_2026-11-25.json, and that file must be in the reports folder. Files there: $(ls "$REP" | grep alpina_undo_ | tr '\n' ' ')"; fi ;;
+      show-token) (cd "$APP" && node lib/alpina-hoss-receiver.js --data "$DATA" --print-token 2>&1) ; echo "(copy it into the Chrome helper options; do not share it. To make a new one: delete data/helper_token.txt on the NAS and Restart the project.)" ;;
       pause)      touch "$DATA/PAUSED"; echo "PAUSED: scheduled runs are skipped until you create resume.txt. Nothing else changed." ;;
       resume)     rm -f "$DATA/PAUSED"; echo "RESUMED: scheduled runs continue. Next run: $(next_run_text)" ;;
-      status)     echo "paused: $([ -f "$DATA/PAUSED" ] && echo YES || echo no)"; echo "next scheduled check: $(next_run_text)"; echo "source: $ALPINA_SOURCE"; echo "values typed: $(login_ready && echo yes || echo "NO, missing:$MISSING")"; echo "alert email ready: $(mail_ready && echo yes || echo "NO (RESEND_API_KEY / REPORT_EMAIL not typed)")"; (cd "$APP" && node lib/alpina-hoss-cli.js --pages-status --pages "$PAGES" --out "$REP" --state "$STATE" 2>&1); echo "state:"; cat "$STATE" 2>/dev/null || echo "  (no run yet)"; echo; echo "reports:"; ls -1t "$REP" 2>/dev/null | head -12; echo; echo "last log lines:"; tail -8 "$DATA/job.log" ;;
+      status)     echo "paused: $([ -f "$DATA/PAUSED" ] && echo YES || echo no)"; echo "next scheduled check: $(next_run_text)"; echo "source: $ALPINA_SOURCE"; echo "values typed: $(login_ready && echo yes || echo "NO, missing:$MISSING")"; echo "alert email ready: $(mail_ready && echo yes || echo "NO (RESEND_API_KEY / REPORT_EMAIL not typed)")"; (cd "$APP" && node lib/alpina-hoss-cli.js --pages-status --pages "$PAGES" --out "$REP" --state "$STATE" 2>&1); (cd "$APP" && node lib/alpina-hoss-receiver.js --data "$DATA" --describe 2>&1); echo "state:"; cat "$STATE" 2>/dev/null || echo "  (no run yet)"; echo; echo "reports:"; ls -1t "$REP" 2>/dev/null | head -12; echo; echo "last log lines:"; tail -8 "$DATA/job.log" ;;
       *)          echo "unknown command $name" ;;
     esac; } > "$out" 2>&1
   cp "$out" "$DATA/LAST_RESULT.txt"; log "answer written: $out"
@@ -66,11 +67,19 @@ process_commands() {
   for f in "$CMDS"/*.txt; do
     [ -e "$f" ] || continue
     local base name arg; base="$(basename "$f")"; name="${base%.txt}"; arg="$(head -c 200 "$f" | tr -d '\r\n ' )"
-    case "$name" in selftest|read-now|approve|apply-now|undo|pause|resume|status) ;; *) mv "$f" "$CMDS/done/${base}.unknown"; log "ignored unknown command file $base"; continue ;; esac
+    case "$name" in selftest|read-now|approve|apply-now|undo|pause|resume|status|show-token) ;; *) mv "$f" "$CMDS/done/${base}.unknown"; log "ignored unknown command file $base"; continue ;; esac
     mv "$f" "$CMDS/done/${base}.$(date +%s)"; run_cmd "$name" "$arg"
   done
 }
 
+# the helper receiver (takes the 8 pages from the Chrome helper in Jerry's own Chrome); restarted by this loop if it ever stops
+start_receiver() {
+  [ -f "$APP/lib/alpina-hoss-receiver.js" ] || { log "helper receiver not in this version of the code"; return; }
+  ( while true; do (cd "$APP" && node lib/alpina-hoss-receiver.js --data "$DATA" --port "${ALPINA_HELPER_PORT:-8765}" 2>&1 | tee -a "$DATA/job.log"); sleep 5; done ) &
+  RECEIVER_LOOP=$!
+  log "helper receiver started (port ${ALPINA_HELPER_PORT:-8765})"
+}
+receiver_alive() { [ -n "${RECEIVER_LOOP:-}" ] && ! kill -0 "$RECEIVER_LOOP" 2>/dev/null && start_receiver; return 0; }
 now_epoch() { echo "${FAKE_NOW_EPOCH:-$(date +%s)}"; }
 # the next 5:40 am (New York time) plus 0 to 14 minutes of random delay
 compute_next() { local n t; n="$(now_epoch)"; t="$(date -d 'today 05:40' +%s)"; [ "$t" -le "$n" ] && t="$(date -d 'tomorrow 05:40' +%s)"; echo $((t + (RANDOM % 900))) > "$DATA/next_run_epoch"; }
@@ -89,8 +98,10 @@ main() {
   install_code || { log "the code could not be set up: the job is idle. Read the line above, fix it, then Stop and Start the project."; [ "${ONESHOT:-0}" = "1" ] && return 1; while true; do sleep 3600; done; }
   run_cmd selftest ""
   [ "${1:-}" = "selftest" ] && return 0
+  start_receiver
   compute_next; log "next scheduled check: $(next_run_text)"
   while true; do
+    receiver_alive
     process_commands
     [ "${ONESHOT:-0}" = "1" ] && return 0
     if [ "$(now_epoch)" -ge "$(cat "$DATA/next_run_epoch")" ]; then scheduled_run; compute_next; log "next scheduled check: $(next_run_text)"; fi

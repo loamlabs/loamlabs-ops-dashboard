@@ -1,0 +1,12 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Alpina Hoss pages helper</title>
+<style>body{font:15px system-ui,sans-serif;max-width:620px;margin:24px auto;padding:0 16px;color:#222}label{display:block;margin:14px 0 4px;font-weight:600}input,select{width:100%;padding:8px;font-size:15px;box-sizing:border-box}button{margin:10px 8px 0 0;padding:8px 14px;font-size:15px}#out{white-space:pre-wrap;background:#f4f4f4;padding:10px;margin-top:16px;min-height:60px}.warn{color:#b00}.small{color:#555;font-size:13px}</style></head>
+<body>
+<h2>Alpina Hoss pages helper</h2>
+<p class="small">Runs in this Chrome while you are signed in to hasgllc.com. Every 2 or 3 days it loads the 8 Alpina product pages (one at a time, 5 to 10 seconds apart) and sends the stock numbers to your NAS. It never logs in for you: if you are signed out, or Hoss shows a check, a 403 or a 429, it stops, tells the NAS (one email to you), and waits until you click Resume.</p>
+<label for="nas">NAS address (the helper port is 8765)</label><input id="nas" placeholder="http://192.168.10.20:8765">
+<label for="token">Token (from the NAS container Log, "HELPER TOKEN")</label><input id="token" type="password" autocomplete="off">
+<label for="days">Run every</label><select id="days"><option value="3">3 days</option><option value="2">2 days</option></select>
+<div><button id="save">Save</button><button id="test">Test connection</button><button id="run">Run now (first run)</button><button id="resume">Resume (after I logged in)</button></div>
+<div id="out">...</div>
+<script src="options.js"></script></body></html>

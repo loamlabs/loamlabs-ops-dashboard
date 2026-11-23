@@ -66,6 +66,7 @@ From now on the job runs by itself at about 5:40 am, and only does the work when
 
 | File name | What it does | Where the answer is |
 |---|---|---|
+| `show-token.txt` | Prints the Chrome helper token in the Log tab (see docs/ALPINA_CHROME_HELPER.md) | Log tab |
 | `status.txt` | Shows whether it is paused, when the next check is, whether your values are typed, the last reports | `LAST_RESULT.txt` |
 | `selftest.txt` | Runs the built-in test again (no Hoss, no Shopify) | `LAST_RESULT.txt` |
 | `read-now.txt` | Reads Hoss now and shows what it would change. Changes nothing | `LAST_RESULT.txt` |
@@ -105,3 +106,6 @@ The compose file has one line `- /volume1/docker/alpina/data:/data`. If your doc
 
 ## Secrets rule
 The real values exist only in the NAS project (and your password manager). Never copy the edited YAML into a chat, GitHub, Google Drive, or the synced `loamlabs llc` folder.
+
+## The Chrome helper (pages arrive by themselves)
+See docs/ALPINA_CHROME_HELPER.md (and the copy ALPINA_CHROME_HELPER_STEPS.md). status.txt also shows the helper line (last delivery, or HELPER STOPPED with the reason).
