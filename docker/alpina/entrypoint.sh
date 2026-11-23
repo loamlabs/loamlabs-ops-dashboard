@@ -4,19 +4,24 @@
 #  2. runs a self-test (no network to Hoss, no secrets) and writes the answer to /data/results
 #  3. then loops forever (every 30 seconds): runs any COMMAND FILE Jerry drops into /data/commands, and once a day at 5:40 am (New York time, plus up to 15 minutes of random delay)
 #     calls the scheduled command, which skips itself until 3 days have passed since the last run.
+# The Hoss readings come from the 8 pages saved by hand into docker/alpina/data/pages (see docs/ALPINA_NAS_SETUP.md).
 # Command files (create an empty or one-line text file with this exact name in the NAS folder docker/alpina/data/commands):
 #   selftest.txt   read-now.txt   approve.txt (one number inside)   apply-now.txt   undo.txt (the undo file name inside)   pause.txt   resume.txt   status.txt
 # Every answer is written to /data/results/<command>_<time>.txt and copied to /data/LAST_RESULT.txt. The job log is /data/job.log.
 # Test hooks (not used on the NAS): DATA_DIR, APP_DIR, SKIP_INSTALL=1, ONESHOT=1 (process the command files once and exit), FAKE_NOW_EPOCH.
 set -u
 DATA="${DATA_DIR:-/data}"; APP="${APP_DIR:-/app}"; REF="${REPO_REF:-main}"
-CMDS="$DATA/commands"; RES="$DATA/results"; REP="$DATA/reports"; STATE="$DATA/state.json"
-mkdir -p "$CMDS/done" "$RES" "$REP"
+CMDS="$DATA/commands"; RES="$DATA/results"; REP="$DATA/reports"; STATE="$DATA/state.json"; PAGES="$DATA/pages"
+# the source of the Hoss readings: the 8 pages Jerry saves by hand into $DATA/pages (default on the NAS: the Hoss login has a human check this job must not get around). "live" stays in the code but is not used here.
+export ALPINA_SOURCE="${ALPINA_SOURCE:-pages}"
+mkdir -p "$CMDS/done" "$RES" "$REP" "$PAGES"
 log() { printf '%s %s\n' "$(date '+%F %T %Z')" "$*" | tee -a "$DATA/job.log"; }
 
 # a value that is empty or still the placeholder TYPE_HERE counts as "not typed yet" (so the job never tries to sign in with a placeholder)
 typed() { local v="${!1:-}"; case "$v" in ""|TYPE_*) return 1 ;; esac; return 0; }
-login_ready() { local m=""; for v in HOSS_LOGIN_USER HOSS_LOGIN_PASSWORD SHOPIFY_SHOP_NAME SHOPIFY_CLIENT_ID SHOPIFY_CLIENT_SECRET; do typed "$v" || m="$m $v"; done; [ -z "$m" ] && return 0; MISSING="$m"; return 1; }
+login_ready() { local m="" list="SHOPIFY_SHOP_NAME SHOPIFY_CLIENT_ID SHOPIFY_CLIENT_SECRET"; [ "$ALPINA_SOURCE" = "live" ] && list="HOSS_LOGIN_USER HOSS_LOGIN_PASSWORD $list"; for v in $list; do typed "$v" || m="$m $v"; done; [ -z "$m" ] && return 0; MISSING="$m"; return 1; }
+# the source arguments of the job command
+src_args() { if [ "$ALPINA_SOURCE" = "live" ]; then echo "--live-read"; else echo "--pages $PAGES"; fi; }
 mail_ready() { typed RESEND_API_KEY && typed REPORT_EMAIL; }
 
 install_code() {
@@ -42,13 +47,13 @@ run_cmd() {
   { echo "COMMAND $name   $(date '+%F %T %Z')   code: $(cat "$DATA/code_version.txt" 2>/dev/null)"; echo
     case "$name" in
       selftest)   (cd "$APP" && node --test tests/alpina-hoss.test.js 2>&1 | grep -E '^# (tests|pass|fail)|^not ok') ; echo; echo "(self-test: it passes when 'fail 0' is shown above. No Hoss, no Shopify, no secrets are used.)" ;;
-      read-now)   if login_ready; then (cd "$APP" && node lib/alpina-hoss-cli.js --live-read --force --out "$REP" --state "$STATE" 2>&1); else echo "NOT RUN. These values are not typed yet in the project settings:$MISSING"; fi ;;
-      approve)    if ! [[ "$arg" =~ ^[0-9]{1,4}$ ]]; then echo "NOT RUN. approve.txt must contain only the number of changes from the baseline report (digits only)."; elif login_ready; then (cd "$APP" && node lib/alpina-hoss-cli.js --live-read --force --apply --approve-baseline --limit "$arg" --out "$REP" --state "$STATE" 2>&1); else echo "NOT RUN. Not typed yet:$MISSING"; fi ;;
-      apply-now)  if login_ready; then (cd "$APP" && node lib/alpina-hoss-cli.js --live-read --force --apply --out "$REP" --state "$STATE" 2>&1); else echo "NOT RUN. Not typed yet:$MISSING"; fi ;;
+      read-now)   if login_ready; then (cd "$APP" && node lib/alpina-hoss-cli.js $(src_args) --force --out "$REP" --state "$STATE" 2>&1); else echo "NOT RUN. These values are not typed yet in the project settings:$MISSING"; fi ;;
+      approve)    if ! [[ "$arg" =~ ^[0-9]{1,4}$ ]]; then echo "NOT RUN. approve.txt must contain only the number of changes from the baseline report (digits only)."; elif login_ready; then (cd "$APP" && node lib/alpina-hoss-cli.js $(src_args) --force --apply --approve-baseline --limit "$arg" --out "$REP" --state "$STATE" 2>&1); else echo "NOT RUN. Not typed yet:$MISSING"; fi ;;
+      apply-now)  if login_ready; then (cd "$APP" && node lib/alpina-hoss-cli.js $(src_args) --force --apply --out "$REP" --state "$STATE" 2>&1); else echo "NOT RUN. Not typed yet:$MISSING"; fi ;;
       undo)       if [[ "$arg" =~ ^alpina_undo_[0-9-]+\.json$ ]] && [ -f "$REP/$arg" ]; then (cd "$APP" && node lib/alpina-hoss-undo.js "$REP/$arg" 2>&1); else echo "NOT RUN. undo.txt must contain the file name exactly, like alpina_undo_2026-11-25.json, and that file must be in the reports folder. Files there: $(ls "$REP" | grep alpina_undo_ | tr '\n' ' ')"; fi ;;
       pause)      touch "$DATA/PAUSED"; echo "PAUSED: scheduled runs are skipped until you create resume.txt. Nothing else changed." ;;
       resume)     rm -f "$DATA/PAUSED"; echo "RESUMED: scheduled runs continue. Next run: $(next_run_text)" ;;
-      status)     echo "paused: $([ -f "$DATA/PAUSED" ] && echo YES || echo no)"; echo "next scheduled check: $(next_run_text)"; echo "login values typed: $(login_ready && echo yes || echo "NO, missing:$MISSING")"; echo "alert email ready: $(mail_ready && echo yes || echo "NO (RESEND_API_KEY / REPORT_EMAIL not typed)")"; echo "state:"; cat "$STATE" 2>/dev/null || echo "  (no run yet)"; echo; echo "reports:"; ls -1t "$REP" 2>/dev/null | head -12; echo; echo "last log lines:"; tail -8 "$DATA/job.log" ;;
+      status)     echo "paused: $([ -f "$DATA/PAUSED" ] && echo YES || echo no)"; echo "next scheduled check: $(next_run_text)"; echo "source: $ALPINA_SOURCE"; echo "values typed: $(login_ready && echo yes || echo "NO, missing:$MISSING")"; echo "alert email ready: $(mail_ready && echo yes || echo "NO (RESEND_API_KEY / REPORT_EMAIL not typed)")"; (cd "$APP" && node lib/alpina-hoss-cli.js --pages-status --pages "$PAGES" --out "$REP" --state "$STATE" 2>&1); echo "state:"; cat "$STATE" 2>/dev/null || echo "  (no run yet)"; echo; echo "reports:"; ls -1t "$REP" 2>/dev/null | head -12; echo; echo "last log lines:"; tail -8 "$DATA/job.log" ;;
       *)          echo "unknown command $name" ;;
     esac; } > "$out" 2>&1
   cp "$out" "$DATA/LAST_RESULT.txt"; log "answer written: $out"
@@ -75,7 +80,7 @@ scheduled_run() {
   if [ -f "$DATA/PAUSED" ]; then log "scheduled check skipped: the job is PAUSED (create resume.txt to continue)"; return; fi
   if ! login_ready; then log "scheduled check skipped: these values are not typed yet in the project settings:$MISSING"; return; fi
   log "scheduled check"; ts="$(date '+%Y-%m-%d_%H%M%S')"
-  (cd "$APP" && node lib/alpina-hoss-cli.js --live-read --apply --scheduled --out "$REP" --state "$STATE" 2>&1) > "$RES/scheduled_${ts}.txt"; local code=$?
+  (cd "$APP" && node lib/alpina-hoss-cli.js $(src_args) --apply --scheduled --out "$REP" --state "$STATE" 2>&1) > "$RES/scheduled_${ts}.txt"; local code=$?
   cp "$RES/scheduled_${ts}.txt" "$DATA/LAST_RESULT.txt"; { echo '----- ANSWER: scheduled check -----'; cat "$RES/scheduled_${ts}.txt"; echo '----- end of answer -----'; } | tee -a "$DATA/job.log"; log "scheduled check finished (exit code $code): $(grep -m1 -E 'skipped|DONE|BASELINE|STOPPED|NOTHING|changed nothing' "$RES/scheduled_${ts}.txt" | cut -c1-160)"
 }
 

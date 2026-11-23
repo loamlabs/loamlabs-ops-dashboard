@@ -1,10 +1,36 @@
 # Alpina stock job on the UGREEN NAS: click-by-click steps
 
-What this does: every 3 days at about 5:40 am the job reads Hoss's 8 Alpina spoke pages and turns Alpina spokes Hoss does not have to "sold out". It only changes sold-out / continue-selling on Alpina spoke variants. It never touches a price. Jerry types his own passwords; nobody else sees them.
+What this does: every 3 days at about 5:40 am the job reads the 8 Hoss Alpina spoke pages (saved by hand, see the NEW section) and turns Alpina spokes Hoss does not have to "sold out". It only changes sold-out / continue-selling on Alpina spoke variants. It never touches a price. Jerry types his own passwords; nobody else sees them.
 
 You need: the NAS (Docker app already installed), your Hoss login, your Shopify app values, your Resend key and your report email. **Type the passwords only on the NAS. Never in a chat, an email, a synced folder or GitHub.**
 
 The menus on the NAS may be named a little differently from what is written here; the words in **bold** are what to look for.
+
+## NEW (Nov 22 night): the job reads 8 pages YOU save by hand (it no longer signs in to Hoss)
+Hoss's login page has a human check ("Cloudflare Turnstile") that a program must not get around, so the job does not log in. Instead **you save the 8 Alpina pages in your own browser, while you are signed in to Hoss, and put them in a NAS folder**. The job reads those files; everything after that is exactly as before (same rules, 5% limit, baseline first, undo, read-back). The Hoss user and password values in the project are not used any more (you may leave them; no one reads them). Only the three Shopify values (and the email ones, for alerts) are needed.
+
+**Where the pages go:** `docker/alpina/data/pages` (the job creates this folder; if you do not see it, create a folder named `pages` inside `docker/alpina/data`).
+
+**How to save the pages (about 10 minutes, every 3 days or so):**
+1. In Chrome, signed in to Hoss, open each of these 8 addresses one at a time. Wait until the page has fully loaded and you can see the Color and Length choices (a page saved before it finishes loading is refused).
+   - https://hasgllc.com/product/alpina-extralite-round-j-bend/
+   - https://hasgllc.com/product/alpina-extralite-round-straight-pull/
+   - https://hasgllc.com/product/alpina-extralite-aero-j-bend/
+   - https://hasgllc.com/product/alpina-extralite-aero-straight-pull/
+   - https://hasgllc.com/product/alpina-ultralite-round-j-bend/
+   - https://hasgllc.com/product/alpina-ultralite-round-straight-pull/
+   - https://hasgllc.com/product/alpina-ultralite-aero-j-bend/
+   - https://hasgllc.com/product/alpina-ultralite-aero-straight-pull/
+2. On each page press **Ctrl+S**, choose **Webpage, Complete** (the way you saved the 8 pages on Nov 13), keep the suggested file name, and save into one folder on your PC (a new empty folder each time is easiest). Chrome also makes a folder ending in `_files`: you do not need that one.
+3. On the NAS open **Files**, go to `docker/alpina/data/pages`, delete the old page files there if you like (the job always uses the newest file of each page), and **upload the 8 .html files** (Upload button; select the 8 files). Do not upload the `_files` folders.
+4. Check: put `status.txt` into `docker/alpina/data/commands`; in the container **Log** tab the answer lists each page as **new**, **read**, **TOO OLD**, **BAD PAGE** or **MISSING**. All 8 must say **new**.
+5. Then put **read-now.txt** into the `commands` folder (the first read, or any later manual read), read the answer in the **Log** tab, and approve with **approve.txt** (the number) as described below.
+
+**How old may the pages be?** The job goes by the date of each file on the NAS. **If any page is older than 4 days the job refuses, changes nothing, prints "pages too old: save them again" and emails you.** For the 5:40 am check: it runs only when all 8 pages are newer than the last read and say something different from the last read (uploading the same old files again does not count); otherwise it skips quietly (one line in the log). When the pages get older than 4 days you get one email to save them again.
+
+**If something is wrong** (a page missing, half-saved, or not an Alpina page) the answer says which one and nothing is changed; save that page again and upload it.
+
+**Getting this version onto the NAS (one click, after the pull request is merged):** Docker app > **Project** > on the **alpina-stock** card click **...** > **Restart**. It downloads the newest job on start. Check the Log tab: it shows "code ready" with the new version and the self-test line (it must say fail 0).
 
 ## STATUS (Nov 22, set up on the real NAS by Backend 2)
 Already done for you: the folder `docker/alpina/data`, the Docker project **alpina-stock** (running, with the 7 values still saying TYPE_HERE), the self-test (27 passed, 0 failed) and the schedule (next check 5:43 am the next morning). What is left for Jerry: type the 7 values (below), then B and C.
@@ -26,7 +52,7 @@ Already done for you: the folder `docker/alpina/data`, the Docker project **alpi
 
 The job is controlled by small files. To give it an order, put an empty text file with the exact name into the folder `docker/alpina/data/commands`. (If the `commands` folder is not there yet, wait one minute after step 6. To make an empty text file: on your PC open Notepad, save an empty file with the name, upload it to the NAS with Files > **Upload**. File names are in small letters, ending in `.txt`.)
 
-8. Put **read-now.txt** into `docker/alpina/data/commands`. Wait about 3 minutes (it signs in and reads 8 pages slowly on purpose).
+8. Save and upload the 8 pages first (NEW section above), then put **read-now.txt** into `docker/alpina/data/commands`. Wait about a minute (it only reads the 8 files).
 9. Read the answer in the container **Log** tab (it prints between ----- ANSWER ----- lines). If it says **STOPPED**, read the reason (see the table below). If it says **BASELINE (nothing is written)** it worked:
    - Find the line `variants matched ...; proposed: N close (sold out), M open ...`. **N is the number of Alpina variants it would turn to sold out.** Look at the per-product list below it and the sample of 30 changes. Check they look sensible (a length that Hoss shows as "Out of stock" should be there).
    - If there is a line `NOTHING WILL BE WRITTEN FROM THIS RUN: ... the limit is 446`, that is normal for the first run. It only means the first run needs your approval (next step).
