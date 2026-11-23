@@ -82,7 +82,14 @@ test('plan: happy path shows every write, is DRAFT, and writes nothing to the st
   const mf = Object.fromEntries(plan.product.metafields.map((m) => [m.key, m]));
   assert.equal(mf.hidden.value, '1'); assert.equal(mf.hidden.namespace, 'seo');
   assert.deepEqual(JSON.parse(mf.build_recipe.value).parts, s.recipe.parts);
-  assert.deepEqual(JSON.parse(mf.freehub.value), ['XD', 'HG']);                              // Campy has no map entry: dropped
+  // the freehub list and map are written on the VARIANT, never on the product (product-level fields are being retired)
+  assert.equal(mf.freehub, undefined); assert.equal(mf.freehub_variant_map, undefined);
+  assert.equal(plan.product.metafields.some((m) => /^freehub/.test(m.key)), false);
+  const vmf = Object.fromEntries(plan.variant.metafields.map((m) => [m.key, m]));
+  assert.equal(plan.variant.metafields[0].key, 'build_components');                          // first, as before
+  assert.deepEqual(JSON.parse(vmf.freehub.value), ['XD', 'HG']);                             // Campy has no map entry: dropped
+  assert.equal(vmf.freehub.type, 'list.single_line_text_field'); assert.equal(vmf.freehub_variant_map.type, 'json');
+  assert.deepEqual(Object.keys(JSON.parse(vmf.freehub_variant_map.value)).sort(), ['HG', 'XD']);
   assert.ok(plan.warnings.some((w) => w.code === 'FREEHUB_MAP_MISSING'));
   const comps = JSON.parse(plan.variant.metafields[0].value);
   assert.deepEqual(comps.components.map((c) => c.role), ['front_rim', 'rear_rim', 'front_hub', 'rear_hub', 'freehub', 'nipples', 'spokes_front', 'spokes_rear']);
@@ -293,6 +300,46 @@ test('create: if the clean-up itself fails the answer is ROLLBACK_INCOMPLETE wit
   assert.deepEqual(Object.values(s.db.runs).map((x) => x.status), ['failed_incomplete']);
 });
 
+// ---------- freehub fields at variant level ----------
+test('create: the freehub list and map are written on the new variant and read back there; the product has none', async () => {
+  const s = setup();
+  const out = await make(s);
+  const prod = s.store.created[out.productId];
+  assert.equal(prod.metafields['custom.freehub'], undefined); assert.equal(prod.metafields['custom.freehub_variant_map'], undefined);
+  assert.deepEqual(JSON.parse(prod.variantMetafields['custom.freehub']), ['XD', 'HG']);
+  assert.deepEqual(Object.keys(JSON.parse(prod.variantMetafields['custom.freehub_variant_map'])).sort(), ['HG', 'XD']);
+  assert.ok(s.store.writes.includes('metafield:freehub') && s.store.writes.includes('metafield:freehub_variant_map'));
+});
+
+test('create: read-back fails (and everything is rolled back) when a product-level freehub field exists', async () => {
+  const s = setup();
+  const readBack = s.store.readBack;
+  s.store.readBack = async (gid) => { const rb = await readBack(gid); return { ...rb, metafields: { ...rb.metafields, 'custom.freehub': '["XD"]' } }; };
+  const plan = await planOf(s);
+  await assert.rejects(createBuild({ store: s.store, db: s.db, planId: plan.planId, planHash: plan.planHash, price: 2100 }), (e) => e.code === 'SHOPIFY_ERROR' && /freehub metafields must not exist at product level/.test(e.message));
+  assert.deepEqual(s.store.created, {}); assert.equal(parseRules(s.world.P[100].rulesRaw).rules.length, 1);
+});
+
+test('create: read-back fails when the variant freehub list or map did not round-trip', async () => {
+  for (const key of ['custom.freehub', 'custom.freehub_variant_map']) {
+    const s = setup();
+    const readBack = s.store.readBack;
+    s.store.readBack = async (gid) => { const rb = await readBack(gid); return { ...rb, variantMetafields: { ...rb.variantMetafields, [key]: null } }; };
+    const plan = await planOf(s);
+    await assert.rejects(createBuild({ store: s.store, db: s.db, planId: plan.planId, planHash: plan.planHash, price: 2100 }), (e) => e.code === 'SHOPIFY_ERROR' && new RegExp('variant metafield ' + key.split('.')[1] + ' did not round-trip').test(e.message));
+    assert.deepEqual(s.store.created, {});
+  }
+});
+
+test('plan: a hub with product-level fields only still works (variant first, product fallback), and a hub with neither still blocks', async () => {
+  const s = setup();
+  const plan = await planOf(s);                                                              // rear hub 300 carries product-level fields in the fake world
+  assert.equal(plan.ok, true); assert.deepEqual(plan.freehub.source, { list: 'product', map: 'product' });
+  const w = makeWorld(); w.P[300].freehub = null; w.P[300].freehubMap = null;
+  const s2 = { world: w, store: makeStore(w), db: makeDb(), recipe: w.recipe() };
+  assert.ok(codes((await planOf(s2)).blockers).includes('FREEHUB_MAP_MISSING'));
+});
+
 // ---------- undo ----------
 test('undo: restores the rim byte-identically and deletes the draft; the build can be created again', async () => {
   const s = setup();
@@ -395,9 +442,14 @@ test('adapter: creates DRAFT only, never publishes, never writes guard state, ne
   await store.deleteRules('gid://shopify/Product/100');
   await store.deleteProduct(made.productGid);
   assert.equal(await store.getProductStatus('gid://shopify/Product/1'), 'DRAFT');
+  const adapterSrc = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'lib', 'signature-build', 'shopify.js'), 'utf8');   // the read-back query asks for the variant fields
   const create = sent.find((x) => x.query.includes('productCreate'));
   assert.equal(create.vars.product.status, 'DRAFT'); assert.deepEqual(create.vars.product.tags, ['loamlabs-build']);
   const mutations = sent.filter((x) => /mutation/.test(x.query)).map((x) => x.query).join('\n');
+  assert.deepEqual(create.vars.product.metafields.map((m) => m.key).sort(), ['build_recipe', 'hidden']);   // no freehub fields on the product
+  const bulk = sent.find((x) => x.query.includes('productVariantsBulkUpdate')).vars.variants[0];
+  assert.deepEqual(bulk.metafields.map((m) => m.key), ['build_components', 'freehub', 'freehub_variant_map']);   // they go on the variant
+  assert.match(adapterSrc, /v_freehub: metafield/); assert.match(adapterSrc, /v_freehub_variant_map: metafield/);
   assert.doesNotMatch(mutations, /publishable|inventorySet|inventoryActivate|collectionAdd|productUpdate|productChangeStatus/i);
   assert.doesNotMatch(JSON.stringify(sent.map((x) => x.vars)), /build_guard_state|build_guard_off/);
   assert.equal(sent.find((x) => x.query.includes('productVariantsBulkUpdate')).vars.variants[0].compareAtPrice, null);
