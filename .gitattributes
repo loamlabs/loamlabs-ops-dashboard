@@ -1,0 +1,3 @@
+
+# the NAS job script must keep Unix line endings
+docker/alpina/*.sh text eol=lf

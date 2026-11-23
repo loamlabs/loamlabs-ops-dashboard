@@ -1,0 +1,31 @@
+# Alpina stock job (Hoss stock -> which Alpina spokes may be sold). Paste this whole file into the UGOS Docker "Project" editor. See docs/ALPINA_NAS_SETUP.md.
+# Type your own values where it says TYPE_HERE (only on the NAS, never in a synced folder, never in chat). Leave the other lines alone.
+# If your NAS storage is not "volume1", change the one /volume1/docker/alpina/data line.
+services:
+  alpina-stock:
+    image: node:22-slim
+    container_name: alpina-stock
+    restart: unless-stopped
+    working_dir: /app
+    environment:
+      TZ: "America/New_York"
+      # where the job code comes from (GitHub, public). After the pull request is merged this is main. Stop + Start the project to pull the newest code.
+      REPO_REF: "main"
+      ENTRY_URL: "https://raw.githubusercontent.com/loamlabs/loamlabs-ops-dashboard/main/docker/alpina/entrypoint.sh"
+      ALPINA_THRESHOLD: "32"
+      ALPINA_INTERVAL_DAYS: "3"
+      # --- type these yourself ---
+      HOSS_LOGIN_USER: "TYPE_HERE"
+      HOSS_LOGIN_PASSWORD: "TYPE_HERE"
+      SHOPIFY_SHOP_NAME: "TYPE_HERE"
+      SHOPIFY_CLIENT_ID: "TYPE_HERE"
+      SHOPIFY_CLIENT_SECRET: "TYPE_HERE"
+      RESEND_API_KEY: "TYPE_HERE"
+      REPORT_EMAIL: "TYPE_HERE"
+    volumes:
+      - /volume1/docker/alpina/data:/data
+    command:
+      - bash
+      - -c
+      - |
+        node -e "fetch(process.env.ENTRY_URL).then(r=>{if(!r.ok)throw new Error('GitHub answered '+r.status);return r.text()}).then(t=>require('fs').writeFileSync('/tmp/entry.sh',t.split(String.fromCharCode(13)).join('')))" && exec bash /tmp/entry.sh
