@@ -21,6 +21,7 @@ mail_ready() { typed RESEND_API_KEY && typed REPORT_EMAIL; }
 
 install_code() {
   [ "${SKIP_INSTALL:-0}" = "1" ] && return 0
+  cd / || true   # the container starts in /app, which this function deletes and re-creates: never stand inside it
   log "getting the code: branch $REF of loamlabs/loamlabs-ops-dashboard"
   export DEBIAN_FRONTEND=noninteractive
   apt-get update -qq >/dev/null 2>&1 && apt-get install -y -qq git ca-certificates tzdata >/dev/null 2>&1
