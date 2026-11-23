@@ -7,9 +7,9 @@ You need: the NAS (Docker app already installed), your Hoss login, your Shopify 
 The menus on the NAS may be named a little differently from what is written here; the words in **bold** are what to look for.
 
 ## STATUS (Nov 22, set up on the real NAS by Backend 2)
-Already done for you: the folder , the Docker project **alpina-stock** (running, with the 7 values still saying TYPE_HERE), the self-test (27 passed, 0 failed) and the schedule (next check 5:43 am the next morning). What is left for Jerry: type the 7 values (below), then B and C.
+Already done for you: the folder `docker/alpina/data`, the Docker project **alpina-stock** (running, with the 7 values still saying TYPE_HERE), the self-test (27 passed, 0 failed) and the schedule (next check 5:43 am the next morning). What is left for Jerry: type the 7 values (below), then B and C.
 - **Reading answers:** the NAS Files app cannot open text files (it only offers Download). The job therefore also prints every answer into the container log: Docker app > **Container** > **alpina-stock** > **Log** tab (it updates live). Read answers there.
-- **Typing the 7 values:** Docker app > **Project** > on the **alpina-stock** card click the three dots **...** > **Settings** > the tab **Compose configuration**. The text is one long line. Find each  and type your value in its place, between the quote marks. **If a password contains a double quote or a backslash, put a backslash in front of that character.** Click **Redeploy**; in the box that appears leave "Pull the latest image" unticked and click **Deploy**. Wait 2 minutes, then look at the Log tab: it must show "SELF-TEST RESULT ... fail 0".
+- **Typing the 7 values:** Docker app > **Project** > on the **alpina-stock** card click the three dots **...** > **Settings** > the tab **Compose configuration**. The text is one long line. Find each `TYPE_HERE` and type your value in its place, between the quote marks. **If a password contains a double quote or a backslash, put a backslash in front of that character.** Click **Redeploy**; in the box that appears leave "Pull the latest image" unticked and click **Deploy**. Wait 2 minutes, then look at the Log tab: it must show "SELF-TEST RESULT ... fail 0".
 - **The first live read is yours** (not Backend 2's), and so is the approval.
 
 ## A. One time setup (about 15 minutes)
