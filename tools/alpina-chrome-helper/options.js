@@ -4,7 +4,7 @@ async function load() { const s = await chrome.storage.local.get({ nas: '', toke
 function show(s) { const lines = []; lines.push(s.stopped ? 'STOPPED since ' + s.stopped.at + ': ' + s.stopped.reason + '\nLog in to hasgllc.com in Chrome yourself, then click Resume.' : 'Status: running (waiting for the next run)'); lines.push('Last run: ' + (s.lastRunAt ? new Date(s.lastRunAt).toLocaleString() : 'never')); if (s.last) lines.push('Result: ' + s.last.text + ' (' + s.last.at + ')'); say(lines.join('\n'), !!s.stopped); }
 $('save').onclick = async () => {
     const nas = $('nas').value.trim().replace(/\/$/, ''); const token = $('token').value.trim();
-    if (!/^http:\/\/[\d.a-zA-Z-]+:\d+$/.test(nas)) return say('The address must look like http://192.168.10.20:8765', true);
+    if (!/^http:\/\/[\d.a-zA-Z-]+:\d+$/.test(nas)) return say('The address must look like http://192.168.10.20:18765', true);
     try { await chrome.permissions.request({ origins: [nas.replace(/:\d+$/, '') + '/*'] }); } catch (e) { /* the two known NAS addresses are already allowed */ }
     await chrome.storage.local.set({ nas, token, intervalDays: Number($('days').value) }); say('Saved. Now click Test connection.');
 };
