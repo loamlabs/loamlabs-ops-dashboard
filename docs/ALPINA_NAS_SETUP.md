@@ -6,6 +6,12 @@ You need: the NAS (Docker app already installed), your Hoss login, your Shopify 
 
 The menus on the NAS may be named a little differently from what is written here; the words in **bold** are what to look for.
 
+## STATUS (Nov 22, set up on the real NAS by Backend 2)
+Already done for you: the folder `docker/alpina/data`, the Docker project **alpina-stock** (running, with the 7 values still saying TYPE_HERE), the self-test (27 passed, 0 failed) and the schedule (next check 5:43 am the next morning). What is left for Jerry: type the 7 values (below), then B and C.
+- **Reading answers:** the NAS Files app cannot open text files (it only offers Download). The job therefore also prints every answer into the container log: Docker app > **Container** > **alpina-stock** > **Log** tab (it updates live). Read answers there.
+- **Typing the 7 values:** Docker app > **Project** > on the **alpina-stock** card click the three dots **...** > **Settings** > the tab **Compose configuration**. The text is one long line. Find each `TYPE_HERE` and type your value in its place, between the quote marks. **If a password contains a double quote or a backslash, put a backslash in front of that character.** Click **Redeploy**; in the box that appears leave "Pull the latest image" unticked and click **Deploy**. Wait 2 minutes, then look at the Log tab: it must show "SELF-TEST RESULT ... fail 0".
+- **The first live read is yours** (not Backend 2's), and so is the approval.
+
 ## A. One time setup (about 15 minutes)
 
 1. **Merge the pull request on GitHub.** Open https://github.com/loamlabs/loamlabs-ops-dashboard/compare/main...alpina-hoss-stock?expand=1 , click **Create pull request**, then **Merge pull request**, then **Confirm merge**. Then tell Lead the words `DEPLOY ALPINA STOCK`. (The job's code now lives on `main`.)
@@ -14,14 +20,14 @@ The menus on the NAS may be named a little differently from what is written here
 4. **Create the project.** On the NAS open the **Docker** app. Click **Project**, then **Create**. Name: `alpina-stock`. Path: choose the folder `docker/alpina`. For the compose file choose **Create docker-compose.yml** (the text editor) and paste what you copied (Ctrl+V).
 5. **Type your values.** In the pasted text find the 7 lines that say `TYPE_HERE`. Replace each `TYPE_HERE` with your value, keeping the quote marks: Hoss user, Hoss password, Shopify shop name (the part before `.myshopify.com`), Shopify client id, Shopify client secret, Resend key, report email. Nothing else needs changing. (Do not worry that the self-test runs before you type them: the job refuses to sign in anywhere while a value still says TYPE_HERE.)
 6. Click **Next** / **Deploy** / **OK** (the last button of the wizard). The container `alpina-stock` is created and starts. The first start takes 2 to 3 minutes (it downloads the job code).
-7. **Check it works.** In **Files** open `docker/alpina/data`. Open the text file **LAST_RESULT.txt**. It must show a line like `# pass 27` and `# fail 0`. That proves the job runs on your NAS. (It uses no Hoss, no Shopify and no passwords for this test.) If the folder is empty after 5 minutes, see "What the messages mean" below.
+7. **Check it works.** In **Files** open `docker/alpina/data`. Open the container **Log** tab (see STATUS above): it shows `SELF-TEST RESULT: # tests 27 # pass 27 # fail 0`. That proves the job runs on your NAS. (It uses no Hoss, no Shopify and no passwords for this test.) If the folder is empty after 5 minutes, see "What the messages mean" below.
 
 ## B. The first live read (nothing is changed in your store)
 
 The job is controlled by small files. To give it an order, put an empty text file with the exact name into the folder `docker/alpina/data/commands`. (If the `commands` folder is not there yet, wait one minute after step 6. To make an empty text file: on your PC open Notepad, save an empty file with the name, upload it to the NAS with Files > **Upload**. File names are in small letters, ending in `.txt`.)
 
 8. Put **read-now.txt** into `docker/alpina/data/commands`. Wait about 3 minutes (it signs in and reads 8 pages slowly on purpose).
-9. Open `docker/alpina/data/LAST_RESULT.txt`. If it says **STOPPED**, read the reason (see the table below). If it says **BASELINE (nothing is written)** it worked:
+9. Read the answer in the container **Log** tab (it prints between ----- ANSWER ----- lines). If it says **STOPPED**, read the reason (see the table below). If it says **BASELINE (nothing is written)** it worked:
    - Find the line `variants matched ...; proposed: N close (sold out), M open ...`. **N is the number of Alpina variants it would turn to sold out.** Look at the per-product list below it and the sample of 30 changes. Check they look sensible (a length that Hoss shows as "Out of stock" should be there).
    - If there is a line `NOTHING WILL BE WRITTEN FROM THIS RUN: ... the limit is 446`, that is normal for the first run. It only means the first run needs your approval (next step).
    - You also get an email "Alpina stock baseline ready for review".

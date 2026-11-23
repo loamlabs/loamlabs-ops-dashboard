@@ -6,7 +6,7 @@ services:
     image: node:22-slim
     container_name: alpina-stock
     restart: unless-stopped
-    working_dir: /app
+    working_dir: /
     environment:
       TZ: "America/New_York"
       # where the job code comes from (GitHub, public). After the pull request is merged this is main. Stop + Start the project to pull the newest code.

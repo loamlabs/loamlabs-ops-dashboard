@@ -21,6 +21,7 @@ mail_ready() { typed RESEND_API_KEY && typed REPORT_EMAIL; }
 
 install_code() {
   [ "${SKIP_INSTALL:-0}" = "1" ] && return 0
+  cd / || true   # the container starts in /app, which this function deletes and re-creates: never stand inside it
   log "getting the code: branch $REF of loamlabs/loamlabs-ops-dashboard"
   export DEBIAN_FRONTEND=noninteractive
   apt-get update -qq >/dev/null 2>&1 && apt-get install -y -qq git ca-certificates tzdata >/dev/null 2>&1
@@ -51,6 +52,9 @@ run_cmd() {
       *)          echo "unknown command $name" ;;
     esac; } > "$out" 2>&1
   cp "$out" "$DATA/LAST_RESULT.txt"; log "answer written: $out"
+  { echo "----- ANSWER: $name -----"; cat "$out"; echo "----- end of answer -----"; } | tee -a "$DATA/job.log"
+  [ "$name" = selftest ] && log "SELF-TEST RESULT: $(grep -E '^# (tests|pass|fail)' "$out" | tr '
+' ' ')(it must say fail 0)"
 }
 
 process_commands() {
@@ -72,7 +76,7 @@ scheduled_run() {
   if ! login_ready; then log "scheduled check skipped: these values are not typed yet in the project settings:$MISSING"; return; fi
   log "scheduled check"; ts="$(date '+%Y-%m-%d_%H%M%S')"
   (cd "$APP" && node lib/alpina-hoss-cli.js --live-read --apply --scheduled --out "$REP" --state "$STATE" 2>&1) > "$RES/scheduled_${ts}.txt"; local code=$?
-  cp "$RES/scheduled_${ts}.txt" "$DATA/LAST_RESULT.txt"; log "scheduled check finished (exit code $code): $(grep -m1 -E 'skipped|DONE|BASELINE|STOPPED|NOTHING|changed nothing' "$RES/scheduled_${ts}.txt" | cut -c1-160)"
+  cp "$RES/scheduled_${ts}.txt" "$DATA/LAST_RESULT.txt"; { echo '----- ANSWER: scheduled check -----'; cat "$RES/scheduled_${ts}.txt"; echo '----- end of answer -----'; } | tee -a "$DATA/job.log"; log "scheduled check finished (exit code $code): $(grep -m1 -E 'skipped|DONE|BASELINE|STOPPED|NOTHING|changed nothing' "$RES/scheduled_${ts}.txt" | cut -c1-160)"
 }
 
 main() {
