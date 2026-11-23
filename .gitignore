@@ -14,6 +14,7 @@ node_modules
 !components/**/*.jsx
 !lib/**/*.js
 !tests/**/*.js
+!tools/alpina-chrome-helper/*.js
 !public/**/*
 !*.js.config
 !next.config.js

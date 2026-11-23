@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "Alpina Hoss pages helper (LoamLabs)",
+  "version": "1.0.0",
+  "description": "Runs in your own signed-in Chrome: every 2 to 3 days it loads the 8 Alpina product pages on Hoss and sends the stock data to the LoamLabs NAS job. It never logs in and stops at any login, check, 403 or 429.",
+  "permissions": ["alarms", "tabs", "scripting", "storage"],
+  "host_permissions": ["https://hasgllc.com/*", "http://192.168.10.20/*", "http://192.168.20.20/*"],
+  "optional_host_permissions": ["http://*/*"],
+  "background": { "service_worker": "background.js" },
+  "options_page": "options.html",
+  "action": { "default_title": "Alpina Hoss pages helper" }
+}

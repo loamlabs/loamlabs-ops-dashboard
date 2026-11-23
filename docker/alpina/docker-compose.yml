@@ -22,6 +22,8 @@ services:
       SHOPIFY_CLIENT_SECRET: "TYPE_HERE"
       RESEND_API_KEY: "TYPE_HERE"
       REPORT_EMAIL: "TYPE_HERE"
+    ports:
+      - "8765:8765"   # the Chrome helper sends the 8 Hoss pages here (home network only; needs the token)
     volumes:
       - /volume1/docker/alpina/data:/data
     command:
