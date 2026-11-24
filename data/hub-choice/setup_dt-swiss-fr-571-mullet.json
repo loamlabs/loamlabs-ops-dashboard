@@ -1,0 +1,86 @@
+{
+  "v": 2,
+  "kind": "hub-choice",
+  "name": "DT Swiss FR 571 Mullet",
+  "lengthsKey": "DT Swiss FR 571 Mullet (29 F / 27.5 R)",
+  "ridingStyle": "mtb",
+  "specs": {
+    "frontWheelSize": "29\"",
+    "rearWheelSize": "27.5\"",
+    "spokeCount": "32"
+  },
+  "rims": {
+    "front": "52318441996595",
+    "rear": "52318442094899"
+  },
+  "spokes": "51484533031219",
+  "nipples": "51476658979123",
+  "hubs": [
+    {
+      "model": "Industry Nine Hydra2",
+      "lengthsName": "Industry Nine Hydra2",
+      "defaultColor": "Black",
+      "frontProducts": {
+        "15x110": "9789788029235",
+        "20x110": "9789800775987"
+      },
+      "rearProducts": {
+        "12x148": "9789773185331",
+        "12x157": "9789777445171"
+      }
+    },
+    {
+      "model": "Hope Pro 5",
+      "lengthsName": "Hope Pro 5",
+      "defaultColor": "Black",
+      "frontProducts": {
+        "15x110": "9716618035507",
+        "20x110": "9716618166579"
+      },
+      "rearProducts": {
+        "12x148": "9716636909875",
+        "12x157": "9716637303091"
+      }
+    },
+    {
+      "model": "Project321 G3 6-Bolt",
+      "lengthsName": "Project321 G3",
+      "rowModel": "Project321 G3",
+      "defaultColor": "Black",
+      "frontProducts": {
+        "15x110": "15472281977139",
+        "20x110": "15472281977139"
+      },
+      "rearProducts": {
+        "12x148": "15472230334771",
+        "12x157": "15472230334771"
+      }
+    },
+    {
+      "model": "e*thirteen",
+      "lengthsName": "e*thirteen Sidekick GR",
+      "defaultColor": "Black",
+      "frontProducts": {
+        "15x110": "9502366597427",
+        "20x110": "9783315366195"
+      },
+      "rearProducts": {
+        "12x148": "9783308648755",
+        "12x157": "9783309467955"
+      }
+    },
+    {
+      "model": "Onyx Vesper",
+      "lengthsName": "Onyx Vesper",
+      "defaultColor": "Black (Anodized)",
+      "frontProducts": {
+        "15x110": "9794307719475",
+        "20x110": "9794307293491"
+      },
+      "rearProducts": {
+        "12x148": "9794309947699",
+        "12x157": "9794308866355"
+      }
+    }
+  ]
+}
