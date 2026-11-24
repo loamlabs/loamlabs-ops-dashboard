@@ -29,7 +29,7 @@ test('real catalogue shape to setups: the four products in contract order, five 
     const { configs, problems } = configsFromCatalogue(catalogue());
     assert.deepEqual(problems, []); assert.deepEqual(configs.map((c) => c.name), ['Reserve 30|DH Mullet', 'Reserve 30|DH', 'DT Swiss FR 571 Mullet', 'DT Swiss FR 571']);
     const c = configs[0];
-    assert.deepEqual(c.hubs.map((h) => h.model), ['Industry Nine Hydra2', 'Hope Pro 5', 'Project321 G3', 'e*thirteen', 'Onyx Vesper']);
+    assert.deepEqual(c.hubs.map((h) => h.model), ['Industry Nine Hydra2', 'Hope Pro 5', 'Project321 G3 6-Bolt', 'e*thirteen', 'Onyx Vesper']);
     assert.deepEqual(HUB_ORDER.map((h) => h[0]), ['hydra2', 'hope', 'p321', 'e13', 'onyx']);
     assert.deepEqual(c.hubs[0].frontProducts, { '15x110': '101', '20x110': '102' }); assert.deepEqual(c.hubs[0].rearProducts, { '12x148': '103', '12x157': '104' });
     assert.equal(c.hubs[3].lengthsName, 'e*thirteen Sidekick GR');
@@ -54,7 +54,7 @@ test('a spacing that does not exist leaves that product out; inconsistent produc
     assert.deepEqual(r.configs[0].hubs[1].frontProducts, { '15x110': '201' }); assert.deepEqual(r.configs[0].hubs[1].rearProducts, { '12x148': '203', '12x157': '204' });
     const bad = catalogue(); bad.hubs.hydra2.spacings.B.frontProduct = '999'; bad.hubs.p321.spacings.C.rearProduct = '998';
     const p = configsFromCatalogue(bad).problems.join(' | ');
-    assert.match(p, /Industry Nine Hydra2: spacing A and B name different 15x110/); assert.match(p, /Project321 G3: spacing B and C name different 12x157/);
+    assert.match(p, /Industry Nine Hydra2: spacing A and B name different 15x110/); assert.match(p, /Project321 G3 6-Bolt: spacing B and C name different 12x157/);
 });
 
 test('catalogue problems are named, not guessed', () => {
