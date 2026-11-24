@@ -1,8 +1,24 @@
 import React from 'react';
 import { RefreshCcw, Search, Package, X, Info, Loader2, Zap, ZapOff, DollarSign, Tag, Trash2, ShieldAlert, AlertCircle, CheckCircle, Edit } from 'lucide-react';
 
+// Connection dots (read only): blue = Watcher (vendor URL + auto update), amber = BTI (real part number + monitoring). Solid = every item of ours, ring = some, none = no dot.
+// Never green: green is the selected state of the vendor button.
+const DOT = { watcher: { label: 'Watcher', color: '#0284c7' }, bti: { label: 'BTI', color: '#d97706' } };
+export function connectionTooltip(c) {
+  if (!c || !c.total) return 'No active items';
+  if (!c.watcher && !c.bti) return 'Not connected yet';
+  return `Watcher: ${c.watcher} of ${c.total} items connected
+BTI: ${c.bti} of ${c.total}`;
+}
+function ConnectionDot({ kind, state }) {
+  if (state === 'none') return null;
+  const { color, label } = DOT[kind];
+  return <span data-connection-dot={kind} data-state={state} aria-label={`${label} ${state === 'full' ? 'connected' : 'partly connected'}`} style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', boxSizing: 'border-box', border: `2px solid ${color}`, background: state === 'full' ? color : '#fff' }} />;
+}
+
 export default function VendorWatcher(props) {
   const { 
+    vendorConnections,
     filteredRules, rules, handleAutoImport, loading, runManualSync, fetchRules, 
     selectedVendors, setSelectedVendors, visibleVendorNames, vendorLogos, 
     toggleVendor, setVisibleCount, syncFilter, setSyncFilter, registrySearch, 
@@ -56,14 +72,23 @@ export default function VendorWatcher(props) {
             const logo = vendorLogos.find(l => l.name.toLowerCase() === v.toLowerCase());
             const isActive = selectedVendors.includes(v);
             return (
-              <button key={v} onClick={() => { toggleVendor(v); setVisibleCount(50); }} className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border-2 transition-all ${isActive ? 'border-green-500 bg-green-50 text-green-900 shadow-sm scale-[1.02]' : 'bg-white text-zinc-500 border-zinc-100 hover:border-zinc-300'}`}>
+              <button key={v} title={vendorConnections ? connectionTooltip(vendorConnections[v]) : undefined} onClick={() => { toggleVendor(v); setVisibleCount(50); }} className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border-2 transition-all ${isActive ? 'border-green-500 bg-green-50 text-green-900 shadow-sm scale-[1.02]' : 'bg-white text-zinc-500 border-zinc-100 hover:border-zinc-300'}`}>
                 {logo?.logo_url && <img src={logo.logo_url} className="h-3 w-auto object-contain grayscale-[0.5]" alt="" />}
                 <span className="text-[10px] font-bold uppercase tracking-tight">{v}</span>
+                {vendorConnections && vendorConnections[v] && (<span className="flex items-center gap-1"><ConnectionDot kind="watcher" state={vendorConnections[v].watcherState} /><ConnectionDot kind="bti" state={vendorConnections[v].btiState} /></span>)}
                 <div className={`w-2 h-2 rounded-full border ${isActive ? 'bg-green-500 border-green-600' : 'bg-zinc-100 border-zinc-200'}`}></div>
               </button>
             );
           })}
         </div>
+        {vendorConnections && (
+          <div data-connection-legend className="flex flex-wrap items-center gap-x-4 gap-y-1 -mt-5 mb-8 text-[10px] text-zinc-500">
+            <span className="flex items-center gap-1"><ConnectionDot kind="watcher" state="full" /> Watcher</span>
+            <span className="flex items-center gap-1"><ConnectionDot kind="bti" state="full" /> BTI</span>
+            <span className="flex items-center gap-1"><ConnectionDot kind="watcher" state="partial" /><ConnectionDot kind="bti" state="partial" /> partly connected</span>
+            <span>no dot = not connected yet</span>
+          </div>
+        )}
       </div>
       
       <div className="mb-10">

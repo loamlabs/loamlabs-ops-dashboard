@@ -8,6 +8,7 @@ import { RefreshCcw, RefreshCw, Search, Package, ShieldCheck, ShieldAlert, Plus,
 import ComponentLibrary from '../components/tabs/ComponentLibrary';
 import { findLegacyKeys } from '../lib/components-keys';
 import { hydrateRows, rowIdOf } from '../lib/component-rows';
+import { countConnections } from '../lib/vendor-connections';
 import Insights from '../components/tabs/Insights';
 import AdminModule from '../components/tabs/AdminModule';
 import ShopHealth from '../components/tabs/ShopHealth';
@@ -70,6 +71,7 @@ export default function OpsDashboard() {
   const [editingRule, setEditingRule] = useState(null);
   const [activeTab, setActiveTab] = useState('vendors');
   const [rules, setRules] = useState([]);
+  const [activeProductIds, setActiveProductIds] = useState(null);   // ids of ACTIVE store products, for the vendor connection dots (null until loaded: no dots yet)
   const [vendorLogos, setVendorLogos] = useState([]);
   const [password, setPassword] = useState(process.env.NEXT_PUBLIC_DASHBOARD_PASSWORD || '');
   const [isAuthorized, setIsAuthorized] = useState(false);
@@ -249,6 +251,8 @@ export default function OpsDashboard() {
     const names = new Set(rules.map(r => r.vendor_name).filter(Boolean));
     return Array.from(names).sort();
   }, [rules]);
+
+  const vendorConnections = React.useMemo(() => (activeProductIds ? countConnections(rules, activeProductIds) : null), [rules, activeProductIds]);
 
   const allUniqueRules = React.useMemo(() => {
     const seen = new Set();
@@ -693,6 +697,7 @@ return { isValid: missing.length === 0, missingFields: missing };
         const logoData = await logoRes.json();
         setVendorLogos(logoData.savedLogos || []);
         setIsAuthorized(true); 
+        fetch('/api/active-products', { headers: { 'x-dashboard-auth': auth } }).then(r => r.json()).then(d => { if (Array.isArray(d.ids)) setActiveProductIds(d.ids); }).catch(() => {});   // not awaited: the page never waits for the dots
         fetch('/api/get-metafield-definitions', { headers: { 'x-dashboard-auth': auth } }).then(r => r.json()).then(d => {
            if (d.success) {
                if (d.optionsDict) setMetafieldOptionsMap(d.optionsDict);
@@ -2773,7 +2778,7 @@ return { isValid: missing.length === 0, missingFields: missing };
       <main className="flex-grow ml-64 p-6 md:p-12 overflow-auto min-h-screen">
         
         {activeTab === 'vendors' ? (
-          <VendorWatcher {...{ filteredRules, rules, handleAutoImport, loading, runManualSync, fetchRules, selectedVendors, setSelectedVendors, visibleVendorNames, vendorLogos, toggleVendor, setVisibleCount, syncFilter, setSyncFilter, registrySearch, setRegistrySearch, selectedRules, setSelectedRules, bulkSetAutoSync, bulkSetPriceAdjust, bulkSetCompareAt, runSelectiveSync, setShowBulkEditModal, bulkDelete, bulkIgnore, paginatedRules, handleCheckboxClick, toggleAutoSync, setEditingRule, deleteRule, visibleCount, bulkApproveChanges }} />
+          <VendorWatcher {...{ vendorConnections, filteredRules, rules, handleAutoImport, loading, runManualSync, fetchRules, selectedVendors, setSelectedVendors, visibleVendorNames, vendorLogos, toggleVendor, setVisibleCount, syncFilter, setSyncFilter, registrySearch, setRegistrySearch, selectedRules, setSelectedRules, bulkSetAutoSync, bulkSetPriceAdjust, bulkSetCompareAt, runSelectiveSync, setShowBulkEditModal, bulkDelete, bulkIgnore, paginatedRules, handleCheckboxClick, toggleAutoSync, setEditingRule, deleteRule, visibleCount, bulkApproveChanges }} />
         ) : activeTab === 'bti_sync' ? (
           <BtiSync {...{ fetchRules, loading, runManualSync, selectedVendors, setSelectedVendors, visibleVendorNames, vendorLogos, toggleVendor, setVisibleCount, btiSyncFilter, setBtiSyncFilter, btiSearch, setBtiSearch, rules, visibleCount, setEditingRule }} />
         ) : activeTab === 'product_lab' ? (
