@@ -24,6 +24,7 @@ export default function SignatureBuildHubs() {
   const [runs, setRuns] = useState([]);
   const [undoText, setUndoText] = useState('');
   const [drift, setDrift] = useState(null);
+  const [rimTab, setRimTab] = useState(null);   // rim color shown in the table when the rim comes in two or more colors
 
   const headers = useCallback(() => ({ 'Content-Type': 'application/json', 'x-dashboard-auth': dash, 'x-signature-tool-key': key }), [dash, key]);
   useEffect(() => { try { setDash(localStorage.getItem('loam_ops_auth') || ''); setKey(sessionStorage.getItem('loam_sig_key') || ''); } catch (e) { /* ignore */ } }, []);
@@ -60,7 +61,9 @@ export default function SignatureBuildHubs() {
 
   const blocked = !plan || !plan.ok || plan.blockers.length > 0;
   const hubs = plan && plan.ok ? plan.product.options[1].values : [];
-  const cell = (hub, sp) => (plan.matrix || []).find((m) => m.hub === hub && m.spacing === sp);
+  const rimColours = plan ? [...new Set((plan.matrix || []).map((m) => m.rimColor).filter(Boolean))] : [];
+  const shownColour = rimColours.includes(rimTab) ? rimTab : rimColours[0];
+  const cell = (hub, sp) => (plan.matrix || []).find((m) => m.hub === hub && m.spacing === sp && (!shownColour || m.rimColor === shownColour));
   const droppedHubs = plan ? [...new Set((plan.dropped || []).filter((d) => d.spacing === null).map((d) => d.hub))] : [];
 
   return (
@@ -109,6 +112,7 @@ export default function SignatureBuildHubs() {
 
           <div style={box}>
             <b>Hub x spacing</b>: price, margin after labour, assembly per wheel. Type a hub price to override it for all its spacings, then Refresh preview.
+            {rimColours.length > 1 && <div style={{ margin: '6px 0' }}>Rim color (third option, {plan.variants.length} variants in all): {rimColours.map((rc) => <button key={rc} onClick={() => setRimTab(rc)} style={{ marginRight: 6, fontWeight: rc === shownColour ? 700 : 400 }}>{rc}</button>)}</div>}
             <table style={{ width: '100%', marginTop: 6, fontSize: 14, borderCollapse: 'collapse' }}>
               <thead><tr style={{ textAlign: 'left' }}><th>Hub</th><th>Your price (all spacings)</th>{['A', 'B', 'C', 'D'].map((s) => <th key={s}>{SPACING_LABEL[s]}</th>)}</tr></thead>
               <tbody>
