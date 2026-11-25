@@ -1,4 +1,5 @@
 // No Supabase needed here, only Shopify GraphQL
+import { clearCopyIdentifiers, SKU_NOTE } from '../../lib/clone-clear-sku';
 
 const SHOPIFY_DOMAIN = `${process.env.SHOPIFY_SHOP_NAME}.myshopify.com`;
 
@@ -143,11 +144,18 @@ export default async function handler(req, res) {
       }
     }
 
+    // 5. The copy must not share SKUs or barcodes with the original
+    const skuClear = await clearCopyIdentifiers({ newProductId: newProduct.id, shopifyQuery: (q, v) => shopifyQuery(q, v, SHOPIFY_TOKEN) });
+    const skuWarning = skuClear.failed.length > 0
+      ? ` WARNING: could not clear SKU/barcode on ${skuClear.failed.length} variant(s): ${skuClear.failed.slice(0, 5).map((f) => f.title || f.id || '?').join(', ')}. Clear them by hand before going live.`
+      : '';
+
     return res.status(200).json({ 
       success: true, 
       newProductId: newProduct.id,
       newHandle: newProduct.handle,
-      message: `Product duplicated and ${metafieldsToSet.length} metafields migrated.` 
+      skuClear,
+      message: `Product duplicated and ${metafieldsToSet.length} metafields migrated. ${SKU_NOTE}${skuWarning}` 
     });
 
   } catch (error) {
