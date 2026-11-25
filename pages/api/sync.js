@@ -12,6 +12,7 @@ import { decideOwner, isOneOwnerVendor } from '../../lib/ownership';
 import { decideReviewFlag } from '../../lib/review-flag';
 import { createFailureTracker } from '../../lib/vendor-page-failures';
 import { guardAfterWatcher } from '../../lib/guard-trigger';
+import { compareAtForPriceWrite } from '../../lib/compare-at';
 import { fetchVendorText, isPoliteRule, gapMs } from '../../lib/watcher-fetch';
 import { matchColourHoles, readProject321 } from '../../lib/watcher-project321';
 import { isPhilWood, matchPhilWood } from '../../lib/watcher-philwood';
@@ -1027,12 +1028,7 @@ const currentBtiFlag = variant.btiMonitor ? (variant.btiMonitor.value === 'true'
 
           if (needsPriceUpdate && rule.auto_update === true && !forceNeedsReview && (priceMode === 'auto' || priceMode === 'ask')) {
              updatePayloadForPrice.price = goalPrice;
-             const baseCompare = myCompare ? Number(myCompare) : 0;
-             if (baseCompare > Number(goalPrice)) {
-                updatePayloadForPrice.compare_at_price = myCompare;
-             } else {
-                updatePayloadForPrice.compare_at_price = goalPrice; 
-             }
+             updatePayloadForPrice.compare_at_price = compareAtForPriceWrite({ myPrice, goalPrice, myCompare, vendorName: rule.vendor_name, isDeepSale, btiManaged: !!ownership.managed });   // lib/compare-at.js: a price DROP clears the old strike-through
              shouldPutPrice = true;
              finalShopifyPriceNum = Number(goalPrice);
           }
