@@ -137,3 +137,20 @@ test('baseline mode and auto-approve-oos: a close asks for no approval; a normal
     assert.equal(S.closeNeedsApproval({ needsStockUpdate: true, stockAction: 'continue', rule: { tags: [] } }), false);
     assert.equal(S.closeNeedsApproval({ needsStockUpdate: false, stockAction: 'deny', rule: { tags: [] } }), false);
 });
+
+// Add-on parts (Nov 25): a rule with a colour and NO hole count matches a colour-only vendor page (G3 6-Lock Flange, endcap kits), never a hub page.
+test('P321 add-ons: colour-only rule matches a colour-only page, still never a hub page', () => {
+    const flange = [{ public_title: 'Silver' }, { public_title: 'Black' }, { public_title: 'Ultraviolet' }, { public_title: 'MTN Dew' }];
+    const P2 = require('../lib/watcher-project321');
+    assert.equal(P2.matchColourHoles(flange, { Color: 'Black' }).length, 1);
+    assert.equal(P2.matchColourHoles(flange, { Color: 'Ultra Violet' }).length, 1);
+    assert.equal(P2.matchColourHoles(flange, { Color: 'MTN Dew' }).length, 1);
+    assert.equal(P2.matchColourHoles(flange, { Color: 'Gold' }).length, 0);
+    assert.equal(P2.matchColourHoles([{ public_title: 'Black' }], { Color: 'Black' }).length, 1);   // torque endcap kit: one colour
+    const hub = [{ public_title: '28 / Black / XDR' }, { public_title: '32 / Black' }];
+    assert.equal(P2.matchColourHoles(hub, { Color: 'Black' }).length, 0);                          // no hole count in the rule: a hub page must not match
+    assert.equal(P2.matchColourHoles(hub, { 'Spoke Count': '28h', Color: 'Black' }).length, 1);    // unchanged
+    assert.equal(P2.matchColourHoles(flange, {}).length, 0);                                       // no colour: nothing
+    const r = P2.readProject321({ candidates: P2.matchColourHoles([{ public_title: 'Black', price: 1900, available: true }], { Color: 'Black' }), variants: [{ public_title: 'Black', price: 1900, available: true }], rule: { tags: ['stock-only'], option_values: { Color: 'Black' } } });
+    assert.equal(r.available, true);
+});
