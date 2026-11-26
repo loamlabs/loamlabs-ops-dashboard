@@ -13,6 +13,7 @@ import { decideReviewFlag } from '../../lib/review-flag';
 import { createFailureTracker } from '../../lib/vendor-page-failures';
 import { guardAfterWatcher } from '../../lib/guard-trigger';
 import { compareAtForPriceWrite } from '../../lib/compare-at';
+import { ruleVariantIdSet } from '../../lib/auto-discovery';
 import { fetchVendorText, isPoliteRule, gapMs } from '../../lib/watcher-fetch';
 import { matchColourHoles, readProject321 } from '../../lib/watcher-project321';
 import { isPhilWood, matchPhilWood } from '../../lib/watcher-philwood';
@@ -148,6 +149,7 @@ async function getShopifyVariant(adminToken, productId, variantId) {
 }
   
 async function runAutoDiscovery(adminToken, supabase, initialRules) {
+  const haveRule = ruleVariantIdSet(initialRules);   // every rule row counts as existing, with or without a vendor link (a link-less row means 'the vendor does not make it')
   const productMap = {};
   for (const rule of initialRules) {
     if (!rule.vendor_url) continue; // Skip BTI Sync products and anything without a Vendor URL
@@ -220,7 +222,7 @@ async function runAutoDiscovery(adminToken, supabase, initialRules) {
 
     const newVariants = [];
     for (const [vId, v] of shopifyVariants.entries()) {
-      if (!existingVariantIds.includes(vId)) {
+      if (!existingVariantIds.includes(vId) && !haveRule.has(vId)) {
         const mappedOptions = {};
         let packSize = 1;
         v.selectedOptions.forEach(opt => { 
