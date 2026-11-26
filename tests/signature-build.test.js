@@ -591,3 +591,42 @@ test('spoke lengths supplied: unchanged (checked, no warning); a half-filled one
   const link = await planOf(s, {}, s.world.recipe({ spokeLengths: { front: { left: 296, right: 301 }, rear: { left: 296, right: 298 } } }));
   assert.ok(codes(link.blockers).includes('SPOKE_LENGTH_NOT_FOUND'));
 });
+
+// ---------- spoke product not stocked by length (custom.deduct_length_stock = "No", Berd) ----------
+test('not stocked by length ("No"): lengths that do not exist as variants are no blocker, the master lists the builder variant, the cut lengths are kept', async () => {
+  const s = setup();
+  const r = s.world.recipe({ spokeLengths: { front: { left: 296, right: 301 }, rear: { left: 296, right: 298 } } }); // 301 has no variant
+  assert.ok(codes((await planOf(s, {}, r)).blockers).includes('SPOKE_LENGTH_NOT_FOUND'), 'blank setting: still blocks (today)');
+  s.world.P[400].meta = { ...(s.world.P[400].meta || {}), deduct_length_stock: ' no ' };
+  const plan = await planOf(s, {}, r);
+  assert.deepEqual(plan.blockers, []);
+  assert.deepEqual(plan.spokeLengths, { front: [296, 301], rear: [296, 298] }, 'lengths stay in the plan (and so in the order), they are just not stock-checked');
+  const comps = JSON.parse(plan.variant.metafields[0].value).components;
+  for (const role of ['spokes_front', 'spokes_rear']) {
+    const g = comps.find((c) => c.role === role);
+    assert.deepEqual(g.variants, [`gid://shopify/ProductVariant/${r.parts.frontSpokes}`]); assert.equal(g.mode, undefined);
+  }
+  assert.ok(plan.warnings.some((x) => x.code === 'SPOKE_LENGTH_STOCK_NOT_TRACKED'));
+  assert.ok(!plan.warnings.some((x) => x.code === 'SPOKE_LENGTHS_NOT_CHECKED'));
+  assert.equal(s.store.writes.length, 0);
+});
+
+test('not stocked by length: colours are judged on the builder variant only (out of stock builder = colour left out)', async () => {
+  const s = setup();
+  s.world.P[400].meta = { deduct_length_stock: 'No' };
+  const r = s.world.recipe();
+  const plan = await planOf(s, {}, r);
+  assert.deepEqual(plan.colours.spoke.offered.sort(), ['Black', 'Red', 'Silver']);
+  s.world.P[400].variants.find((v) => v.title === 'Silver / -').qty = 0;
+  const plan2 = await planOf(s, {}, r);
+  assert.ok(!plan2.colours.spoke.offered.includes('Silver'));
+});
+
+test('other values than "No" keep the length-variant behaviour', async () => {
+  for (const v of ['Yes', 'false', '', null]) {
+    const s = setup();
+    s.world.P[400].meta = { deduct_length_stock: v };
+    const plan = await planOf(s, {}, s.world.recipe({ spokeLengths: { front: { left: 296, right: 301 }, rear: { left: 296, right: 298 } } }));
+    assert.ok(codes(plan.blockers).includes('SPOKE_LENGTH_NOT_FOUND'), String(v));
+  }
+});
